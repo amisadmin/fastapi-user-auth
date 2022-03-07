@@ -4,8 +4,8 @@
   FastAPI-User-Auth
 </h2>
 <p align="center">
-    <em>fastapi-user-auth是一个简单而强大的FastAPI用户RBAC认证与授权库.</em><br/>
-    <em>基于fastapi-amis-admin并提供可自由拓展的可视化管理界面.</em>
+    <em>FastAPI-User-Auth是一个简单而强大的FastAPI用户RBAC认证与授权库.</em><br/>
+    <em>基于FastAPI-Amis-Admin并提供可自由拓展的可视化管理界面.</em>
 </p>
 <p align="center">
     <a href="https://github.com/amisadmin/fastapi_amis_admin/actions/workflows/pytest.yml" target="_blank">
@@ -33,9 +33,10 @@
   ·
   <a href="http://docs.gh.amis.work" target="_blank">文档打不开？</a>
 </p>
+
 ------
 
-`fastapi-user-auth`是一个基于 [FastAPI-Amis-Admin](https://github.com/amisadmin/fastapi_amis_admin) 的应用插件,与`fastapi-amis-admin`深度结合,为其提供用户认证与授权.
+`FastAPI-User-Auth`是一个基于 [FastAPI-Amis-Admin](https://github.com/amisadmin/fastapi_amis_admin) 的应用插件,与`fastapi-amis-admin`深度结合,为其提供用户认证与授权.
 
 
 

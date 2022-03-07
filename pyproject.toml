@@ -10,7 +10,7 @@ authors = [
 maintainers = [
     { name = "Atomi", email = "1456417373@qq.com" },
 ]
-description = "fastapi-amis-admin is a high-performance, efficient and easily extensible FastAPI admin framework. Inspired by Django-admin, and has as many powerful functions as Django-admin. "
+description = "FastAPI-User-Auth is a simple and powerful FastAPI user RBAC authentication and authorization library. Based on FastAPI-Amis-Admin and provides a freely extensible visual management interface."
 readme = "README.md"
 requires-python = ">=3.7"
 dynamic = ["version"]
@@ -34,9 +34,9 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
 ]
 dependencies = [
-    "fastapi-amis-admin",
-    "email-validator==1.1.3",
-    "passlib==1.7.4",
+    "fastapi-amis-admin>=0.0.18",
+    "email-validator",
+    "passlib",
     "bcrypt",
 ]
 
@@ -44,7 +44,8 @@ dependencies = [
 
 [project.urls]
 Documentation = "http://docs.amis.work/"
-Source = "https://github.com/amisadmin/fastapi-user-auth"
+Source = "https://github.com/amisadmin/fastapi_user_auth"
+FastAPI-Amis-Admin = "https://github.com/amisadmin/fastapi_amis_admin"
 
 [project.optional-dependencies]
 test = [
