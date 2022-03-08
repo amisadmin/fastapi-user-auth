@@ -10,9 +10,8 @@ app = FastAPI()
 
 #  创建auth实例
 
-db = get_db(db_name='test_fake_db.db')
 
-auth = Auth(db=db)
+auth = Auth(db=get_db())
 
 #  注册auth基础路由
 auth_router = AuthRouter(auth=auth)
@@ -22,10 +21,10 @@ app.include_router(auth_router.router)
 # 创建初始化数据库表
 @app.on_event("startup")
 async def startup():
-    async with db.engine.begin() as conn:
+    async with auth.db.engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.drop_all)
         await conn.run_sync(SQLModel.metadata.create_all)
-    async with db.session_maker() as session:
+    async with auth.db.session_maker() as session:
         await create_fake_data(session)
 
 

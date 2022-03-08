@@ -36,7 +36,7 @@
 
 ------
 
-`FastAPI-User-Auth`是一个基于 [FastAPI-Amis-Admin](https://github.com/amisadmin/fastapi_amis_admin) 的应用插件,与`fastapi-amis-admin`深度结合,为其提供用户认证与授权.
+`FastAPI-User-Auth`是一个基于 [FastAPI-Amis-Admin](https://github.com/amisadmin/fastapi_amis_admin) 的应用插件,与`FastAPI-Amis-Admin`深度结合,为其提供用户认证与授权.
 
 
 

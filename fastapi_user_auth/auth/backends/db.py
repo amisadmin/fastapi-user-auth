@@ -12,7 +12,7 @@ from ..models import SQLModelTable
 
 class TokenStoreModel(SQLModelTable, table=True):
     __tablename__ = 'auth_token'
-    token: str = Field(..., max_length=32, sa_column=Column(String(32), unique=True, index=True, nullable=False))
+    token: str = Field(..., max_length=48, sa_column=Column(String(48), unique=True, index=True, nullable=False))
     data: str = Field(default='')
     create_time: datetime = Field(default_factory=datetime.utcnow)
 

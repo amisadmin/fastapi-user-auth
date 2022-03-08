@@ -81,7 +81,6 @@ class Auth(Generic[_UserModelT]):
 
     async def authenticate_user(self, username: str, password: str) -> Optional[_UserModelT]:
         user = await self.get_user_by_username(username)
-        print('password',password, user.password)
         if user and self.pwd_context.verify(password, user.password):  # 用户存在 且 密码验证通过
             return user
         return None

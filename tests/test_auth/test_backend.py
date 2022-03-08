@@ -5,6 +5,7 @@ from sqlmodel import SQLModel
 from fastapi_user_auth.auth.backends.db import DbTokenStore
 from fastapi_user_auth.auth.backends.jwt import JwtTokenStore
 from fastapi_user_auth.auth.schemas import BaseTokenData
+from tests.test_auth.db import get_db
 
 token_data = BaseTokenData(id=1, username='test')
 
@@ -22,9 +23,8 @@ async def test_jwt_token_store():
 
 @pytest.mark.asyncio
 async def test_db_token_store():
-    db = SqlalchemyAsyncClient(create_async_engine('sqlite+aiosqlite:///test_db_token_store.db', future=True))
+    db = get_db()
     async with db.engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.drop_all)
         await conn.run_sync(SQLModel.metadata.create_all)
     store = DbTokenStore(db)
     token = await store.write_token(token_data)

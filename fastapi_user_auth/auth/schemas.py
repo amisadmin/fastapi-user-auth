@@ -21,7 +21,6 @@ class UserRegIn(UserUsername, UserPassword, UserEmail):
 
     @validator('password2')
     def passwords_match(cls, v, values, **kwargs):
-        print(v, values)
         if 'password' in values and v != values['password']:
             raise ValueError('passwords do not match!')
         return v

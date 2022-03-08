@@ -19,6 +19,8 @@ keywords = [
     "fastapi-user-auth",
     "fastapi-amis-admin",
     "fastapi-auth",
+    "fastapi-users",
+    "fastapi-jwt-auth",
     "sqlmodel",
 ]
 classifiers = [
