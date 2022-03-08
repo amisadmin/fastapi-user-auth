@@ -212,7 +212,7 @@ from fastapi_user_auth.auth.backends.jwt import JwtTokenStore
 from sqlalchemy.ext.asyncio import create_async_engine
 from fastapi_amis_admin.utils.db import SqlalchemyAsyncClient
 # 创建异步数据库引擎
-engine = create_async_engine(database_url_async='sqlite+aiosqlite:///admisadmin.db', future=True)
+engine = create_async_engine(url='sqlite+aiosqlite:///admisadmin.db', future=True)
 # 使用`JwtTokenStore`创建auth对象
 auth = Auth(db=SqlalchemyAsyncClient(engine),
             token_store=JwtTokenStore(secret_key='09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7'))
