@@ -242,6 +242,20 @@ auth = Auth(db=SqlalchemyAsyncClient(engine),
             token_store=RedisTokenStore(redis=Redis.from_url('redis://localhost?db=0')))
 ```
 
+## RBAC模型
+
+本系统采用的`RBAC`模型如下, 你也可以根据自己的需求进行拓展.
+
+- 参考: [权限系统的设计](https://blog.csdn.net/qq_25889465/article/details/98473611)
+
+```mermaid
+flowchart LR
+	 User -. m:n .-> Group 
+	 User -. m:n .-> Role 
+     Group -. m:n .-> Role 
+	 Role -. m:n .-> Perimission 
+```
+
 
 
 
