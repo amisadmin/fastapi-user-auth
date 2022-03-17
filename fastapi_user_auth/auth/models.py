@@ -1,10 +1,10 @@
 from datetime import datetime
-from typing import Optional, List, Union, Any
-from pydantic import EmailStr
-from sqlalchemy import Column, String, or_, and_
-from sqlmodel import SQLModel, Relationship, select
+from typing import Optional, List, Any
 from fastapi_amis_admin.amis.components import InputImage, ColumnImage
 from fastapi_amis_admin.models.fields import Field
+from pydantic import EmailStr, SecretStr
+from sqlalchemy import Column, String, and_
+from sqlmodel import SQLModel, Relationship, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.sql.expression import SelectOfScalar
 
@@ -54,17 +54,28 @@ class RolePermissionLink(SQLModel, table=True):
 
 
 class UserUsername(SQLModel):
-    username: str = Field(title='用户名', max_length=32,
-                          sa_column=Column(String(32), unique=True, index=True, nullable=False))
+    username: str = Field(
+        title='用户名', max_length=32,
+        sa_column=Column(String(32), unique=True, index=True, nullable=False)
+    )
 
+class PasswordStr(SecretStr,str):
+    pass
 
 class UserPassword(SQLModel):
-    password: str = Field(title='密码', max_length=128, amis_form_item='input-password')
+    password: PasswordStr = Field(
+        title='密码', max_length=128,
+        sa_column=Column(String(128), nullable=False),
+        amis_form_item='input-password'
+    )
 
 
 class UserEmail(SQLModel):
-    email: EmailStr = Field(title='邮箱', sa_column=Column(String(50), unique=True, index=True, nullable=False),
-                            amis_form_item='input-email')
+    email: EmailStr = Field(
+        title='邮箱',
+        sa_column=Column(String(50), unique=True, index=True, nullable=False),
+        amis_form_item='input-email'
+    )
 
 
 class BaseUser(UserEmail, UserPassword, UserUsername, SQLModelTable):
@@ -95,15 +106,14 @@ class BaseUser(UserEmail, UserPassword, UserUsername, SQLModelTable):
     def _stmt_exists_role(self, *role_whereclause: Any) -> SelectOfScalar[int]:
         # check user role
         user_role_ids = select(Role.id).join(
-            UserRoleLink, and_(UserRoleLink.user_id == self.id, UserRoleLink.role_id == Role.id)  # type:ignore
+            UserRoleLink, (UserRoleLink.user_id == self.id) & (UserRoleLink.role_id == Role.id)
         ).where(*role_whereclause)
         # check user group
         role_group_ids = select(GroupRoleLink.group_id).join(
             Role, and_(*role_whereclause, Role.id == GroupRoleLink.role_id))
         group_user_ids = select(UserGroupLink.user_id).where(UserGroupLink.user_id == self.id).where(
             UserGroupLink.group_id.in_(role_group_ids))
-        stmt = select(1).where(or_(user_role_ids.exists(), group_user_ids.exists()))
-        return stmt
+        return select(1).where(user_role_ids.exists() | group_user_ids.exists())
 
     async def has_role(self, roles: List[str], session: AsyncSession) -> bool:
         """
@@ -124,7 +134,7 @@ class BaseUser(UserEmail, UserPassword, UserUsername, SQLModelTable):
         @return:
         """
         group_ids = select(Group.id).join(
-            UserGroupLink, and_(UserGroupLink.user_id == self.id, UserGroupLink.group_id == Group.id)  # type:ignore
+            UserGroupLink, (UserGroupLink.user_id == self.id) & (UserGroupLink.group_id == Group.id)
         ).where(Group.key.in_(groups))
         stmt = select(1).where(group_ids.exists())
         result = await session.execute(stmt)
@@ -138,7 +148,7 @@ class BaseUser(UserEmail, UserPassword, UserUsername, SQLModelTable):
         @return:
         """
         role_ids = select(RolePermissionLink.role_id).join(
-            Permission, and_(Permission.key.in_(permissions), Permission.id == RolePermissionLink.permission_id))
+            Permission, Permission.key.in_(permissions) & (Permission.id == RolePermissionLink.permission_id))
         stmt = self._stmt_exists_role(Role.id.in_(role_ids))
         result = await session.execute(stmt)
         return result.one_or_none() is not None

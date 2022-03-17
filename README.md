@@ -12,16 +12,16 @@
         <img src="https://github.com/amisadmin/fastapi_amis_admin/actions/workflows/pytest.yml/badge.svg" alt="Pytest">
     </a>
     <a href="https://pypi.org/project/fastapi_user_auth" target="_blank">
-        <img src="https://img.shields.io/pypi/v/fastapi-user-auth?color=blue" alt="Package version">
+        <img src="https://badgen.net/pypi/v/fastapi-user-auth?color=blue" alt="Package version">
     </a>
-    <a href="https://pepy.tech/project/fastapi-amis-admin" target="_blank">
-        <img src="https://pepy.tech/badge/fastapi-amis-admin/month" alt="Downloads">
+    <a href="https://pepy.tech/project/fastapi-user-auth" target="_blank">
+        <img src="https://pepy.tech/badge/fastapi-user-auth" alt="Downloads">
     </a>
     <a href="https://gitter.im/amisadmin/fastapi-amis-admin">
         <img src="https://badges.gitter.im/amisadmin/fastapi-amis-admin.svg" alt="Chat on Gitter"/>
     </a>
     <a href="https://jq.qq.com/?_wv=1027&k=U4Dv6x8W" target="_blank">
-        <img src="https://img.shields.io/badge/qq群-229036692-orange" alt="229036692">
+        <img src="https://badgen.net/badge/qq%E7%BE%A4/229036692/orange" alt="229036692">
     </a>
 </p>
 <p align="center">
@@ -283,4 +283,12 @@ flowchart LR
 ## 许可协议
 
 - `fastapi-amis-admin`基于`Apache2.0`开源免费使用，可以免费用于商业用途，但请在展示界面中明确显示关于FastAPI-Amis-Admin的版权信息.
+
+## 鸣谢
+
+感谢以下开发者对 FastAPI-User-Auth 作出的贡献：
+
+<a href="https://github.com/amisadmin/fastapi_user_auth/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=amisadmin/fastapi_user_auth" />
+</a>
 

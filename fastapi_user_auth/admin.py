@@ -107,8 +107,9 @@ class UserRegFormAdmin(FormAdmin):
         if user:
             return BaseApiOut(status=-2, msg='邮箱已注册!', data=None)
         user = self.user_model.parse_obj(data)
-        user.password = request.auth.pwd_context.hash(user.password)  # 密码hash保存
-        stmt = insert(self.user_model).values(user.dict(exclude={'id'}))
+        values = user.dict(exclude={'id', 'password'})
+        values['password'] = request.auth.pwd_context.hash(user.password.get_secret_value())  # 密码hash保存
+        stmt = insert(self.user_model).values(values)
         try:
             async with request.auth.db.session_maker() as session:
                 result = await session.execute(stmt)
@@ -116,7 +117,7 @@ class UserRegFormAdmin(FormAdmin):
                     await session.commit()
                     user.id = result.lastrowid  # type: ignore
         except Exception as e:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR) from e
         # 注册成功,设置用户信息
         token_info = self.schema_submit_out.parse_obj(user)
         auth: Auth = request.auth
@@ -127,7 +128,7 @@ class UserRegFormAdmin(FormAdmin):
     def route_submit(self):
         async def route(response: Response, result: BaseApiOut = Depends(super().route_submit)):
             if result.status == 0 and result.code == 0:  # 登录成功,设置用户信息
-                response.set_cookie('Authorization', 'bearer ' + result.data.access_token)
+                response.set_cookie('Authorization', f'bearer {result.data.access_token}' )
             return result
 
         return route

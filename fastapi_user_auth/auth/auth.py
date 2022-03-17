@@ -12,7 +12,7 @@ from fastapi_amis_admin.crud.utils import schema_create_by_schema
 from fastapi_amis_admin.utils.db import SqlalchemyAsyncClient
 from fastapi_amis_admin.utils.functools import cached_property
 from passlib.context import CryptContext
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.authentication import AuthenticationBackend
@@ -35,13 +35,20 @@ class AuthBackend(AuthenticationBackend, Generic[_UserModelT]):
         self.auth = auth
         self.token_store = token_store
 
+    @staticmethod
+    def get_user_token(request: Request) -> Optional[str]:
+        authorization: str = request.headers.get("Authorization") or request.cookies.get("Authorization")
+        scheme, token = get_authorization_scheme_param(authorization)
+        if not authorization or scheme.lower() != "bearer":
+            return None
+        return token
+
     async def authenticate(self, request: Request) -> Tuple["Auth", Optional[_UserModelT]]:
         if request.scope.get('auth'):  # 防止重复授权
             return request.scope.get('auth'), request.scope.get('user')
         request.scope["auth"], request.scope["user"] = self.auth, None
-        authorization: str = request.headers.get("Authorization") or request.cookies.get("Authorization")
-        scheme, token = get_authorization_scheme_param(authorization)
-        if not authorization or scheme.lower() != "bearer":
+        token = self.get_user_token(request)
+        if not token:
             return self.auth, None
         token_data = await self.token_store.read_token(token)
         if token_data is not None:
@@ -79,9 +86,11 @@ class Auth(Generic[_UserModelT]):
             user = await session.scalar(select(self.user_model).where(*whereclause))
         return user
 
-    async def authenticate_user(self, username: str, password: str) -> Optional[_UserModelT]:
+    async def authenticate_user(self, username: str, password: Union[str, SecretStr]) -> Optional[_UserModelT]:
         user = await self.get_user_by_username(username)
-        if user and self.pwd_context.verify(password, user.password):  # 用户存在 且 密码验证通过
+        pwd = password.get_secret_value() if isinstance(password, SecretStr) else password
+        pwd2 = user.password.get_secret_value() if isinstance(user.password, SecretStr) else user.password
+        if user and self.pwd_context.verify(pwd, pwd2):  # 用户存在 且 密码验证通过
             return user
         return None
 
@@ -92,7 +101,7 @@ class Auth(Generic[_UserModelT]):
                  status_code: int = 403,
                  redirect: str = None,
                  response: Optional[Union[Response, bool]] = None,
-                 ) -> Callable:
+                 ) -> Callable:  # sourcery no-metrics
 
         async def has_requires(conn: HTTPConnection):
             # todo websocket support
@@ -193,7 +202,7 @@ class Auth(Generic[_UserModelT]):
             # create admin role
             role = await session.scalar(select(Role).where(Role.key == role_key))
             if not role:
-                role = Role(key=role_key, name=role_key + ' role')
+                role = Role(key=role_key, name=f'{role_key} role')
                 session.add(role)
                 await session.commit()
                 await session.refresh(role)
@@ -202,8 +211,12 @@ class Auth(Generic[_UserModelT]):
             user = await session.scalar(
                 select(User).join(UserRoleLink).where(UserRoleLink.role_id == role.id))
             if not user:
-                user = User(username=role_key, password=self.pwd_context.hash(role_key),
-                            email=role_key + '@amis.work', roles=[role])
+                user = User(
+                    username=role_key,
+                    password=self.pwd_context.hash(role_key),
+                    email=f'{role_key}@amis.work', # type:ignore
+                    roles=[role],
+                )
                 session.add(user)
                 await session.commit()
                 await session.refresh(user)
@@ -257,15 +270,11 @@ class AuthRouter(RouterMixin):
                 return BaseApiOut(status=-1, msg='Incorrect username or password!')
             token_info = self.schema_user_login_out.parse_obj(request.user)
             token_info.access_token = await request.auth.backend.token_store.write_token(request.user.dict())
-            response.set_cookie('Authorization', 'bearer ' + token_info.access_token)
+            response.set_cookie('Authorization', f'bearer {token_info.access_token}')
             return BaseApiOut(data=token_info)
 
         return oauth_token
 
     class OAuth2(OAuth2PasswordBearer):
         async def __call__(self, request: Request) -> Optional[str]:
-            authorization: str = request.headers.get("Authorization") or request.cookies.get("Authorization")
-            scheme, param = get_authorization_scheme_param(authorization)
-            if not authorization or scheme.lower() != "bearer":
-                return None
-            return param
+            return AuthBackend.get_user_token(request)
