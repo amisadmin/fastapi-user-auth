@@ -27,4 +27,4 @@ class RedisTokenStore(BaseTokenStore):
         await self.redis.delete(self.get_key(token))
 
     def get_key(self, token:str):
-        return 'auth:token:' + token
+        return f'auth:token:{token}'
