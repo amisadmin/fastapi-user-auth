@@ -236,14 +236,14 @@ class AuthRouter(RouterMixin):
         self.schema_user_info = self.schema_user_info \
                                 or schema_create_by_schema(self.auth.user_model, 'UserInfo', exclude={'password'})
 
-        self.router.add_api_route('/userinfo', self.router_userinfo, methods=["GET"], description='用户信息',
+        self.router.add_api_route('/userinfo', self.route_userinfo, methods=["GET"], description='用户信息',
                                   dependencies=None, response_model=BaseApiOut[self.schema_user_info])
-        self.router.add_api_route('/logout', self.router_user_logout, methods=["GET"], description='退出登录',
+        self.router.add_api_route('/logout', self.route_logout, methods=["GET"], description='退出登录',
                                   dependencies=None, response_model=BaseApiOut)
         # oauth2
         self.router.dependencies.append(
             Depends(self.OAuth2(tokenUrl=f"{self.router_path}/gettoken", auto_error=False)))
-        self.router.add_api_route('/gettoken', self.router_token, methods=["POST"], description='OAuth2 Token',
+        self.router.add_api_route('/gettoken', self.route_gettoken, methods=["POST"], description='OAuth2 Token',
                                   response_model=BaseApiOut[self.schema_user_login_out])
 
     @cached_property
@@ -251,7 +251,7 @@ class AuthRouter(RouterMixin):
         return self.router.prefix
 
     @property
-    def router_userinfo(self):
+    def route_userinfo(self):
         @self.auth.requires()
         async def userinfo(request: Request):
             return BaseApiOut(data=request.user)
@@ -259,7 +259,7 @@ class AuthRouter(RouterMixin):
         return userinfo
 
     @property
-    def router_user_logout(self):
+    def route_logout(self):
         @self.auth.requires()
         async def user_logout(request: Request, response: Response):
             token_value = request.auth.backend.get_user_token(request=request)
@@ -273,7 +273,7 @@ class AuthRouter(RouterMixin):
         return user_logout
 
     @property
-    def router_token(self):
+    def route_gettoken(self):
         async def oauth_token(request: Request,
                               response: Response,
                               username: str = Form(...),
