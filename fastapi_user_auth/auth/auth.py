@@ -72,8 +72,7 @@ class Auth(Generic[_UserModelT]):
         self.user_model = user_model or self.user_model
         assert self.user_model, 'user_model is None'
         self.db = db or self.db
-        token_store = token_store or DbTokenStore(self.db)
-        self.backend = self.backend or AuthBackend(self, token_store)
+        self.backend = self.backend or AuthBackend(self, token_store or DbTokenStore(self.db))
         self.pwd_context = pwd_context
 
     async def get_user_by_username(self, username: str) -> Optional[_UserModelT]:
@@ -93,9 +92,6 @@ class Auth(Generic[_UserModelT]):
         if user and self.pwd_context.verify(pwd, pwd2):  # 用户存在 且 密码验证通过
             return user
         return None
-    
-    async def delete_user_token(self, token: str):
-        await self.token_store.destroy_token(token=token)
 
     def requires(self,
                  roles: Union[str, Sequence[str]] = None,
@@ -217,7 +213,7 @@ class Auth(Generic[_UserModelT]):
                 user = User(
                     username=role_key,
                     password=self.pwd_context.hash(role_key),
-                    email=f'{role_key}@amis.work', # type:ignore
+                    email=f'{role_key}@amis.work',  # type:ignore
                     roles=[role],
                 )
                 session.add(user)
@@ -242,7 +238,7 @@ class AuthRouter(RouterMixin):
 
         self.router.add_api_route('/userinfo', self.router_userinfo, methods=["GET"], description='用户信息',
                                   dependencies=None, response_model=BaseApiOut[self.schema_user_info])
-        self.router.add_api_route('/logout', self.router_user_logout, methods=["POST"], description='退出登录',
+        self.router.add_api_route('/logout', self.router_user_logout, methods=["GET"], description='退出登录',
                                   dependencies=None, response_model=BaseApiOut)
         # oauth2
         self.router.dependencies.append(
@@ -261,19 +257,18 @@ class AuthRouter(RouterMixin):
             return BaseApiOut(data=request.user)
 
         return userinfo
-    
+
     @property
     def router_user_logout(self):
         @self.auth.requires()
-        async def user_logout(request: Request):
-            token_value = AuthBackend.get_user_token(request=request)
-            if token_value is None:
-                return BaseApiOut(status=-2, msg="token dose not exist")
+        async def user_logout(request: Request, response: Response):
+            token_value = request.auth.backend.get_user_token(request=request)
             try:
-                await self.auth.delete_user_token(token=token_value)
-            except Exception as e:
+                await self.auth.backend.token_store.destroy_token(token=token_value)
+            except Exception as e:  # jwt
                 return BaseApiOut(status=-1, msg=str(e))
-            return BaseApiOut()
+            response.delete_cookie('Authorization')
+            return RedirectResponse(url='/')
 
         return user_logout
 
@@ -297,4 +292,4 @@ class AuthRouter(RouterMixin):
 
     class OAuth2(OAuth2PasswordBearer):
         async def __call__(self, request: Request) -> Optional[str]:
-            return AuthBackend.get_user_token(request)
+            return request.auth.backend.get_user_token(request)

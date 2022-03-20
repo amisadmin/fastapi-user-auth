@@ -6,7 +6,7 @@ from fastapi_amis_admin.amis.constants import LevelEnum, DisplayModeEnum
 from fastapi_amis_admin.amis_admin.admin import FormAdmin, ModelAdmin
 from fastapi_amis_admin.crud.schema import BaseApiOut
 from pydantic import BaseModel
-from sqlalchemy import insert
+from sqlalchemy import insert, update
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
@@ -128,7 +128,7 @@ class UserRegFormAdmin(FormAdmin):
     def route_submit(self):
         async def route(response: Response, result: BaseApiOut = Depends(super().route_submit)):
             if result.status == 0 and result.code == 0:  # 登录成功,设置用户信息
-                response.set_cookie('Authorization', f'bearer {result.data.access_token}' )
+                response.set_cookie('Authorization', f'bearer {result.data.access_token}')
             return result
 
         return route
@@ -154,6 +154,45 @@ class UserRegFormAdmin(FormAdmin):
 
     async def has_page_permission(self, request: Request) -> bool:
         return True
+
+
+class UserInfoFormAdmin(FormAdmin):
+    page_schema = None
+    group_schema = None
+    user_model: Type[BaseUser] = User
+    page = Page(title='用户信息')
+    page_path = '/userinfo'
+    schema: Type[BaseModel] = None
+    schema_submit_out: Type[BaseUser] = None
+    form_init = True
+    form = Form(mode=DisplayModeEnum.horizontal)
+
+    async def get_init_data(self, request: Request, **kwargs) -> BaseApiOut[Any]:
+        return BaseApiOut(data=request.user.dict(exclude={'password'}))
+
+    async def get_form(self, request: Request) -> Form:
+        form = await super().get_form(request)
+        formitems = [
+            await self.get_form_item(request, modelfield)
+            for k, modelfield in self.user_model.__fields__.items()
+            if k not in self.schema.__fields__ and k != 'password'
+        ]
+        form.body.extend(
+            formitem.update_from_kwargs(disabled=True)
+            for formitem in formitems
+            if formitem
+        )
+        return form
+
+    async def handle(self, request: Request, data: BaseModel, **kwargs) -> BaseApiOut[Any]:
+        stmt = update(self.user_model).where(self.user_model.username == request.user.username).values(data.dict())
+        async with self.site.db.session_maker() as session:
+            await session.execute(stmt)
+            await session.commit()
+        return BaseApiOut(data={**request.user.dict(), **data.dict()})
+
+    async def has_page_permission(self, request: Request) -> bool:
+        return await self.site.auth.requires(response=False)(request)
 
 
 class UserAdmin(ModelAdmin):
