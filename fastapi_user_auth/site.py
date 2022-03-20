@@ -29,7 +29,8 @@ class AuthAdminSite(AdminSite):
 
     async def get_page(self, request: Request) -> App:
         app = await super().get_page(request)
-        user_items = {
+        user_auth_app = self.create_admin_instance(self.UserAuthApp)
+        app.header = Flex(className="w-full", justify='flex-end', alignItems='flex-end', items=[app.header, {
             "type": "dropdown-button",
             "label": f"{request.user.username}",
             "trigger": "hover",
@@ -38,14 +39,14 @@ class AuthAdminSite(AdminSite):
                 ActionType.Dialog(label='个人信息',
                                   dialog=Dialog(title='个人信息', actions=[], size=SizeEnum.lg,
                                                 body=Service(
-                                                    schemaApi=AmisAPI(method='get', url="/admin/auth/form/userinfo",
+                                                    schemaApi=AmisAPI(method='get',
+                                                                      url=f"{user_auth_app.router_path}/form/userinfo",
                                                                       cache=20000,
                                                                       responseData={'&': '${body}'})))),
                 ActionType.Url(label='退出登录',
-                               url='/admin/auth/logout')
+                               url=f"{user_auth_app.router_path}/logout")
             ]
-        }
-        app.header = Flex(className="w-full", justify='flex-end', alignItems='flex-end', items=[app.header, user_items])
+        }])
         return app
 
     async def has_page_permission(self, request: Request) -> bool:
