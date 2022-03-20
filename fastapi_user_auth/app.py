@@ -33,7 +33,7 @@ class UserAuthApp(AdminApp, AuthRouter):
                                                                   include={'username', 'password', 'email'})
         self.UserRegFormAdmin.schema_submit_out = self.UserRegFormAdmin.schema_submit_out or self.schema_user_login_out
         self.UserInfoFormAdmin.schema = self.UserInfoFormAdmin.schema \
-                                        or schema_create_by_schema(self.auth.user_model, 'UserInfo',
+                                        or schema_create_by_schema(self.auth.user_model, 'UserInfoForm',
                                                                    exclude={'id', 'username', 'password', 'is_active',
                                                                             'parent_id', 'point', 'create_time'})
         self.UserInfoFormAdmin.schema_submit_out = self.UserInfoFormAdmin.schema_submit_out or self.schema_user_info
