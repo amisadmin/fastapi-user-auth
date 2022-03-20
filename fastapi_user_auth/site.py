@@ -1,6 +1,8 @@
-import fastapi_amis_admin
+from typing import Type
 from fastapi import FastAPI
-from fastapi_amis_admin.amis.components import Flex, Tpl
+from fastapi_amis_admin.amis.components import Flex, App, Service, ActionType, Dialog
+from fastapi_amis_admin.amis.constants import SizeEnum
+from fastapi_amis_admin.amis.types import AmisAPI
 from fastapi_amis_admin.amis_admin.settings import Settings
 from fastapi_amis_admin.amis_admin.site import AdminSite
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -11,6 +13,7 @@ from fastapi_user_auth.auth import Auth
 
 class AuthAdminSite(AdminSite):
     auth: Auth = None
+    UserAuthApp: Type[UserAuthApp] = UserAuthApp
 
     def __init__(
             self,
@@ -21,9 +24,9 @@ class AuthAdminSite(AdminSite):
     ):
         super().__init__(settings, fastapi, engine)
         self.auth = auth or self.auth or Auth(db=self.db)
-        UserAuthApp.auth = self.auth
-        self.register_admin(UserAuthApp)
-    
+        self.UserAuthApp.auth = self.auth
+        self.register_admin(self.UserAuthApp)
+
     async def get_page(self, request: Request) -> App:
         app = await super().get_page(request)
         user_items = {
@@ -32,28 +35,18 @@ class AuthAdminSite(AdminSite):
             "trigger": "hover",
             "icon": "fa fa-user",
             "buttons": [
-                {
-                    "type": "button",
-                    "label": "个人信息"
-                },
-                {
-                    "type": "button",
-                    "label": "退出登录"
-                }
+                ActionType.Dialog(label='个人信息',
+                                  dialog=Dialog(title='个人信息', actions=[], size=SizeEnum.lg,
+                                                body=Service(
+                                                    schemaApi=AmisAPI(method='get', url="/admin/auth/form/userinfo",
+                                                                      cache=20000,
+                                                                      responseData={'&': '${body}'})))),
+                ActionType.Url(label='退出登录',
+                               url='/admin/auth/logout')
             ]
         }
-        copyright_info = Tpl(style={"margin-left": 5},
-                             tpl=f"""
-                                     <div class="flex justify-between">
-                                        <div>
-                                            <a href="{fastapi_amis_admin.__url__}" target="_blank"'title="版权信息,不可删除!">
-                                                <i class="fa fa-github fa-2x"></i>
-                                            </a>
-                                        </div>
-                                    </div>
-                                  """
-                             )
-        app.header = Flex(className="w-full", justify='flex-end', alignItems='flex-end', items=[user_items, copyright_info])
+        app.header = Flex(className="w-full", justify='flex-end', alignItems='flex-end', items=[app.header, user_items])
+        return app
 
     async def has_page_permission(self, request: Request) -> bool:
         return await self.auth.requires(response=False)(request)
