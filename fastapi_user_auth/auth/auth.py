@@ -266,7 +266,7 @@ class AuthRouter(RouterMixin):
             try:
                 await self.auth.backend.token_store.destroy_token(token=token_value)
             except Exception as e:  # jwt
-                return BaseApiOut(status=-1, msg=str(e))
+                pass
             response.delete_cookie('Authorization')
             return RedirectResponse(url='/')
 

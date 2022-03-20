@@ -27,7 +27,7 @@
 <p align="center">
   <a href="https://github.com/amisadmin/fastapi_user_auth" target="_blank">源码</a>
   ·
-  <a href="http://demo.amis.work/admin" target="_blank">在线演示</a>
+  <a href="http://user-auth.demo.amis.work/" target="_blank">在线演示</a>
   ·
   <a href="http://docs.amis.work" target="_blank">文档</a>
   ·
@@ -36,9 +36,8 @@
 
 ------
 
-`FastAPI-User-Auth`是一个基于 [FastAPI-Amis-Admin](https://github.com/amisadmin/fastapi_amis_admin) 的应用插件,与`FastAPI-Amis-Admin`深度结合,为其提供用户认证与授权.
-
-
+`FastAPI-User-Auth`是一个基于 [FastAPI-Amis-Admin](https://github.com/amisadmin/fastapi_amis_admin)
+的应用插件,与`FastAPI-Amis-Admin`深度结合,为其提供用户认证与授权.
 
 ## 安装
 
@@ -63,6 +62,7 @@ auth = site.auth
 # 挂载后台管理系统
 site.mount_app(app)
 
+
 # 创建初始化数据库表
 @app.on_event("startup")
 async def startup():
@@ -71,14 +71,17 @@ async def startup():
     await auth.create_role_user('admin')
     await auth.create_role_user('vip')
 
+
 # 要求: 用户必须登录
 @app.get("/auth/get_user")
 @auth.requires()
 def get_user(request: Request):
     return request.user
 
+
 if __name__ == '__main__':
     import uvicorn
+
     uvicorn.run(app, debug=True)
 
 ```
@@ -194,13 +197,15 @@ auth.backend.attach_middleware(app)
 ```python
 from fastapi_user_auth.auth.models import User
 
-async def get_request_user(request: Request)->Optional[User]:
+
+async def get_request_user(request: Request) -> Optional[User]:
     if await auth.requires('admin', response=False)(request):
         return request.user
     else:
         return None
 
 ```
+
 ## Token存储后端
 
 `fastapi-user-auth` 支持多种token存储方式.默认为: `DbTokenStore`, 建议自定义修改为: `JwtTokenStore`
@@ -211,6 +216,7 @@ async def get_request_user(request: Request)->Optional[User]:
 from fastapi_user_auth.auth.backends.jwt import JwtTokenStore
 from sqlalchemy.ext.asyncio import create_async_engine
 from fastapi_amis_admin.utils.db import SqlalchemyAsyncClient
+
 # 创建异步数据库引擎
 engine = create_async_engine(url='sqlite+aiosqlite:///admisadmin.db', future=True)
 # 使用`JwtTokenStore`创建auth对象
@@ -228,6 +234,7 @@ site = AuthAdminSite(settings=Settings(database_url_async='sqlite+aiosqlite:///a
 ```python
 # 使用`DbTokenStore`创建auth对象
 from fastapi_user_auth.auth.backends.db import DbTokenStore
+
 auth = Auth(db=SqlalchemyAsyncClient(engine),
             token_store=DbTokenStore(db=SqlalchemyAsyncClient(engine)))
 ```
@@ -238,6 +245,7 @@ auth = Auth(db=SqlalchemyAsyncClient(engine),
 # 使用`RedisTokenStore`创建auth对象
 from fastapi_user_auth.auth.backends.redis import RedisTokenStore
 from aioredis import Redis
+
 auth = Auth(db=SqlalchemyAsyncClient(engine),
             token_store=RedisTokenStore(redis=Redis.from_url('redis://localhost?db=0')))
 ```
@@ -256,29 +264,25 @@ flowchart LR
 	 Role -. m:n .-> Perimission 
 ```
 
-
-
-
 ## 界面预览
 
 - Open `http://127.0.0.1:8000/admin/auth/form/login` in your browser:
 
-![Login](https://raw.githubusercontent.com/amisadmin/fastapi_amis_admin_demo/master/upload/img/fastapi-user-auth-login.png)
+![Login](https://s2.loli.net/2022/03/20/SZy6sjaVlBT8gin.png)
 
 - Open `http://127.0.0.1:8000/admin/` in your browser:
 
-![Admin](https://raw.githubusercontent.com/amisadmin/fastapi_amis_admin_demo/master/upload/img/fastapi-user-auth-admin.png)
+![ModelAdmin](https://s2.loli.net/2022/03/20/ItgFYGUONm1jCz5.png)
 
 - Open `http://127.0.0.1:8000/admin/docs` in your browser:
 
-![Docs](https://raw.githubusercontent.com/amisadmin/fastapi_amis_admin_demo/master/upload/img/fastapi-user-auth-docs.png)
+![Docs](https://s2.loli.net/2022/03/20/1GcCiPdmXayxrbH.png)
 
 ## 未来计划
 
 - [ ] bug修复,细节完善.
 - [ ] 完善用户教程文档.
 - [ ] 不断拓展与完善核心功能.
-
 
 ## 许可协议
 
