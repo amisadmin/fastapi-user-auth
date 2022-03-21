@@ -185,7 +185,7 @@ def admin_roles(request: Request):
 
 ```python
 app = FastAPI()
-# 在app应用下每天请求处理之前都附加`request.auth`和`request.user`对象
+# 在app应用下每条请求处理之前都附加`request.auth`和`request.user`对象
 auth.backend.attach_middleware(app)
 
 ```
