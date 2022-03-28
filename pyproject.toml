@@ -36,7 +36,8 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
 ]
 dependencies = [
-    "fastapi-amis-admin>=0.0.20",
+    "pydantic>=1.9",
+    "fastapi-amis-admin>=0.0.21",
     "email-validator",
     "passlib",
     "bcrypt",

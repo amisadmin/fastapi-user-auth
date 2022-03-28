@@ -1,7 +1,6 @@
 import pytest
-from fastapi_amis_admin.utils.db import SqlalchemyAsyncClient
-from sqlalchemy.ext.asyncio import create_async_engine
 from sqlmodel import SQLModel
+
 from fastapi_user_auth.auth.backends.db import DbTokenStore
 from fastapi_user_auth.auth.backends.jwt import JwtTokenStore
 from fastapi_user_auth.auth.schemas import BaseTokenData
