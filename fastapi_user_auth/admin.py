@@ -110,14 +110,17 @@ class UserRegFormAdmin(FormAdmin):
         values = user.dict(exclude={'id', 'password'})
         values['password'] = request.auth.pwd_context.hash(user.password.get_secret_value())  # 密码hash保存
         stmt = insert(self.user_model).values(values)
-        try:
-            async with request.auth.db.session_maker() as session:
+        async with request.auth.db.session_maker() as session:
+            try:
                 result = await session.execute(stmt)
                 if result.rowcount:  # type: ignore
                     await session.commit()
-                    user.id = result.lastrowid  # type: ignore
-        except Exception as e:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR) from e
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Error Execute SQL：{e}",
+                ) from e
+            user.id = getattr(result, "lastrowid", None)
         # 注册成功,设置用户信息
         token_info = self.schema_submit_out.parse_obj(user)
         auth: Auth = request.auth
