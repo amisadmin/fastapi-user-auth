@@ -16,40 +16,40 @@ class SQLModelTable(SQLModel):
 class UserRoleLink(SQLModel, table=True):
     __tablename__ = 'auth_user_roles'
     user_id: Optional[int] = Field(
-        default=None, foreign_key="auth_user.id", primary_key=True
+        default=None, foreign_key="auth_user.id", primary_key=True, nullable=False
     )
     role_id: Optional[int] = Field(
-        default=None, foreign_key="auth_role.id", primary_key=True
+        default=None, foreign_key="auth_role.id", primary_key=True, nullable=False
     )
 
 
 class UserGroupLink(SQLModel, table=True):
     __tablename__ = 'auth_user_groups'
     user_id: Optional[int] = Field(
-        default=None, foreign_key="auth_user.id", primary_key=True
+        default=None, foreign_key="auth_user.id", primary_key=True, nullable=False
     )
     group_id: Optional[int] = Field(
-        default=None, foreign_key="auth_group.id", primary_key=True
+        default=None, foreign_key="auth_group.id", primary_key=True, nullable=False
     )
 
 
 class GroupRoleLink(SQLModel, table=True):
     __tablename__ = 'auth_group_roles'
     group_id: Optional[int] = Field(
-        default=None, foreign_key="auth_group.id", primary_key=True
+        default=None, foreign_key="auth_group.id", primary_key=True, nullable=False
     )
     role_id: Optional[int] = Field(
-        default=None, foreign_key="auth_role.id", primary_key=True
+        default=None, foreign_key="auth_role.id", primary_key=True, nullable=False
     )
 
 
 class RolePermissionLink(SQLModel, table=True):
     __tablename__ = 'auth_role_permissions'
     role_id: Optional[int] = Field(
-        default=None, foreign_key="auth_role.id", primary_key=True
+        default=None, foreign_key="auth_role.id", primary_key=True, nullable=False
     )
     permission_id: Optional[int] = Field(
-        default=None, foreign_key="auth_permission.id", primary_key=True
+        default=None, foreign_key="auth_permission.id", primary_key=True, nullable=False
     )
 
 
