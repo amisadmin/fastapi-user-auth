@@ -8,6 +8,8 @@ from sqlmodel import SQLModel, Relationship, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.sql.expression import SelectOfScalar
 
+SelectOfScalar.inherit_cache = True
+
 
 class SQLModelTable(SQLModel):
     id: int = Field(default=None, primary_key=True, nullable=False)
@@ -59,8 +61,10 @@ class UserUsername(SQLModel):
         sa_column=Column(String(32), unique=True, index=True, nullable=False)
     )
 
-class PasswordStr(SecretStr,str):
+
+class PasswordStr(SecretStr, str):
     pass
+
 
 class UserPassword(SQLModel):
     password: PasswordStr = Field(
