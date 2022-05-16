@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional, List, Any
+
 from fastapi_amis_admin.amis.components import InputImage, ColumnImage
 from fastapi_amis_admin.models.fields import Field
 from pydantic import EmailStr, SecretStr

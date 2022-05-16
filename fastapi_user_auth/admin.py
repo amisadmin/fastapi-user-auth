@@ -1,4 +1,5 @@
 from typing import Dict, Any, Type, Callable
+
 from fastapi import Depends, HTTPException
 from fastapi_amis_admin.amis.components import ActionType, Action, ButtonToolbar, Form, Html, Grid, Page, Horizontal, \
     PageSchema
@@ -10,6 +11,7 @@ from sqlalchemy import insert, update
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
+
 from fastapi_user_auth.auth import Auth
 from fastapi_user_auth.auth.models import BaseUser, User, Group, Permission, Role
 from fastapi_user_auth.auth.schemas import UserLoginOut
@@ -32,8 +34,8 @@ class UserLoginFormAdmin(FormAdmin):
     page_schema = None
 
     async def handle(self, request: Request,
-                     data: "self.schema",  # type:ignore
-                     **kwargs) -> BaseApiOut["self.schema_submit_out"]:  # type:ignore
+                     data: BaseModel,  # self.schema
+                     **kwargs) -> BaseApiOut[BaseModel]:  # self.schema_submit_out
         if request.user:
             return BaseApiOut(code=1, msg='用户已登录', data=self.schema_submit_out.parse_obj(request.user))
         user = await request.auth.authenticate_user(username=data.username, password=data.password)  # type:ignore
@@ -98,12 +100,12 @@ class UserRegFormAdmin(FormAdmin):
     page_schema = None
 
     async def handle(self, request: Request,
-                     data: "self.schema",  # type:ignore
-                     **kwargs) -> BaseApiOut["self.schema_submit_out"]:  # type:ignore
+                     data: BaseModel,  # self.schema
+                     **kwargs) -> BaseApiOut[BaseModel]:  # self.schema_submit_out
         user = await request.auth.get_user_by_username(data.username)
         if user:
             return BaseApiOut(status=-1, msg='用户名已注册!', data=None)
-        user = await  request.auth.get_user_by_whereclause(self.user_model.email == data.email)
+        user = await request.auth.get_user_by_whereclause(self.user_model.email == data.email)
         if user:
             return BaseApiOut(status=-2, msg='邮箱已注册!', data=None)
         user = self.user_model.parse_obj(data)

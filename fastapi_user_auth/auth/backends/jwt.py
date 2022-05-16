@@ -1,6 +1,8 @@
 from datetime import timedelta, datetime
-from typing import Generic, List, Optional, Union
+from typing import Optional, Union
+
 from jose import jwt, JWTError
+
 from ..backends.base import BaseTokenStore, _TokenDataSchemaT
 
 

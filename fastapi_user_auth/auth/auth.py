@@ -3,6 +3,7 @@ import functools
 import inspect
 from collections.abc import Coroutine
 from typing import Type, Any, TypeVar, Optional, Sequence, Tuple, Union, Callable, Generic
+
 from fastapi import FastAPI, HTTPException, Depends, Form
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.security.utils import get_authorization_scheme_param
@@ -20,10 +21,10 @@ from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.requests import HTTPConnection, Request
 from starlette.responses import RedirectResponse, Response
 from starlette.websockets import WebSocket
-from fastapi_user_auth.auth.models import Role, UserRoleLink
+
 from .backends.base import BaseTokenStore
 from .backends.db import DbTokenStore
-from .models import BaseUser, User
+from .models import BaseUser, User, Role, UserRoleLink
 from .schemas import UserLoginOut
 
 _UserModelT = TypeVar("_UserModelT", bound=BaseUser)
@@ -233,8 +234,8 @@ class AuthRouter(RouterMixin):
         assert self.auth, 'auth is None'
         RouterMixin.__init__(self)
         self.router.dependencies.insert(0, Depends(self.auth.backend.authenticate))
-        self.schema_user_info = self.schema_user_info \
-                                or schema_create_by_schema(self.auth.user_model, 'UserInfo', exclude={'password'})
+        self.schema_user_info = self.schema_user_info or schema_create_by_schema(
+            self.auth.user_model, 'UserInfo', exclude={'password'})
 
         self.router.add_api_route('/userinfo', self.route_userinfo, methods=["GET"], description='用户信息',
                                   dependencies=None, response_model=BaseApiOut[self.schema_user_info])
@@ -265,7 +266,7 @@ class AuthRouter(RouterMixin):
             token_value = request.auth.backend.get_user_token(request=request)
             try:
                 await self.auth.backend.token_store.destroy_token(token=token_value)
-            except Exception as e:  # jwt
+            except Exception:  # jwt
                 pass
             response.delete_cookie('Authorization')
             return RedirectResponse(url='/')

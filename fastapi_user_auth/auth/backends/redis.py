@@ -1,6 +1,8 @@
 import secrets
+from typing import Optional, Union
+
 from aioredis import Redis
-from typing import Generic, Optional, Union
+
 from ..backends.base import BaseTokenStore, _TokenDataSchemaT
 
 
@@ -26,5 +28,5 @@ class RedisTokenStore(BaseTokenStore):
     async def destroy_token(self, token: str) -> None:
         await self.redis.delete(self.get_key(token))
 
-    def get_key(self, token:str):
+    def get_key(self, token: str):
         return f'auth:token:{token}'

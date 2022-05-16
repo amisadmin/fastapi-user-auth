@@ -1,11 +1,12 @@
+from typing import Tuple
+
 import pytest
 from fastapi import Depends, HTTPException
-from fastapi_user_auth.auth.auth import Auth
-from tests.test_auth.conftest import UserClient
-from fastapi_user_auth.auth.models import User
-from typing import Tuple
 from starlette.requests import Request
 
+from fastapi_user_auth.auth.auth import Auth
+from fastapi_user_auth.auth.models import User
+from tests.test_auth.conftest import UserClient
 from tests.test_auth.main import app, auth
 
 
@@ -37,7 +38,7 @@ def admin_or_vip_roles(request: Request):
 # auth async decorator
 @app.get("/auth/admin_roles_async")
 @auth.requires('admin')
-async def admin_roles(request: Request):
+async def admin_roles_async(request: Request):
     return request.user
 
 
@@ -61,7 +62,7 @@ def user_2(request: Request,
 
 
 @app.get("/auth/user_3")
-async def user_2(request: Request):
+async def user_3(request: Request):
     if await auth.requires()(request):
         return request.user
 

@@ -1,10 +1,10 @@
-import os
 from fastapi import FastAPI
 from sqlmodel import SQLModel
-from fastapi_user_auth.auth.auth import Auth, AuthRouter
-from tests.test_auth.db import get_db
 from sqlmodel.ext.asyncio.session import AsyncSession
+
+from fastapi_user_auth.auth.auth import Auth, AuthRouter
 from fastapi_user_auth.auth.models import Role, Permission, Group, User
+from tests.test_auth.db import get_db
 
 app = FastAPI()
 

@@ -1,5 +1,6 @@
 import pytest
 from starlette.testclient import TestClient
+
 from fastapi_user_auth.auth.models import User
 from tests.test_auth.main import app
 

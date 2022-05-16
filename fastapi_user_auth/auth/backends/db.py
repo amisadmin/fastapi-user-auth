@@ -17,7 +17,6 @@ class TokenStoreModel(SQLModelTable, table=True):
     create_time: datetime = Field(default_factory=datetime.utcnow)
 
 
-
 class DbTokenStore(BaseTokenStore):
     def __init__(self, db: SqlalchemyAsyncClient,
                  expire_seconds: Optional[int] = 60 * 60 * 24 * 3,

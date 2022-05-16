@@ -1,5 +1,6 @@
 from pydantic import validator, SecretStr, BaseModel
 from sqlmodel import Field
+
 from .models import UserUsername, UserPassword, UserEmail, BaseUser
 
 

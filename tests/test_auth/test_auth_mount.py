@@ -16,15 +16,15 @@ subapp3 = FastAPI(dependencies=[Depends(auth.requires('admin')())])
 app.mount('/subapp3', subapp3)
 
 
-
 # auth decorator
 @subapp1.get("/auth/user")
 @auth.requires()
 def user(request: Request):
     return request.user
 
+
 @subapp2.get("/auth/user")
-def user(request: Request):
+def user_2(request: Request):
     if request.user:
         return request.user
     else:
@@ -33,7 +33,7 @@ def user(request: Request):
 
 @subapp3.get("/auth/user")
 @auth.requires()
-def user(request: Request):
+def user_3(request: Request):
     return request.user
 
 
