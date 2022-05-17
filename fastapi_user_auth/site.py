@@ -41,9 +41,9 @@ class AuthAdminSite(AdminSite):
                 ActionType.Dialog(label='个人信息',
                                   dialog=Dialog(title='个人信息', actions=[], size=SizeEnum.lg,
                                                 body=Service(
-                                                    schemaApi=AmisAPI(method='get',
+                                                    schemaApi=AmisAPI(method='post',
                                                                       url=f"{user_auth_app.router_path}/form/userinfo",
-                                                                      cache=20000,
+                                                                      cache=600000,
                                                                       responseData={'&': '${body}'})))),
                 ActionType.Url(label='退出登录',
                                url=f"{user_auth_app.router_path}/logout")
