@@ -3,6 +3,7 @@ from typing import Type
 from fastapi_amis_admin.amis.components import PageSchema
 from fastapi_amis_admin.amis_admin.admin import AdminApp, ModelAdmin
 from fastapi_amis_admin.crud.utils import schema_create_by_schema
+from fastapi_amis_admin.utils.translation import i18n as _
 from starlette.requests import Request
 
 from fastapi_user_auth.admin import UserLoginFormAdmin, GroupAdmin, PermissionAdmin, UserAdmin, \
@@ -11,7 +12,7 @@ from fastapi_user_auth.auth import AuthRouter
 
 
 class UserAuthApp(AdminApp, AuthRouter):
-    page_schema = PageSchema(label='用户授权', icon='fa fa-lock', sort=99)
+    page_schema = PageSchema(label=_('User Authentication'), icon='fa fa-lock', sort=99)
     router_prefix = '/auth'
     # default admin
     UserLoginFormAdmin: Type[UserLoginFormAdmin] = UserLoginFormAdmin

@@ -1,3 +1,4 @@
+from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import validator, SecretStr, BaseModel
 from sqlmodel import Field
 
@@ -18,7 +19,7 @@ class UserLoginOut(BaseUser):
 
 class UserRegIn(UserUsername, UserPassword, UserEmail):
     """用户注册"""
-    password2: str = Field(title='重复密码', max_length=128)
+    password2: str = Field(title=_('Confirm Password'), max_length=128)
 
     @validator('password2')
     def passwords_match(cls, v, values, **kwargs):

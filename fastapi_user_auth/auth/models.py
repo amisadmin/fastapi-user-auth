@@ -3,6 +3,7 @@ from typing import Optional, List, Any
 
 from fastapi_amis_admin.amis.components import InputImage, ColumnImage
 from fastapi_amis_admin.models.fields import Field
+from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import EmailStr, SecretStr
 from sqlalchemy import Column, String, and_
 from sqlmodel import SQLModel, Relationship, select
@@ -58,7 +59,7 @@ class RolePermissionLink(SQLModel, table=True):
 
 class UserUsername(SQLModel):
     username: str = Field(
-        title='用户名', max_length=32,
+        title=_('Username'), max_length=32,
         sa_column=Column(String(32), unique=True, index=True, nullable=False)
     )
 
@@ -69,7 +70,7 @@ class PasswordStr(SecretStr, str):
 
 class UserPassword(SQLModel):
     password: PasswordStr = Field(
-        title='密码', max_length=128,
+        title=_('Password'), max_length=128,
         sa_column=Column(String(128), nullable=False),
         amis_form_item='input-password'
     )
@@ -77,21 +78,21 @@ class UserPassword(SQLModel):
 
 class UserEmail(SQLModel):
     email: EmailStr = Field(
-        title='邮箱',
+        title=_('Email'),
         sa_column=Column(String(50), unique=True, index=True, nullable=False),
         amis_form_item='input-email'
     )
 
 
 class BaseUser(UserEmail, UserPassword, UserUsername, SQLModelTable):
-    is_active: bool = Field(default=True, title='是否激活')
-    nickname: str = Field(None, title='昵称', max_length=32)
-    avatar: str = Field(None, title='头像', max_length=100,
+    is_active: bool = Field(default=True, title=_('Is Active'))
+    nickname: str = Field(None, title=_('Nickname'), max_length=32)
+    avatar: str = Field(None, title=_('Avatar'), max_length=100,
                         amis_form_item=InputImage(maxLength=1, maxSize=2 * 1024 * 1024,
                                                   receiver='post:/admin/file/upload'),
                         amis_table_column=ColumnImage(width=50, height=50, enlargeAble=True))
-    point: float = Field(default=0, title='点数')
-    create_time: datetime = Field(default_factory=datetime.utcnow, title='创建时间')
+    point: float = Field(default=0, title=_('Point'))
+    create_time: datetime = Field(default_factory=datetime.utcnow, title=_('Create Time'))
 
     class Config:
         use_enum_values = True
@@ -162,8 +163,8 @@ class BaseUser(UserEmail, UserPassword, UserUsername, SQLModelTable):
 class User(BaseUser, table=True):
     """用户"""
     __tablename__ = 'auth_user'
-    phone: str = Field(None, title='手机号', max_length=15)
-    parent_id: int = Field(None, title='父级', foreign_key="auth_user.id")
+    phone: str = Field(None, title=_('Tel'), max_length=15)
+    parent_id: int = Field(None, title=_('Parent'), foreign_key="auth_user.id")
     # parent: Optional["User"] = Relationship()  # todo 自身关联问题
     # children: List["User"]= Relationship(back_populates="parent")
     roles: List["Role"] = Relationship(back_populates="users", link_model=UserRoleLink)
@@ -171,10 +172,10 @@ class User(BaseUser, table=True):
 
 
 class BaseRBAC(SQLModelTable):
-    key: str = Field(..., title='标识', max_length=20,
+    key: str = Field(..., title=_('Identify'), max_length=20,
                      sa_column=Column(String(20), unique=True, index=True, nullable=False))
-    name: str = Field(..., title='名称', max_length=20)
-    desc: str = Field(default='', title='描述', max_length=400, amis_form_item='textarea')
+    name: str = Field(..., title=_('Name'), max_length=20)
+    desc: str = Field(default='', title=_('Description'), max_length=400, amis_form_item='textarea')
 
 
 class Role(BaseRBAC, table=True):
@@ -188,7 +189,7 @@ class Role(BaseRBAC, table=True):
 class Group(BaseRBAC, table=True):
     """用户组"""
     __tablename__ = 'auth_group'
-    parent_id: int = Field(None, title='父级', foreign_key="auth_group.id")
+    parent_id: int = Field(None, title=_('Parent'), foreign_key="auth_group.id")
     users: List[User] = Relationship(back_populates="groups", link_model=UserGroupLink)
     roles: List["Role"] = Relationship(back_populates="groups", link_model=GroupRoleLink)
 
@@ -197,3 +198,7 @@ class Permission(BaseRBAC, table=True):
     """权限"""
     __tablename__ = 'auth_permission'
     roles: List["Role"] = Relationship(back_populates="permissions", link_model=RolePermissionLink)
+
+
+_('ddddddddd')
+is_active_0: bool = Field(default=True, title=_('Is Active0'), max_length=400)

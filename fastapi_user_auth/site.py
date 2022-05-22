@@ -6,6 +6,7 @@ from fastapi_amis_admin.amis.constants import SizeEnum
 from fastapi_amis_admin.amis.types import AmisAPI
 from fastapi_amis_admin.amis_admin.settings import Settings
 from fastapi_amis_admin.amis_admin.site import AdminSite
+from fastapi_amis_admin.utils.translation import i18n as _
 from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.requests import Request
 
@@ -38,14 +39,14 @@ class AuthAdminSite(AdminSite):
             "trigger": "hover",
             "icon": "fa fa-user",
             "buttons": [
-                ActionType.Dialog(label='个人信息',
-                                  dialog=Dialog(title='个人信息', actions=[], size=SizeEnum.lg,
+                ActionType.Dialog(label=_('User Profile'),
+                                  dialog=Dialog(title=_('User Profile'), actions=[], size=SizeEnum.lg,
                                                 body=Service(
                                                     schemaApi=AmisAPI(method='post',
                                                                       url=f"{user_auth_app.router_path}/form/userinfo",
                                                                       cache=600000,
                                                                       responseData={'&': '${body}'})))),
-                ActionType.Url(label='退出登录',
+                ActionType.Url(label=_('Sign out'),
                                url=f"{user_auth_app.router_path}/logout")
             ]
         }])

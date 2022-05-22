@@ -12,6 +12,7 @@ from fastapi_amis_admin.crud.schema import BaseApiOut
 from fastapi_amis_admin.crud.utils import schema_create_by_schema
 from fastapi_amis_admin.utils.db import SqlalchemyAsyncClient
 from fastapi_amis_admin.utils.functools import cached_property
+from fastapi_amis_admin.utils.translation import i18n as _
 from passlib.context import CryptContext
 from pydantic import BaseModel, SecretStr
 from sqlmodel import select
@@ -237,9 +238,9 @@ class AuthRouter(RouterMixin):
         self.schema_user_info = self.schema_user_info or schema_create_by_schema(
             self.auth.user_model, 'UserInfo', exclude={'password'})
 
-        self.router.add_api_route('/userinfo', self.route_userinfo, methods=["GET"], description='用户信息',
+        self.router.add_api_route('/userinfo', self.route_userinfo, methods=["GET"], description=_('User Profile'),
                                   dependencies=None, response_model=BaseApiOut[self.schema_user_info])
-        self.router.add_api_route('/logout', self.route_logout, methods=["GET"], description='退出登录',
+        self.router.add_api_route('/logout', self.route_logout, methods=["GET"], description=_('Sign out'),
                                   dependencies=None, response_model=BaseApiOut)
         # oauth2
         self.router.dependencies.append(
@@ -283,7 +284,7 @@ class AuthRouter(RouterMixin):
             if request.scope.get('user') is None:
                 request.scope['user'] = await request.auth.authenticate_user(username=username, password=password)
             if request.scope.get('user') is None:
-                return BaseApiOut(status=-1, msg='Incorrect username or password!')
+                return BaseApiOut(status=-1, msg=_('Incorrect username or password!'))
             token_info = self.schema_user_login_out.parse_obj(request.user)
             token_info.access_token = await request.auth.backend.token_store.write_token(request.user.dict())
             response.set_cookie('Authorization', f'bearer {token_info.access_token}')
