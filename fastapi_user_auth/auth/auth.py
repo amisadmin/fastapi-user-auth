@@ -263,14 +263,15 @@ class AuthRouter(RouterMixin):
     @property
     def route_logout(self):
         @self.auth.requires()
-        async def user_logout(request: Request, response: Response):
+        async def user_logout(request: Request):
             token_value = request.auth.backend.get_user_token(request=request)
             try:
                 await self.auth.backend.token_store.destroy_token(token=token_value)
             except Exception:  # jwt
                 pass
+            response = RedirectResponse(url='/')
             response.delete_cookie('Authorization')
-            return RedirectResponse(url='/')
+            return response
 
         return user_logout
 
