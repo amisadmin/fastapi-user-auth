@@ -204,7 +204,7 @@ class UserInfoFormAdmin(FormAdmin):
 class UserAdmin(ModelAdmin):
     group_schema = None
     page_schema = PageSchema(label=_('User'), icon='fa fa-user')
-    model: Type[BaseUser] = User
+    model: Type[BaseUser] = None
     exclude = ['password']
     link_model_fields = [User.roles, User.groups]
     search_fields = [User.username]

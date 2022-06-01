@@ -90,9 +90,10 @@ class Auth(Generic[_UserModelT]):
     async def authenticate_user(self, username: str, password: Union[str, SecretStr]) -> Optional[_UserModelT]:
         user = await self.get_user_by_username(username)
         pwd = password.get_secret_value() if isinstance(password, SecretStr) else password
-        pwd2 = user.password.get_secret_value() if isinstance(user.password, SecretStr) else user.password
-        if user and self.pwd_context.verify(pwd, pwd2):  # 用户存在 且 密码验证通过
-            return user
+        if user:
+            pwd2 = user.password.get_secret_value() if isinstance(user.password, SecretStr) else user.password
+            if self.pwd_context.verify(pwd, pwd2):  # 用户存在 且 密码验证通过
+                return user
         return None
 
     def requires(self,
@@ -210,9 +211,11 @@ class Auth(Generic[_UserModelT]):
 
             # create admin user
             user = await session.scalar(
-                select(User).join(UserRoleLink).where(UserRoleLink.role_id == role.id))
+                select(self.user_model).join(
+                    UserRoleLink,UserRoleLink.user_id==self.user_model.id
+                ).where(UserRoleLink.role_id == role.id))
             if not user:
-                user = User(
+                user = self.user_model(
                     username=role_key,
                     password=self.pwd_context.hash(role_key),
                     email=f'{role_key}@amis.work',  # type:ignore

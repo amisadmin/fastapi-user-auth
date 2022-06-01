@@ -85,13 +85,14 @@ class UserEmail(SQLModel):
 
 
 class BaseUser(UserEmail, UserPassword, UserUsername, SQLModelTable):
+    __tablename__ = 'auth_user'
+    __table_args__ = {'extend_existing': True}
     is_active: bool = Field(default=True, title=_('Is Active'))
     nickname: str = Field(None, title=_('Nickname'), max_length=32)
     avatar: str = Field(None, title=_('Avatar'), max_length=100,
                         amis_form_item=InputImage(maxLength=1, maxSize=2 * 1024 * 1024,
                                                   receiver='post:/admin/file/upload'),
                         amis_table_column=ColumnImage(width=50, height=50, enlargeAble=True))
-    point: float = Field(default=0, title=_('Point'))
     create_time: datetime = Field(default_factory=datetime.utcnow, title=_('Create Time'))
 
     class Config:
@@ -162,7 +163,7 @@ class BaseUser(UserEmail, UserPassword, UserUsername, SQLModelTable):
 
 class User(BaseUser, table=True):
     """用户"""
-    __tablename__ = 'auth_user'
+    point: float = Field(default=0, title=_('Point'))
     phone: str = Field(None, title=_('Tel'), max_length=15)
     parent_id: int = Field(None, title=_('Parent'), foreign_key="auth_user.id")
     # parent: Optional["User"] = Relationship()  # todo 自身关联问题
@@ -172,6 +173,7 @@ class User(BaseUser, table=True):
 
 
 class BaseRBAC(SQLModelTable):
+    __table_args__ = {'extend_existing': True}
     key: str = Field(..., title=_('Identify'), max_length=20,
                      sa_column=Column(String(20), unique=True, index=True, nullable=False))
     name: str = Field(..., title=_('Name'), max_length=20)
@@ -198,7 +200,3 @@ class Permission(BaseRBAC, table=True):
     """权限"""
     __tablename__ = 'auth_permission'
     roles: List["Role"] = Relationship(back_populates="permissions", link_model=RolePermissionLink)
-
-
-_('ddddddddd')
-is_active_0: bool = Field(default=True, title=_('Is Active0'), max_length=400)
