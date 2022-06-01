@@ -263,6 +263,68 @@ flowchart LR
      Group -. m:n .-> Role 
 	 Role -. m:n .-> Perimission 
 ```
+## 高级拓展
+
+### 拓展`User`模型
+
+```python
+from datetime import date
+
+from fastapi_amis_admin.models.fields import Field
+from fastapi_user_auth.auth.models import BaseUser
+
+
+# 自定义`User`模型,继承`BaseUser`
+class MyUser(BaseUser, table=True):
+    birthday: date = Field(None, title="出生日期")
+    location: str = Field(None, title="位置")
+
+
+# 使用自定义的`User`模型,创建auth对象
+auth = Auth(db=SqlalchemyAsyncClient(engine), user_model=MyUser)
+```
+
+### 拓展`Role`,`Group`,`Permission`模型
+
+```python
+# 自定义`Group`模型,继承`BaseRBAC`;覆盖`Role`,`Permission`模型类似,区别在于表名.
+class MyGroup(BaseRBAC, table=True):
+    __tablename__ = 'auth_group'  # 数据库表名,必须是这个才能覆盖默认模型
+    icon: str = Field(None, title='图标')
+    is_active: bool = Field(default=True, title="是否激活")
+    roles: List["Role"] = Relationship(back_populates="groups", link_model=GroupRoleLink)
+
+```
+
+### 自定义`UserAuthApp`默认管理类
+
+默认管理类均可通过继承重写替换.
+例如: `UserLoginFormAdmin`,`UserRegFormAdmin`,`UserInfoFormAdmin`,
+`UserAdmin`,`GroupAdmin`,`RoleAdmin`,`PermissionAdmin`
+
+```python
+# 自定义模型管理类,继承重写对应的默认管理类
+class MyGroupAdmin(admin.ModelAdmin):
+    group_schema = None
+    page_schema = PageSchema(label='用户组管理', icon='fa fa-group')
+    model = MyGroup
+    link_model_fields = [Group.roles]
+    readonly_fields = ['key']
+
+
+# 自定义用户认证应用,继承重写默认的用户认证应用
+class MyUserAuthApp(UserAuthApp):
+    GroupAdmin = MyGroupAdmin
+
+
+# 自定义用户管理站点,继承重写默认的用户管理站点
+class MyAuthAdminSite(AuthAdminSite):
+    UserAuthApp = MyUserAuthApp
+
+
+# 使用自定义的`AuthAdminSite`类,创建site对象
+site = MyAuthAdminSite(settings, auth=auth)
+```
 
 ## 界面预览
 
