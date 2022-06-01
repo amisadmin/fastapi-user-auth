@@ -263,6 +263,7 @@ flowchart LR
      Group -. m:n .-> Role 
 	 Role -. m:n .-> Perimission 
 ```
+
 ## 高级拓展
 
 ### 拓展`User`模型
@@ -292,7 +293,6 @@ class MyGroup(BaseRBAC, table=True):
     __tablename__ = 'auth_group'  # 数据库表名,必须是这个才能覆盖默认模型
     icon: str = Field(None, title='图标')
     is_active: bool = Field(default=True, title="是否激活")
-    roles: List["Role"] = Relationship(back_populates="groups", link_model=GroupRoleLink)
 
 ```
 
@@ -339,12 +339,6 @@ site = MyAuthAdminSite(settings, auth=auth)
 - Open `http://127.0.0.1:8000/admin/docs` in your browser:
 
 ![Docs](https://s2.loli.net/2022/03/20/1GcCiPdmXayxrbH.png)
-
-## 未来计划
-
-- [ ] bug修复,细节完善.
-- [ ] 完善用户教程文档.
-- [ ] 不断拓展与完善核心功能.
 
 ## 许可协议
 
