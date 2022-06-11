@@ -1,10 +1,10 @@
 from typing import Dict, Any, Type, Callable
 
 from fastapi import Depends, HTTPException
+from fastapi_amis_admin.admin import FormAdmin, ModelAdmin
 from fastapi_amis_admin.amis.components import ActionType, Action, ButtonToolbar, Form, Html, Grid, Page, Horizontal, \
     PageSchema
 from fastapi_amis_admin.amis.constants import LevelEnum, DisplayModeEnum
-from fastapi_amis_admin.amis_admin.admin import FormAdmin, ModelAdmin
 from fastapi_amis_admin.crud.schema import BaseApiOut
 from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import BaseModel

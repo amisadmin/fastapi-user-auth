@@ -4,8 +4,7 @@ from fastapi import FastAPI
 from fastapi_amis_admin.amis.components import Flex, App, Service, ActionType, Dialog
 from fastapi_amis_admin.amis.constants import SizeEnum
 from fastapi_amis_admin.amis.types import AmisAPI
-from fastapi_amis_admin.amis_admin.settings import Settings
-from fastapi_amis_admin.amis_admin.site import AdminSite
+from fastapi_amis_admin.admin import Settings,AdminSite
 from fastapi_amis_admin.utils.translation import i18n as _
 from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.requests import Request

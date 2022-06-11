@@ -49,7 +49,7 @@ pip install fastapi-user-auth
 
 ```python
 from fastapi import FastAPI
-from fastapi_amis_admin.amis_admin.settings import Settings
+from fastapi_amis_admin.admin.settings import Settings
 from fastapi_user_auth.site import AuthAdminSite
 from starlette.requests import Request
 

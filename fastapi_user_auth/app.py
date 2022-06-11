@@ -1,7 +1,7 @@
 from typing import Type
 
 from fastapi_amis_admin.amis.components import PageSchema
-from fastapi_amis_admin.amis_admin.admin import AdminApp, ModelAdmin
+from fastapi_amis_admin.admin import AdminApp, ModelAdmin
 from fastapi_amis_admin.crud.utils import schema_create_by_schema
 from fastapi_amis_admin.utils.translation import i18n as _
 from starlette.requests import Request
