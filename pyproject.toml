@@ -37,7 +37,7 @@ classifiers = [
 ]
 dependencies = [
     "pydantic>=1.9",
-    "fastapi-amis-admin>=0.1.8",
+    "fastapi-amis-admin>=0.1.8,<0.2.0",
     "email-validator",
     "passlib",
     "bcrypt",
