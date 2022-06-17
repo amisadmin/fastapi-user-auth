@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import functools
 import inspect
 from collections.abc import Coroutine
@@ -268,10 +269,8 @@ class AuthRouter(RouterMixin):
         @self.auth.requires()
         async def user_logout(request: Request):
             token_value = request.auth.backend.get_user_token(request=request)
-            try:
+            with contextlib.suppress(Exception):
                 await self.auth.backend.token_store.destroy_token(token=token_value)
-            except Exception:  # jwt
-                pass
             response = RedirectResponse(url='/')
             response.delete_cookie('Authorization')
             return response

@@ -6,6 +6,7 @@ from fastapi_amis_admin.models.fields import Field
 from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import EmailStr, SecretStr
 from sqlalchemy import Column, String, and_
+from sqlalchemy.orm import backref
 from sqlmodel import SQLModel, Relationship, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.sql.expression import SelectOfScalar
@@ -166,8 +167,11 @@ class User(BaseUser, table=True):
     point: float = Field(default=0, title=_('Point'))
     phone: str = Field(None, title=_('Tel'), max_length=15)
     parent_id: int = Field(None, title=_('Parent'), foreign_key="auth_user.id")
-    # parent: Optional["User"] = Relationship()  # todo 自身关联问题
-    # children: List["User"]= Relationship(back_populates="parent")
+    children: List["User"] = Relationship(
+        sa_relationship_kwargs=dict(
+            backref=backref("parent", remote_side="User.id"),
+        ),
+    )
     roles: List["Role"] = Relationship(back_populates="users", link_model=UserRoleLink)
     groups: List["Group"] = Relationship(back_populates="users", link_model=UserGroupLink)
 

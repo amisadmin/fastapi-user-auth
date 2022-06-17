@@ -21,8 +21,11 @@ from fastapi_user_auth.auth.schemas import UserLoginOut
 def attach_page_head(page: Page) -> Page:
     page.body = [Html(
         html=f'<div style="display: flex; justify-content: center; align-items: center; margin: 96px 0px 8px;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFgAAABYBAMAAACDuy0HAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAkUExURQuQ9A+M7hCM7xCM7hCM7hCM7w+M7hCM7hCM7xCM7w+M7hCM7p2RGX4AAAALdFJOUwHxFtl5wi6YRq9emx6XmgAAA0VJREFUSMeNV89rGkEU3m6sVXNKK6TEiweLhJ56C/HikqN3EbwEihRv7RZKIRchBHq2EChesvgXiC5mmX+u+2Pem/fezLo7Bw/6OTPv+773YzzPsVp/97+9mqs1Ukrd1MTOVbamdbD+gyrW9xrgQGOP/Wrso8bG99XYpcbuX6qxQ43dhdXYTk+D1zUJVpTkaFaGbW40tgvfLErP8IOeIC2PYOwEbyVpjfzP+9UJgpG0jo4gsdW5BtJA5eZcyRBgDZQgDS1iOxAJvpEWsWlHgq9ktHoRSvB6SNoCIoCoV5aDkbQhnr+U28D1dmNGcLpSsZ/4Bb/CNqEzAthq6iTCR4vkR/tzcu5EUg8RJDqCNkTU95pSp0ifFAMBAE4z+J3QaSEtQk3+lus0lBZBXrNozww4DaFh5RWEdMiiPSei7v+MDMHcuEW0GXg34k4wFllyuTNw3OHoS2lc0DYHewyd3AvZsYp8zsFGR+Kw1heqtNk5PbEn7YTGvUUvZzsnNJZQEow++GbAWrtpaekdxgTsRfRIu4pcFOAjbnaQeUUtwsHNf31ZesekDsaFgrKeoUVYtAVY1jMkDS0S5WJpIyWsgzxIggs7xeA62psiaREtAeysdqb6fVKieoK4ibHQzOOsIcFom4SYYs2uYedgrt21Ev0348nk4EZRsKmCY7OZlYPoCggfS8VwJplR2slZn1Il7QMPvTN+w4sd3d1ZhWe4Mwm567TIc16LYqupzBzN49bjYFPz1padstMKcLsvG6Em0P9B86oAn3etFrvifOaya7AxYkCLjPgrgNNYhY8v+9h34FJt9HMoB47kTjaldi7Km/TzwnaYKFz+BMEmBxs9huV5ddRtIpE1wBp/suIPYsh8s8cfpV69ljxxW1qm3xu+ZEU0ZRqiTmloKGet3b1IPj86sypzkMnBCU+MQPaHzkikOvkR/WXKCgYgZSfXOpQNcCo8NVAJQafOUY1/O3IPdgPHeSyv3OPl2BrKHE+FJ0lgIGWnK+I/bq35j60JnbqQ4JJnBRaxKzfBJQ+E2UC5qCwRoecmWJRNnoPd0++rBcUmVW+xR1LpV5XPwUBZWp5Ab8TMWOdZ+lzvEduZ18eme//88Mv1/X8KQ6zq3Tt8/QAAAABJRU5ErkJggg==" alt="logo" style="margin-right: 8px; width: 48px;"><span style="font-size: 32px; font-weight: bold;">Amis Admin</span></div><div style="width: 100%; text-align: center; color: rgba(0, 0, 0, 0.45); margin-bottom: 40px;">{_("Amis is a low-code front-end framework that reduces page development effort and greatly improves efficiency")}</div>'),
-        Grid(columns=[{"body": [page.body], "lg": 2, "md": 4, "valign": "middle"}], align='center',
-             valign='middle')]
+        Grid(
+            columns=[{"body": [page.body], "lg": 2, "md": 4, "valign": "middle"}],
+            align='center',
+            valign='middle'
+        )]
     return page
 
 
@@ -54,22 +57,31 @@ class UserLoginFormAdmin(FormAdmin):
     def route_submit(self):
         async def route(response: Response, result: BaseApiOut = Depends(super().route_submit)):
             if result.status == 0 and result.code == 0:  # 登录成功,设置用户信息
-                response.set_cookie('Authorization', 'bearer ' + result.data.access_token)
+                response.set_cookie('Authorization', f'bearer {result.data.access_token}')
             return result
 
         return route
 
     async def get_form(self, request: Request) -> Form:
         form = await super().get_form(request)
-        form.update_from_kwargs(title='', mode=DisplayModeEnum.horizontal, submitText=_("Sign in"),
-                                actionsClassName="no-border m-none p-none", panelClassName="", wrapWithPanel=True,
-                                horizontal=Horizontal(left=3, right=9),
-                                actions=[
-                                    ButtonToolbar(buttons=[
-                                        ActionType.Link(actionType='link', link=self.router_path + '/reg',
-                                                        label=_('Sign up')),
-                                        Action(actionType='submit', label=_("Sign in"), level=LevelEnum.primary)])]
-                                )
+        form.update_from_kwargs(
+            title='',
+            mode=DisplayModeEnum.horizontal,
+            submitText=_("Sign in"),
+            actionsClassName="no-border m-none p-none",
+            panelClassName="",
+            wrapWithPanel=True,
+            horizontal=Horizontal(left=3, right=9),
+            actions=[
+                ButtonToolbar(buttons=[
+                    ActionType.Link(
+                        actionType='link',
+                        link=f'{self.router_path}/reg',
+                        label=_('Sign up')
+                    ),
+                    Action(actionType='submit', label=_("Sign in"), level=LevelEnum.primary),
+                ])
+            ])
         form.redirect = request.query_params.get('redirect') or '/'
         return form
 
@@ -142,15 +154,24 @@ class UserRegFormAdmin(FormAdmin):
     async def get_form(self, request: Request) -> Form:
         form = await super().get_form(request)
         form.redirect = request.query_params.get('redirect') or '/'
-        form.update_from_kwargs(title='', mode=DisplayModeEnum.horizontal, submitText=_('Sign up'),
-                                actionsClassName="no-border m-none p-none", panelClassName="", wrapWithPanel=True,
-                                horizontal=Horizontal(left=3, right=9),
-                                actions=[
-                                    ButtonToolbar(buttons=[
-                                        ActionType.Link(actionType='link', link=self.router_path + '/login',
-                                                        label=_('Sign in')),
-                                        Action(actionType='submit', label=_('Sign up'), level=LevelEnum.primary)])]
-                                )
+        form.update_from_kwargs(
+            title='',
+            mode=DisplayModeEnum.horizontal,
+            submitText=_('Sign up'),
+            actionsClassName="no-border m-none p-none",
+            panelClassName="",
+            wrapWithPanel=True,
+            horizontal=Horizontal(left=3, right=9),
+            actions=[
+                ButtonToolbar(buttons=[
+                    ActionType.Link(
+                        actionType='link',
+                        link=f'{self.router_path}/login',
+                        label=_('Sign in'),
+                    ),
+                    Action(actionType='submit', label=_('Sign up'), level=LevelEnum.primary),
+                ])
+            ])
 
         return form
 
