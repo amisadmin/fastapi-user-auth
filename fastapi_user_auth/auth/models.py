@@ -1,14 +1,14 @@
 from datetime import datetime
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Union, Sequence
 
 from fastapi_amis_admin.amis.components import InputImage, ColumnImage
 from fastapi_amis_admin.models.fields import Field
 from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import EmailStr, SecretStr
 from sqlalchemy import Column, String, and_
-from sqlalchemy.orm import backref
+from sqlalchemy.orm import backref, Session
+from sqlalchemy.sql.selectable import Exists
 from sqlmodel import SQLModel, Relationship, select
-from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.sql.expression import SelectOfScalar
 
 SelectOfScalar.inherit_cache = True
@@ -111,7 +111,7 @@ class BaseUser(UserEmail, UserPassword, UserUsername, SQLModelTable):
     def identity(self) -> str:
         return self.username
 
-    def _stmt_exists_role(self, *role_whereclause: Any) -> SelectOfScalar[int]:
+    def _exists_role(self, *role_whereclause: Any) -> Exists:
         # check user role
         user_role_ids = select(Role.id).join(
             UserRoleLink, (UserRoleLink.user_id == self.id) & (UserRoleLink.role_id == Role.id)
@@ -120,46 +120,79 @@ class BaseUser(UserEmail, UserPassword, UserUsername, SQLModelTable):
         role_group_ids = select(GroupRoleLink.group_id).join(
             Role, and_(*role_whereclause, Role.id == GroupRoleLink.role_id))
         group_user_ids = select(UserGroupLink.user_id).where(UserGroupLink.user_id == self.id).where(
-            UserGroupLink.group_id.in_(role_group_ids))
-        return select(1).where(user_role_ids.exists() | group_user_ids.exists())
+            UserGroupLink.group_id.in_(role_group_ids)
+        )
+        return user_role_ids.exists() | group_user_ids.exists()
 
-    async def has_role(self, roles: List[str], session: AsyncSession) -> bool:
+    def _exists_roles(self, roles: List[str]) -> Exists:
         """
         检查用户是否属于指定用户角色,或属于包含指定用户角色的用户组
-        @param roles:
-        @param session:
-        @return:
-        """
-        stmt = self._stmt_exists_role(Role.key.in_(roles))
-        result = await session.execute(stmt)
-        return result.one_or_none() is not None
+        Args:
+            roles:
 
-    async def has_group(self, groups: List[str], session: AsyncSession) -> bool:
+        Returns:
+
+        """
+        return self._exists_role(Role.key.in_(roles))
+
+    def _exists_groups(self, groups: List[str]) -> Exists:
         """
         检查用户是否属于指定用户组
-        @param groups:
-        @param session:
-        @return:
+        Args:
+            groups:
+
+        Returns:
+
         """
         group_ids = select(Group.id).join(
             UserGroupLink, (UserGroupLink.user_id == self.id) & (UserGroupLink.group_id == Group.id)
         ).where(Group.key.in_(groups))
-        stmt = select(1).where(group_ids.exists())
-        result = await session.execute(stmt)
-        return result.one_or_none() is not None
+        return group_ids.exists()
 
-    async def has_permission(self, permissions: List[str], session: AsyncSession) -> bool:
+    def _exists_permissions(self, permissions: List[str]) -> Exists:
         """
         检查用户是否属于拥有指定权限的用户角色
-        @param permissions:
-        @param session:
-        @return:
+        Args:
+            permissions:
+
+        Returns:
+
         """
         role_ids = select(RolePermissionLink.role_id).join(
-            Permission, Permission.key.in_(permissions) & (Permission.id == RolePermissionLink.permission_id))
-        stmt = self._stmt_exists_role(Role.id.in_(role_ids))
-        result = await session.execute(stmt)
-        return result.one_or_none() is not None
+            Permission, Permission.key.in_(permissions) & (Permission.id == RolePermissionLink.permission_id)
+        )
+        return self._exists_role(Role.id.in_(role_ids))
+
+    def has_requires(
+            self,
+            session: Session,
+            *,
+            roles: Union[str, Sequence[str]] = None,
+            groups: Union[str, Sequence[str]] = None,
+            permissions: Union[str, Sequence[str]] = None,
+    ) -> bool:
+        """
+        检查用户是否属于拥有指定的RBAC权限
+        Args:
+            session: sqlalchemy `Session`;异步`AsyncSession`,请使用`run_sync`方法.
+            roles: 角色列表
+            groups: 用户组列表
+            permissions: 权限列表
+
+        Returns:
+            检测成功返回`True`
+        """
+        stmt = select(1)
+        if groups:
+            groups_list = [groups] if isinstance(groups, str) else list(groups)
+            stmt = stmt.where(self._exists_groups(groups_list))
+        if roles:
+            roles_list = [roles] if isinstance(roles, str) else list(roles)
+            stmt = stmt.where(self._exists_roles(roles_list))
+        if permissions:
+            permissions_list = [permissions] if isinstance(permissions, str) else list(permissions)
+            stmt = stmt.where(self._exists_permissions(permissions_list))
+        return bool(session.scalar(stmt))
 
 
 class User(BaseUser, table=True):
