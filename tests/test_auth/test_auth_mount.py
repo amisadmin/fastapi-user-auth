@@ -2,8 +2,7 @@ import pytest
 from fastapi import FastAPI, HTTPException, Depends
 from starlette.requests import Request
 
-from tests.test_auth.conftest import UserClient
-from tests.test_auth.main import app, auth
+from tests.test_auth.conftest import UserClient, app, auth
 
 subapp1 = FastAPI()
 app.mount('/subapp1', subapp1)
