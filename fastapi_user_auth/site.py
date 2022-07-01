@@ -1,10 +1,10 @@
 from typing import Type
 
 from fastapi import FastAPI
+from fastapi_amis_admin.admin import Settings, AdminSite
 from fastapi_amis_admin.amis.components import Flex, App, Service, ActionType, Dialog
 from fastapi_amis_admin.amis.constants import SizeEnum
 from fastapi_amis_admin.amis.types import AmisAPI
-from fastapi_amis_admin.admin import Settings,AdminSite
 from fastapi_amis_admin.utils.translation import i18n as _
 from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.requests import Request
@@ -31,22 +31,30 @@ class AuthAdminSite(AdminSite):
 
     async def get_page(self, request: Request) -> App:
         app = await super().get_page(request)
-        user_auth_app = self.create_admin_instance(self.UserAuthApp)
+        user_auth_app = self.get_admin_or_create(self.UserAuthApp)
         app.header = Flex(className="w-full", justify='flex-end', alignItems='flex-end', items=[app.header, {
             "type": "dropdown-button",
             "label": f"{request.user.username}",
             "trigger": "hover",
             "icon": "fa fa-user",
             "buttons": [
-                ActionType.Dialog(label=_('User Profile'),
-                                  dialog=Dialog(title=_('User Profile'), actions=[], size=SizeEnum.lg,
-                                                body=Service(
-                                                    schemaApi=AmisAPI(method='post',
-                                                                      url=f"{user_auth_app.router_path}/form/userinfo",
-                                                                      cache=600000,
-                                                                      responseData={'&': '${body}'})))),
-                ActionType.Url(label=_('Sign out'),
-                               url=f"{user_auth_app.router_path}/logout")
+                ActionType.Dialog(
+                    label=_('User Profile'),
+                    dialog=Dialog(
+                        title=_('User Profile'),
+                        actions=[],
+                        size=SizeEnum.lg,
+                        body=Service(
+                            schemaApi=AmisAPI(
+                                method='post',
+                                url=f"{user_auth_app.router_path}/form/userinfo",
+                                cache=600000,
+                                responseData={'&': '${body}'}
+                            )))),
+                ActionType.Url(
+                    label=_('Sign out'),
+                    url=f"{user_auth_app.router_path}/logout"
+                ),
             ]
         }])
         return app
