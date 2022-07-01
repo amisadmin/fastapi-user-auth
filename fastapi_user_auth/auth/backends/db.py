@@ -2,8 +2,8 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional, Union
 
-from fastapi_amis_admin.utils.db import SqlalchemyAsyncClient
 from sqlalchemy import Column, String, delete, insert
+from sqlalchemy_database import AsyncDatabase, Database
 from sqlmodel import Field, select
 
 from ..backends.base import BaseTokenStore, _TokenDataSchemaT
@@ -18,15 +18,15 @@ class TokenStoreModel(SQLModelTable, table=True):
 
 
 class DbTokenStore(BaseTokenStore):
-    def __init__(self, db: SqlalchemyAsyncClient,
+    def __init__(self, db: Union[AsyncDatabase, Database],
                  expire_seconds: Optional[int] = 60 * 60 * 24 * 3,
                  TokenDataSchema: _TokenDataSchemaT = None):
         super().__init__(expire_seconds, TokenDataSchema)
         self.db = db
 
     async def read_token(self, token: str) -> Optional[_TokenDataSchemaT]:
-        async with self.db.session_maker() as session:
-            obj: TokenStoreModel = await session.scalar(select(TokenStoreModel).where(TokenStoreModel.token == token))
+        stmt = select(TokenStoreModel).where(TokenStoreModel.token == token)
+        obj: TokenStoreModel = await self.db.async_scalar(stmt)
         if obj is None:
             return None
         # expire
@@ -38,12 +38,10 @@ class DbTokenStore(BaseTokenStore):
     async def write_token(self, token_data: Union[_TokenDataSchemaT, dict]) -> str:
         obj = self.TokenDataSchema.parse_obj(token_data) if isinstance(token_data, dict) else token_data
         token = secrets.token_urlsafe()
-        async with self.db.session_maker() as session:
-            await session.execute(insert(TokenStoreModel).values(dict(token=token, data=obj.json())))
-            await session.commit()
+        stmt = insert(TokenStoreModel).values(dict(token=token, data=obj.json()))
+        await self.db.async_execute(stmt)
         return token
 
     async def destroy_token(self, token: str) -> None:
-        async with self.db.session_maker() as session:
-            await session.execute(delete(TokenStoreModel).where(TokenStoreModel.token == token))
-            await session.commit()
+        stmt = delete(TokenStoreModel).where(TokenStoreModel.token == token)
+        await self.db.async_execute(stmt)

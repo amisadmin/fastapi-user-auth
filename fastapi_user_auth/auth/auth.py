@@ -11,13 +11,13 @@ from fastapi.security.utils import get_authorization_scheme_param
 from fastapi_amis_admin.crud.base import RouterMixin
 from fastapi_amis_admin.crud.schema import BaseApiOut
 from fastapi_amis_admin.crud.utils import schema_create_by_schema
-from fastapi_amis_admin.utils.db import SqlalchemyAsyncClient
 from fastapi_amis_admin.utils.functools import cached_property
 from fastapi_amis_admin.utils.translation import i18n as _
 from passlib.context import CryptContext
 from pydantic import BaseModel, SecretStr
+from sqlalchemy.orm import Session
+from sqlalchemy_database import AsyncDatabase, Database
 from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.authentication import AuthenticationBackend
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.requests import HTTPConnection, Request
@@ -64,10 +64,10 @@ class AuthBackend(AuthenticationBackend, Generic[_UserModelT]):
 
 class Auth(Generic[_UserModelT]):
     user_model: Type[_UserModelT] = None
-    db: SqlalchemyAsyncClient = None
+    db: Union[AsyncDatabase, Database] = None
     backend: AuthBackend[_UserModelT] = None
 
-    def __init__(self, db: SqlalchemyAsyncClient,
+    def __init__(self, db: Union[AsyncDatabase, Database],
                  token_store: BaseTokenStore = None,
                  user_model: Type[_UserModelT] = User,
                  pwd_context: CryptContext = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -79,19 +79,15 @@ class Auth(Generic[_UserModelT]):
         self.pwd_context = pwd_context
 
     async def get_user_by_username(self, username: str) -> Optional[_UserModelT]:
-        async with self.db.session_maker() as session:
-            user = await session.scalar(select(self.user_model).where(self.user_model.username == username))
-        return user
+        return await self.get_user_by_whereclause(self.user_model.username == username)
 
     async def get_user_by_whereclause(self, *whereclause: Any) -> Optional[_UserModelT]:
-        async with self.db.session_maker() as session:
-            user = await session.scalar(select(self.user_model).where(*whereclause))
-        return user
+        return await self.db.async_scalar(select(self.user_model).where(*whereclause))
 
     async def authenticate_user(self, username: str, password: Union[str, SecretStr]) -> Optional[_UserModelT]:
         user = await self.get_user_by_username(username)
-        pwd = password.get_secret_value() if isinstance(password, SecretStr) else password
         if user:
+            pwd = password.get_secret_value() if isinstance(password, SecretStr) else password
             pwd2 = user.password.get_secret_value() if isinstance(user.password, SecretStr) else user.password
             if self.pwd_context.verify(pwd, pwd2):  # 用户存在 且 密码验证通过
                 return user
@@ -111,20 +107,13 @@ class Auth(Generic[_UserModelT]):
             await self.backend.authenticate(conn)  # type:ignore
             if not conn.user:
                 return False
-            async with self.db.session_maker() as session:
-                if groups:
-                    groups_list = [groups] if isinstance(groups, str) else list(groups)
-                    if not await conn.user.has_group(groups_list, session=session):
-                        return False
-                if roles:
-                    roles_list = [roles] if isinstance(roles, str) else list(roles)
-                    if not await conn.user.has_role(roles_list, session=session):
-                        return False
-                if permissions:
-                    permissions_list = [permissions] if isinstance(permissions, str) else list(permissions)
-                    if not await conn.user.has_permission(permissions_list, session=session):
-                        return False
-            return True
+            return await self.db.async_run_sync(
+                conn.user.has_requires,
+                roles=roles,
+                groups=groups,
+                permissions=permissions,
+                is_session=True
+            )
 
         async def depend(request: Request):
             if not await has_requires(request):
@@ -199,33 +188,37 @@ class Auth(Generic[_UserModelT]):
 
         return decorator
 
-    async def create_role_user(self, role_key: str = 'admin') -> User:
-        async with self.db.session_maker() as session:
-            session: AsyncSession
-            # create admin role
-            role = await session.scalar(select(Role).where(Role.key == role_key))
-            if not role:
-                role = Role(key=role_key, name=f'{role_key} role')
-                session.add(role)
-                await session.commit()
-                await session.refresh(role)
+    def _create_role_user_sync(self, session: Session, role_key: str = 'admin') -> User:
+        # create admin role
+        role = session.scalar(select(Role).where(Role.key == role_key))
+        if not role:
+            role = Role(key=role_key, name=f'{role_key} role')
+            session.add(role)
+            session.flush()
 
-            # create admin user
-            user = await session.scalar(
-                select(self.user_model).join(
-                    UserRoleLink,UserRoleLink.user_id==self.user_model.id
-                ).where(UserRoleLink.role_id == role.id))
-            if not user:
-                user = self.user_model(
-                    username=role_key,
-                    password=self.pwd_context.hash(role_key),
-                    email=f'{role_key}@amis.work',  # type:ignore
-                    roles=[role],
-                )
-                session.add(user)
-                await session.commit()
-                await session.refresh(user)
+        # create admin user
+        user = session.scalar(
+            select(self.user_model).join(
+                UserRoleLink, UserRoleLink.user_id == self.user_model.id
+            ).where(UserRoleLink.role_id == role.id))
+        if not user:
+            user = self.user_model(
+                username=role_key,
+                password=self.pwd_context.hash(role_key),
+                email=f'{role_key}@amis.work',  # type:ignore
+                roles=[role],
+            )
+            session.add(user)
+            session.flush()
+
         return user
+
+    async def create_role_user(self, role_key: str = 'admin') -> User:
+        return await self.db.async_run_sync(
+            self._create_role_user_sync,
+            role_key,
+            on_close_pre=lambda user: User.parse_obj(user)
+        )
 
 
 class AuthRouter(RouterMixin):

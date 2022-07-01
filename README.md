@@ -52,6 +52,7 @@ from fastapi import FastAPI
 from fastapi_amis_admin.admin.settings import Settings
 from fastapi_user_auth.site import AuthAdminSite
 from starlette.requests import Request
+from sqlmodel import SQLModel
 
 # 创建FastAPI应用
 app = FastAPI()
@@ -66,7 +67,7 @@ site.mount_app(app)
 # 创建初始化数据库表
 @app.on_event("startup")
 async def startup():
-    await site.create_db_and_tables()
+    await site.db.async_run_sync(SQLModel.metadata.create_all, is_session=False)
     # 创建默认测试用户, 请及时修改密码!!!
     await auth.create_role_user('admin')
     await auth.create_role_user('vip')
@@ -215,12 +216,12 @@ async def get_request_user(request: Request) -> Optional[User]:
 ```python
 from fastapi_user_auth.auth.backends.jwt import JwtTokenStore
 from sqlalchemy.ext.asyncio import create_async_engine
-from fastapi_amis_admin.utils.db import SqlalchemyAsyncClient
+from sqlalchemy_database import AsyncDatabase
 
 # 创建异步数据库引擎
 engine = create_async_engine(url='sqlite+aiosqlite:///amisadmin.db', future=True)
 # 使用`JwtTokenStore`创建auth对象
-auth = Auth(db=SqlalchemyAsyncClient(engine),
+auth = Auth(db=AsyncDatabase(engine),
             token_store=JwtTokenStore(secret_key='09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7'))
 
 # 将auth对象传入AdminSite
@@ -235,8 +236,8 @@ site = AuthAdminSite(settings=Settings(database_url_async='sqlite+aiosqlite:///a
 # 使用`DbTokenStore`创建auth对象
 from fastapi_user_auth.auth.backends.db import DbTokenStore
 
-auth = Auth(db=SqlalchemyAsyncClient(engine),
-            token_store=DbTokenStore(db=SqlalchemyAsyncClient(engine)))
+auth = Auth(db=AsyncDatabase(engine),
+            token_store=DbTokenStore(db=AsyncDatabase(engine)))
 ```
 
 ### RedisTokenStore
@@ -246,7 +247,7 @@ auth = Auth(db=SqlalchemyAsyncClient(engine),
 from fastapi_user_auth.auth.backends.redis import RedisTokenStore
 from aioredis import Redis
 
-auth = Auth(db=SqlalchemyAsyncClient(engine),
+auth = Auth(db=AsyncDatabase(engine),
             token_store=RedisTokenStore(redis=Redis.from_url('redis://localhost?db=0')))
 ```
 
@@ -282,7 +283,7 @@ class MyUser(BaseUser, table=True):
 
 
 # 使用自定义的`User`模型,创建auth对象
-auth = Auth(db=SqlalchemyAsyncClient(engine), user_model=MyUser)
+auth = Auth(db=AsyncDatabase(engine), user_model=MyUser)
 ```
 
 ### 拓展`Role`,`Group`,`Permission`模型
