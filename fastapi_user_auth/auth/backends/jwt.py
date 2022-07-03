@@ -8,9 +8,13 @@ from ..backends.base import BaseTokenStore, _TokenDataSchemaT
 
 class JwtTokenStore(BaseTokenStore):
 
-    def __init__(self, secret_key: str, algorithm: str = "HS256",
-                 expire_seconds: Optional[int] = 60 * 60 * 24 * 3,
-                 TokenDataSchema: _TokenDataSchemaT = None):
+    def __init__(
+            self,
+            secret_key: str,
+            algorithm: str = "HS256",
+            expire_seconds: Optional[int] = 60 * 60 * 24 * 3,
+            TokenDataSchema: _TokenDataSchemaT = None
+    ):
         super().__init__(expire_seconds, TokenDataSchema)
         self.secret_key = secret_key
         self.algorithm = algorithm

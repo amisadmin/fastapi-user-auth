@@ -2,7 +2,7 @@ from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import validator, SecretStr, BaseModel
 from sqlmodel import Field
 
-from .models import UserUsername, UserPassword, UserEmail, BaseUser
+from .models import UsernameMixin, PasswordMixin, EmailMixin, BaseUser
 
 
 class BaseTokenData(BaseModel):
@@ -17,7 +17,7 @@ class UserLoginOut(BaseUser):
     password: SecretStr = None
 
 
-class UserRegIn(UserUsername, UserPassword, UserEmail):
+class UserRegIn(UsernameMixin, PasswordMixin, EmailMixin):
     """用户注册"""
     password2: str = Field(title=_('Confirm Password'), max_length=128)
 

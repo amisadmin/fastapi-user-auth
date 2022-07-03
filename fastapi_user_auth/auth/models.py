@@ -14,8 +14,40 @@ from sqlmodel.sql.expression import SelectOfScalar
 SelectOfScalar.inherit_cache = True
 
 
-class SQLModelTable(SQLModel):
+class PkMixin(SQLModel):
     id: int = Field(default=None, primary_key=True, nullable=False)
+
+
+class CreateTimeMixin(SQLModel):
+    create_time: datetime = Field(default_factory=datetime.utcnow, title=_('Create Time'))
+
+
+class UsernameMixin(SQLModel):
+    username: str = Field(
+        title=_('Username'), max_length=32,
+        sa_column=Column(String(32), unique=True, index=True, nullable=False)
+    )
+
+
+class PasswordStr(SecretStr, str):
+    pass
+
+
+class PasswordMixin(SQLModel):
+    password: PasswordStr = Field(
+        title=_('Password'), max_length=128,
+        sa_column=Column(String(128), nullable=False),
+        amis_form_item='input-password'
+    )
+
+
+class EmailMixin(SQLModel):
+    email: EmailStr = Field(
+        None,
+        title=_('Email'),
+        sa_column=Column(String(50), unique=True, index=True, nullable=False),
+        amis_form_item='input-email'
+    )
 
 
 class UserRoleLink(SQLModel, table=True):
@@ -58,43 +90,19 @@ class RolePermissionLink(SQLModel, table=True):
     )
 
 
-class UserUsername(SQLModel):
-    username: str = Field(
-        title=_('Username'), max_length=32,
-        sa_column=Column(String(32), unique=True, index=True, nullable=False)
-    )
-
-
-class PasswordStr(SecretStr, str):
-    pass
-
-
-class UserPassword(SQLModel):
-    password: PasswordStr = Field(
-        title=_('Password'), max_length=128,
-        sa_column=Column(String(128), nullable=False),
-        amis_form_item='input-password'
-    )
-
-
-class UserEmail(SQLModel):
-    email: EmailStr = Field(
-        title=_('Email'),
-        sa_column=Column(String(50), unique=True, index=True, nullable=False),
-        amis_form_item='input-email'
-    )
-
-
-class BaseUser(UserEmail, UserPassword, UserUsername, SQLModelTable):
+class BaseUser(PkMixin, UsernameMixin, PasswordMixin, EmailMixin, CreateTimeMixin):
     __tablename__ = 'auth_user'
     __table_args__ = {'extend_existing': True}
     is_active: bool = Field(default=True, title=_('Is Active'))
     nickname: str = Field(None, title=_('Nickname'), max_length=32)
-    avatar: str = Field(None, title=_('Avatar'), max_length=100,
-                        amis_form_item=InputImage(maxLength=1, maxSize=2 * 1024 * 1024,
-                                                  receiver='post:/admin/file/upload'),
-                        amis_table_column=ColumnImage(width=50, height=50, enlargeAble=True))
-    create_time: datetime = Field(default_factory=datetime.utcnow, title=_('Create Time'))
+    avatar: str = Field(
+        None, title=_('Avatar'), max_length=100,
+        amis_form_item=InputImage(
+            maxLength=1, maxSize=2 * 1024 * 1024,
+            receiver='post:/admin/file/upload'
+        ),
+        amis_table_column=ColumnImage(width=50, height=50, enlargeAble=True)
+    )
 
     class Config:
         use_enum_values = True
@@ -118,7 +126,8 @@ class BaseUser(UserEmail, UserPassword, UserUsername, SQLModelTable):
         ).where(*role_whereclause)
         # check user group
         role_group_ids = select(GroupRoleLink.group_id).join(
-            Role, and_(*role_whereclause, Role.id == GroupRoleLink.role_id))
+            Role, and_(*role_whereclause, Role.id == GroupRoleLink.role_id)
+        )
         group_user_ids = select(UserGroupLink.user_id).where(UserGroupLink.user_id == self.id).where(
             UserGroupLink.group_id.in_(role_group_ids)
         )
@@ -164,12 +173,12 @@ class BaseUser(UserEmail, UserPassword, UserUsername, SQLModelTable):
         return self._exists_role(Role.id.in_(role_ids))
 
     def has_requires(
-            self,
-            session: Session,
-            *,
-            roles: Union[str, Sequence[str]] = None,
-            groups: Union[str, Sequence[str]] = None,
-            permissions: Union[str, Sequence[str]] = None,
+        self,
+        session: Session,
+        *,
+        roles: Union[str, Sequence[str]] = None,
+        groups: Union[str, Sequence[str]] = None,
+        permissions: Union[str, Sequence[str]] = None,
     ) -> bool:
         """
         检查用户是否属于拥有指定的RBAC权限
@@ -209,10 +218,12 @@ class User(BaseUser, table=True):
     groups: List["Group"] = Relationship(back_populates="users", link_model=UserGroupLink)
 
 
-class BaseRBAC(SQLModelTable):
+class BaseRBAC(PkMixin):
     __table_args__ = {'extend_existing': True}
-    key: str = Field(..., title=_('Identify'), max_length=20,
-                     sa_column=Column(String(20), unique=True, index=True, nullable=False))
+    key: str = Field(
+        ..., title=_('Identify'), max_length=20,
+        sa_column=Column(String(20), unique=True, index=True, nullable=False)
+    )
     name: str = Field(..., title=_('Name'), max_length=20)
     desc: str = Field(default='', title=_('Description'), max_length=400, amis_form_item='textarea')
 

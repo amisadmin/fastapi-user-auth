@@ -1,4 +1,4 @@
-from typing import Dict, Any, Type, Callable
+from typing import Dict, Any, Type, Callable, List
 
 from fastapi import Depends, HTTPException
 from fastapi_amis_admin.admin import FormAdmin, ModelAdmin
@@ -7,15 +7,14 @@ from fastapi_amis_admin.amis.components import ActionType, Action, ButtonToolbar
 from fastapi_amis_admin.amis.constants import LevelEnum, DisplayModeEnum
 from fastapi_amis_admin.crud.schema import BaseApiOut
 from fastapi_amis_admin.utils.translation import i18n as _
+from fastapi_user_auth.auth import Auth
+from fastapi_user_auth.auth.models import BaseUser, User, Group, Permission, Role
+from fastapi_user_auth.auth.schemas import UserLoginOut
 from pydantic import BaseModel
 from sqlalchemy import insert, update
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
-
-from fastapi_user_auth.auth import Auth
-from fastapi_user_auth.auth.models import BaseUser, User, Group, Permission, Role
-from fastapi_user_auth.auth.schemas import UserLoginOut
 
 
 def attach_page_head(page: Page) -> Page:
@@ -36,6 +35,7 @@ class UserLoginFormAdmin(FormAdmin):
     schema: Type[BaseModel] = None
     schema_submit_out: Type[UserLoginOut] = None
     page_schema = None
+    page_route_kwargs = {'name': 'login'}
 
     async def handle(self, request: Request,
                      data: BaseModel,  # self.schema
@@ -111,6 +111,7 @@ class UserRegFormAdmin(FormAdmin):
     schema: Type[BaseModel] = None
     schema_submit_out: Type[UserLoginOut] = None
     page_schema = None
+    page_route_kwargs = {'name': 'reg'}
 
     async def handle(self, request: Request,
                      data: BaseModel,  # self.schema
@@ -193,6 +194,7 @@ class UserInfoFormAdmin(FormAdmin):
     schema_submit_out: Type[BaseUser] = None
     form_init = True
     form = Form(mode=DisplayModeEnum.horizontal)
+    page_route_kwargs = {'name': 'userinfo'}
 
     async def get_init_data(self, request: Request, **kwargs) -> BaseApiOut[Any]:
         return BaseApiOut(data=request.user.dict(exclude={'password'}))
@@ -235,8 +237,8 @@ class UserAdmin(ModelAdmin):
         data['password'] = request.auth.pwd_context.hash(data['password'])  # 密码hash保存
         return data
 
-    async def on_update_pre(self, request: Request, obj, **kwargs) -> Dict[str, Any]:
-        data = await super(UserAdmin, self).on_update_pre(request, obj, **kwargs)
+    async def on_update_pre(self, request: Request, obj, item_id: List[int], **kwargs) -> Dict[str, Any]:
+        data = await super(UserAdmin, self).on_update_pre(request, obj, item_id, **kwargs)
         password = data.get('password')
         if password:
             data['password'] = request.auth.pwd_context.hash(data['password'])  # 密码hash保存

@@ -67,11 +67,13 @@ class Auth(Generic[_UserModelT]):
     db: Union[AsyncDatabase, Database] = None
     backend: AuthBackend[_UserModelT] = None
 
-    def __init__(self, db: Union[AsyncDatabase, Database],
-                 token_store: BaseTokenStore = None,
-                 user_model: Type[_UserModelT] = User,
-                 pwd_context: CryptContext = CryptContext(schemes=["bcrypt"], deprecated="auto")
-                 ):
+    def __init__(
+        self,
+        db: Union[AsyncDatabase, Database],
+        token_store: BaseTokenStore = None,
+        user_model: Type[_UserModelT] = User,
+        pwd_context: CryptContext = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    ):
         self.user_model = user_model or self.user_model
         assert self.user_model, 'user_model is None'
         self.db = db or self.db
@@ -93,16 +95,17 @@ class Auth(Generic[_UserModelT]):
                 return user
         return None
 
-    def requires(self,
-                 roles: Union[str, Sequence[str]] = None,
-                 groups: Union[str, Sequence[str]] = None,
-                 permissions: Union[str, Sequence[str]] = None,
-                 status_code: int = 403,
-                 redirect: str = None,
-                 response: Optional[Union[Response, bool]] = None,
-                 ) -> Callable:  # sourcery no-metrics
+    def requires(
+        self,
+        roles: Union[str, Sequence[str]] = None,
+        groups: Union[str, Sequence[str]] = None,
+        permissions: Union[str, Sequence[str]] = None,
+        status_code: int = 403,
+        redirect: str = None,
+        response: Union[bool, Response] = None,
+    ) -> Callable:  # sourcery no-metrics
 
-        async def has_requires(conn: HTTPConnection):
+        async def has_requires(conn: HTTPConnection) -> bool:
             # todo websocket support
             await self.backend.authenticate(conn)  # type:ignore
             if not conn.user:
@@ -115,15 +118,15 @@ class Auth(Generic[_UserModelT]):
                 is_session=True
             )
 
-        async def depend(request: Request):
+        async def depend(request: Request) -> Union[bool, Response]:
             if not await has_requires(request):
-                if redirect is not None:
-                    return RedirectResponse(
-                        url=request.url_for(redirect), status_code=303
-                    )
                 if response is not None:
                     return response
-                raise HTTPException(status_code=status_code)
+                code, headers = status_code, {}
+                if redirect is not None:
+                    code = 307
+                    headers = {'location': request.url_for(redirect)}
+                raise HTTPException(status_code=code, headers=headers)
             return True
 
         def decorator(func: Callable = None) -> Union[Callable, Coroutine]:
@@ -145,7 +148,7 @@ class Auth(Generic[_UserModelT]):
                 # Handle websocket functions. (Always async)
                 @functools.wraps(func)
                 async def websocket_wrapper(
-                        *args: Any, **kwargs: Any
+                    *args: Any, **kwargs: Any
                 ) -> None:
                     websocket = kwargs.get("websocket", args[idx] if args else None)
                     assert isinstance(websocket, WebSocket)
@@ -160,7 +163,7 @@ class Auth(Generic[_UserModelT]):
                 # Handle async request/response functions.
                 @functools.wraps(func)
                 async def async_wrapper(
-                        *args: Any, **kwargs: Any
+                    *args: Any, **kwargs: Any
                 ) -> Response:
                     request = kwargs.get("request", args[idx] if args else None)
                     assert isinstance(request, Request)
@@ -200,7 +203,8 @@ class Auth(Generic[_UserModelT]):
         user = session.scalar(
             select(self.user_model).join(
                 UserRoleLink, UserRoleLink.user_id == self.user_model.id
-            ).where(UserRoleLink.role_id == role.id))
+            ).where(UserRoleLink.role_id == role.id)
+        )
         if not user:
             user = self.user_model(
                 username=role_key,
@@ -233,17 +237,25 @@ class AuthRouter(RouterMixin):
         RouterMixin.__init__(self)
         self.router.dependencies.insert(0, Depends(self.auth.backend.authenticate))
         self.schema_user_info = self.schema_user_info or schema_create_by_schema(
-            self.auth.user_model, 'UserInfo', exclude={'password'})
+            self.auth.user_model, 'UserInfo', exclude={'password'}
+        )
 
-        self.router.add_api_route('/userinfo', self.route_userinfo, methods=["GET"], description=_('User Profile'),
-                                  dependencies=None, response_model=BaseApiOut[self.schema_user_info])
-        self.router.add_api_route('/logout', self.route_logout, methods=["GET"], description=_('Sign out'),
-                                  dependencies=None, response_model=BaseApiOut)
+        self.router.add_api_route(
+            '/userinfo', self.route_userinfo, methods=["GET"], description=_('User Profile'),
+            dependencies=None, response_model=BaseApiOut[self.schema_user_info]
+            )
+        self.router.add_api_route(
+            '/logout', self.route_logout, methods=["GET"], description=_('Sign out'),
+            dependencies=None, response_model=BaseApiOut
+            )
         # oauth2
         self.router.dependencies.append(
-            Depends(self.OAuth2(tokenUrl=f"{self.router_path}/gettoken", auto_error=False)))
-        self.router.add_api_route('/gettoken', self.route_gettoken, methods=["POST"], description='OAuth2 Token',
-                                  response_model=BaseApiOut[self.schema_user_login_out])
+            Depends(self.OAuth2(tokenUrl=f"{self.router_path}/gettoken", auto_error=False))
+        )
+        self.router.add_api_route(
+            '/gettoken', self.route_gettoken, methods=["POST"], description='OAuth2 Token',
+            response_model=BaseApiOut[self.schema_user_login_out]
+            )
 
     @cached_property
     def router_path(self) -> str:
@@ -272,11 +284,12 @@ class AuthRouter(RouterMixin):
 
     @property
     def route_gettoken(self):
-        async def oauth_token(request: Request,
-                              response: Response,
-                              username: str = Form(...),
-                              password: str = Form(...)
-                              ):
+        async def oauth_token(
+            request: Request,
+            response: Response,
+            username: str = Form(...),
+            password: str = Form(...)
+        ):
             if request.scope.get('user') is None:
                 request.scope['user'] = await request.auth.authenticate_user(username=username, password=password)
             if request.scope.get('user') is None:

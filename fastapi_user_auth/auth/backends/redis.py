@@ -7,9 +7,12 @@ from ..backends.base import BaseTokenStore, _TokenDataSchemaT
 
 
 class RedisTokenStore(BaseTokenStore):
-    def __init__(self, redis: Redis,
-                 expire_seconds: Optional[int] = 60 * 60 * 24 * 3,
-                 TokenDataSchema: _TokenDataSchemaT = None):
+    def __init__(
+            self,
+            redis: Redis,
+            expire_seconds: Optional[int] = 60 * 60 * 24 * 3,
+            TokenDataSchema: _TokenDataSchemaT = None
+    ):
         super().__init__(expire_seconds, TokenDataSchema)
         self.redis = redis
 

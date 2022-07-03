@@ -7,20 +7,22 @@ from sqlalchemy_database import AsyncDatabase, Database
 from sqlmodel import Field, select
 
 from ..backends.base import BaseTokenStore, _TokenDataSchemaT
-from ..models import SQLModelTable
+from ..models import PkMixin, CreateTimeMixin
 
 
-class TokenStoreModel(SQLModelTable, table=True):
+class TokenStoreModel(PkMixin, CreateTimeMixin, table=True):
     __tablename__ = 'auth_token'
     token: str = Field(..., max_length=48, sa_column=Column(String(48), unique=True, index=True, nullable=False))
     data: str = Field(default='')
-    create_time: datetime = Field(default_factory=datetime.utcnow)
 
 
 class DbTokenStore(BaseTokenStore):
-    def __init__(self, db: Union[AsyncDatabase, Database],
-                 expire_seconds: Optional[int] = 60 * 60 * 24 * 3,
-                 TokenDataSchema: _TokenDataSchemaT = None):
+    def __init__(
+        self,
+        db: Union[AsyncDatabase, Database],
+        expire_seconds: Optional[int] = 60 * 60 * 24 * 3,
+        TokenDataSchema: _TokenDataSchemaT = None
+    ):
         super().__init__(expire_seconds, TokenDataSchema)
         self.db = db
 

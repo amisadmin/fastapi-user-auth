@@ -1,8 +1,9 @@
-from typing import Tuple
+from typing import Tuple, Union
 
 import pytest
 from fastapi import Depends, HTTPException
 from starlette.requests import Request
+from starlette.responses import Response
 
 from fastapi_user_auth.auth.auth import Auth
 from fastapi_user_auth.auth.models import User
@@ -52,8 +53,10 @@ def user_1(request: Request):
 
 
 @app.get("/auth/user_2")
-def user_2(request: Request,
-           auth_result: Tuple[Auth, User] = Depends(auth.backend.authenticate)):
+def user_2(
+        request: Request,
+        auth_result: Tuple[Auth, User] = Depends(auth.backend.authenticate)
+):
     if request.user:
         return request.user
     else:
@@ -72,8 +75,10 @@ def admin_roles_1(request: Request):
 
 
 @app.get("/auth/admin_roles_depend_2")
-def admin_roles_2(request: Request,
-                  auth_result: Tuple[Auth, User] = Depends(auth.requires('admin')())):
+def admin_roles_2(
+        request: Request,
+        auth_result: Union[bool, Response] = Depends(auth.requires('admin')())
+):
     return request.user
 
 
