@@ -19,7 +19,7 @@ class PkMixin(SQLModel):
 
 
 class CreateTimeMixin(SQLModel):
-    create_time: datetime = Field(default_factory=datetime.utcnow, title=_('Create Time'))
+    create_time: datetime = Field(default_factory=datetime.now, title=_('Create Time'))
 
 
 class UsernameMixin(SQLModel):
@@ -214,8 +214,8 @@ class User(BaseUser, table=True):
             backref=backref("parent", remote_side="User.id"),
         ),
     )
-    roles: List["Role"] = Relationship(back_populates="users", link_model=UserRoleLink)
-    groups: List["Group"] = Relationship(back_populates="users", link_model=UserGroupLink)
+    roles: List["Role"] = Relationship(link_model=UserRoleLink)
+    groups: List["Group"] = Relationship(link_model=UserGroupLink)
 
 
 class BaseRBAC(PkMixin):
@@ -231,7 +231,6 @@ class BaseRBAC(PkMixin):
 class Role(BaseRBAC, table=True):
     """角色"""
     __tablename__ = 'auth_role'
-    users: List[User] = Relationship(back_populates="roles", link_model=UserRoleLink)
     groups: List["Group"] = Relationship(back_populates="roles", link_model=GroupRoleLink)
     permissions: List["Permission"] = Relationship(back_populates="roles", link_model=RolePermissionLink)
 
@@ -240,7 +239,6 @@ class Group(BaseRBAC, table=True):
     """用户组"""
     __tablename__ = 'auth_group'
     parent_id: int = Field(None, title=_('Parent'), foreign_key="auth_group.id")
-    users: List[User] = Relationship(back_populates="groups", link_model=UserGroupLink)
     roles: List["Role"] = Relationship(back_populates="groups", link_model=GroupRoleLink)
 
 
