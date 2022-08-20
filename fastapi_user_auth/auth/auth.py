@@ -29,8 +29,7 @@ from .backends.db import DbTokenStore
 from .models import BaseUser, User, Role, UserRoleLink
 from .schemas import UserLoginOut
 
-_UserModelT = TypeVar("_UserModelT", bound=BaseUser)
-
+_UserModelT = TypeVar("_UserModelT", bound = BaseUser)
 
 class AuthBackend(AuthenticationBackend, Generic[_UserModelT]):
 
@@ -59,8 +58,7 @@ class AuthBackend(AuthenticationBackend, Generic[_UserModelT]):
         return request.auth, request.user
 
     def attach_middleware(self, app: FastAPI):
-        app.add_middleware(AuthenticationMiddleware, backend=self)  # 添加auth中间件
-
+        app.add_middleware(AuthenticationMiddleware, backend = self)  # 添加auth中间件
 
 class Auth(Generic[_UserModelT]):
     user_model: Type[_UserModelT] = None
@@ -72,7 +70,7 @@ class Auth(Generic[_UserModelT]):
         db: Union[AsyncDatabase, Database],
         token_store: BaseTokenStore = None,
         user_model: Type[_UserModelT] = User,
-        pwd_context: CryptContext = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        pwd_context: CryptContext = CryptContext(schemes = ["bcrypt"], deprecated = "auto")
     ):
         self.user_model = user_model or self.user_model
         assert self.user_model, 'user_model is None'
@@ -112,10 +110,10 @@ class Auth(Generic[_UserModelT]):
                 return False
             return await self.db.async_run_sync(
                 conn.user.has_requires,
-                roles=roles,
-                groups=groups,
-                permissions=permissions,
-                is_session=True
+                roles = roles,
+                groups = groups,
+                permissions = permissions,
+                is_session = True
             )
 
         async def depend(request: Request) -> Union[bool, Response]:
@@ -126,7 +124,7 @@ class Auth(Generic[_UserModelT]):
                 if redirect is not None:
                     code = 307
                     headers = {'location': request.url_for(redirect)}
-                raise HTTPException(status_code=code, headers=headers)
+                raise HTTPException(status_code = code, headers = headers)
             return True
 
         def decorator(func: Callable = None) -> Union[Callable, Coroutine]:
@@ -195,7 +193,7 @@ class Auth(Generic[_UserModelT]):
         # create admin role
         role = session.scalar(select(Role).where(Role.key == role_key))
         if not role:
-            role = Role(key=role_key, name=f'{role_key} role')
+            role = Role(key = role_key, name = f'{role_key} role')
             session.add(role)
             session.flush()
 
@@ -207,10 +205,10 @@ class Auth(Generic[_UserModelT]):
         )
         if not user:
             user = self.user_model(
-                username=role_key,
-                password=self.pwd_context.hash(role_key),
-                email=f'{role_key}@amis.work',  # type:ignore
-                roles=[role],
+                username = role_key,
+                password = self.pwd_context.hash(role_key),
+                email = f'{role_key}@amis.work',  # type:ignore
+                roles = [role],
             )
             session.add(user)
             session.flush()
@@ -221,9 +219,8 @@ class Auth(Generic[_UserModelT]):
         return await self.db.async_run_sync(
             self._create_role_user_sync,
             role_key,
-            on_close_pre=lambda user: User.parse_obj(user)
+            on_close_pre = lambda user: User.parse_obj(user)
         )
-
 
 class AuthRouter(RouterMixin):
     auth: Auth = None
@@ -237,25 +234,25 @@ class AuthRouter(RouterMixin):
         RouterMixin.__init__(self)
         self.router.dependencies.insert(0, Depends(self.auth.backend.authenticate))
         self.schema_user_info = self.schema_user_info or schema_create_by_schema(
-            self.auth.user_model, 'UserInfo', exclude={'password'}
+            self.auth.user_model, 'UserInfo', exclude = {'password'}
         )
 
         self.router.add_api_route(
-            '/userinfo', self.route_userinfo, methods=["GET"], description=_('User Profile'),
-            dependencies=None, response_model=BaseApiOut[self.schema_user_info]
-            )
-        self.router.add_api_route(
-            '/logout', self.route_logout, methods=["GET"], description=_('Sign out'),
-            dependencies=None, response_model=BaseApiOut
-            )
-        # oauth2
-        self.router.dependencies.append(
-            Depends(self.OAuth2(tokenUrl=f"{self.router_path}/gettoken", auto_error=False))
+            '/userinfo', self.route_userinfo, methods = ["GET"], description = _('User Profile'),
+            dependencies = None, response_model = BaseApiOut[self.schema_user_info]
         )
         self.router.add_api_route(
-            '/gettoken', self.route_gettoken, methods=["POST"], description='OAuth2 Token',
-            response_model=BaseApiOut[self.schema_user_login_out]
-            )
+            '/logout', self.route_logout, methods = ["GET"], description = _('Sign out'),
+            dependencies = None, response_model = BaseApiOut
+        )
+        # oauth2
+        self.router.dependencies.append(
+            Depends(self.OAuth2(tokenUrl = f"{self.router_path}/gettoken", auto_error = False))
+        )
+        self.router.add_api_route(
+            '/gettoken', self.route_gettoken, methods = ["POST"], description = 'OAuth2 Token',
+            response_model = BaseApiOut[self.schema_user_login_out]
+        )
 
     @cached_property
     def router_path(self) -> str:
@@ -265,7 +262,7 @@ class AuthRouter(RouterMixin):
     def route_userinfo(self):
         @self.auth.requires()
         async def userinfo(request: Request):
-            return BaseApiOut(data=request.user)
+            return BaseApiOut(data = request.user)
 
         return userinfo
 
@@ -273,10 +270,10 @@ class AuthRouter(RouterMixin):
     def route_logout(self):
         @self.auth.requires()
         async def user_logout(request: Request):
-            token_value = request.auth.backend.get_user_token(request=request)
+            token_value = request.auth.backend.get_user_token(request = request)
             with contextlib.suppress(Exception):
-                await self.auth.backend.token_store.destroy_token(token=token_value)
-            response = RedirectResponse(url='/')
+                await self.auth.backend.token_store.destroy_token(token = token_value)
+            response = RedirectResponse(url = '/')
             response.delete_cookie('Authorization')
             return response
 
@@ -291,16 +288,17 @@ class AuthRouter(RouterMixin):
             password: str = Form(...)
         ):
             if request.scope.get('user') is None:
-                request.scope['user'] = await request.auth.authenticate_user(username=username, password=password)
+                request.scope['user'] = await request.auth.authenticate_user(username = username, password = password)
             if request.scope.get('user') is None:
-                return BaseApiOut(status=-1, msg=_('Incorrect username or password!'))
+                return BaseApiOut(status = -1, msg = _('Incorrect username or password!'))
             token_info = self.schema_user_login_out.parse_obj(request.user)
             token_info.access_token = await request.auth.backend.token_store.write_token(request.user.dict())
             response.set_cookie('Authorization', f'bearer {token_info.access_token}')
-            return BaseApiOut(data=token_info)
+            return BaseApiOut(data = token_info)
 
         return oauth_token
 
     class OAuth2(OAuth2PasswordBearer):
+
         async def __call__(self, request: Request) -> Optional[str]:
             return request.auth.backend.get_user_token(request)

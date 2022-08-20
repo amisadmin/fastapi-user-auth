@@ -5,13 +5,13 @@ from aioredis import Redis
 
 from ..backends.base import BaseTokenStore, _TokenDataSchemaT
 
-
 class RedisTokenStore(BaseTokenStore):
+
     def __init__(
-            self,
-            redis: Redis,
-            expire_seconds: Optional[int] = 60 * 60 * 24 * 3,
-            TokenDataSchema: _TokenDataSchemaT = None
+        self,
+        redis: Redis,
+        expire_seconds: Optional[int] = 60 * 60 * 24 * 3,
+        TokenDataSchema: _TokenDataSchemaT = None
     ):
         super().__init__(expire_seconds, TokenDataSchema)
         self.redis = redis
@@ -25,7 +25,7 @@ class RedisTokenStore(BaseTokenStore):
     async def write_token(self, token_data: Union[_TokenDataSchemaT, dict]) -> str:
         obj = self.TokenDataSchema.parse_obj(token_data) if isinstance(token_data, dict) else token_data
         token = secrets.token_urlsafe()
-        await self.redis.set(self.get_key(token), obj.json(), ex=self.expire_seconds)
+        await self.redis.set(self.get_key(token), obj.json(), ex = self.expire_seconds)
         return token
 
     async def destroy_token(self, token: str) -> None:

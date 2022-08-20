@@ -4,11 +4,9 @@ from sqlmodel import Field
 
 from .models import UsernameMixin, PasswordMixin, EmailMixin, BaseUser
 
-
 class BaseTokenData(BaseModel):
     id: int
     username: str
-
 
 class UserLoginOut(BaseUser):
     """用户登录返回信息"""
@@ -16,10 +14,9 @@ class UserLoginOut(BaseUser):
     access_token: str = None
     password: SecretStr = None
 
-
 class UserRegIn(UsernameMixin, PasswordMixin, EmailMixin):
     """用户注册"""
-    password2: str = Field(title=_('Confirm Password'), max_length=128)
+    password2: str = Field(title = _('Confirm Password'), max_length = 128)
 
     @validator('password2')
     def passwords_match(cls, v, values, **kwargs):

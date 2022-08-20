@@ -12,52 +12,56 @@ from starlette.requests import Request
 from fastapi_user_auth.app import UserAuthApp
 from fastapi_user_auth.auth import Auth
 
-
 class AuthAdminSite(AdminSite):
     auth: Auth = None
     UserAuthApp: Type[UserAuthApp] = UserAuthApp
 
     def __init__(
-            self,
-            settings: Settings,
-            fastapi: FastAPI = None,
-            engine: AsyncEngine = None,
-            auth: Auth = None
+        self,
+        settings: Settings,
+        fastapi: FastAPI = None,
+        engine: AsyncEngine = None,
+        auth: Auth = None
     ):
         super().__init__(settings, fastapi, engine)
-        self.auth = auth or self.auth or Auth(db=self.db)
+        self.auth = auth or self.auth or Auth(db = self.db)
         self.UserAuthApp.auth = self.auth
         self.register_admin(self.UserAuthApp)
 
     async def get_page(self, request: Request) -> App:
         app = await super().get_page(request)
         user_auth_app = self.get_admin_or_create(self.UserAuthApp)
-        app.header = Flex(className="w-full", justify='flex-end', alignItems='flex-end', items=[app.header, {
-            "type": "dropdown-button",
-            "label": f"{request.user.username}",
-            "trigger": "hover",
-            "icon": "fa fa-user",
-            "buttons": [
-                ActionType.Dialog(
-                    label=_('User Profile'),
-                    dialog=Dialog(
-                        title=_('User Profile'),
-                        actions=[],
-                        size=SizeEnum.lg,
-                        body=Service(
-                            schemaApi=AmisAPI(
-                                method='post',
-                                url=f"{user_auth_app.router_path}/form/userinfo",
-                                cache=600000,
-                                responseData={'&': '${body}'}
-                            )))),
-                ActionType.Url(
-                    label=_('Sign out'),
-                    url=f"{user_auth_app.router_path}/logout"
-                ),
-            ]
-        }])
+        app.header = Flex(
+            className = "w-full", justify = 'flex-end', alignItems = 'flex-end', items = [app.header, {
+                "type": "dropdown-button",
+                "label": f"{request.user.username}",
+                "trigger": "hover",
+                "icon": "fa fa-user",
+                "buttons": [
+                    ActionType.Dialog(
+                        label = _('User Profile'),
+                        dialog = Dialog(
+                            title = _('User Profile'),
+                            actions = [],
+                            size = SizeEnum.lg,
+                            body = Service(
+                                schemaApi = AmisAPI(
+                                    method = 'post',
+                                    url = f"{user_auth_app.router_path}/form/userinfo",
+                                    cache = 600000,
+                                    responseData = {'&': '${body}'}
+                                )
+                            )
+                        )
+                    ),
+                    ActionType.Url(
+                        label = _('Sign out'),
+                        url = f"{user_auth_app.router_path}/logout"
+                    ),
+                ]
+            }]
+        )
         return app
 
     async def has_page_permission(self, request: Request) -> bool:
-        return await self.auth.requires(response=False)(request)
+        return await self.auth.requires(response = False)(request)
