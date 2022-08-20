@@ -11,9 +11,8 @@ subapp2 = FastAPI()
 app.mount('/subapp2', subapp2)
 auth.backend.attach_middleware(subapp2)
 
-subapp3 = FastAPI(dependencies=[Depends(auth.requires('admin')())])
+subapp3 = FastAPI(dependencies = [Depends(auth.requires('admin')())])
 app.mount('/subapp3', subapp3)
-
 
 # auth decorator
 @subapp1.get("/auth/user")
@@ -21,20 +20,17 @@ app.mount('/subapp3', subapp3)
 def user(request: Request):
     return request.user
 
-
 @subapp2.get("/auth/user")
 def user_2(request: Request):
     if request.user:
         return request.user
     else:
-        raise HTTPException(status_code=403)
-
+        raise HTTPException(status_code = 403)
 
 @subapp3.get("/auth/user")
 @auth.requires()
 def user_3(request: Request):
     return request.user
-
 
 path_admin_auth = {
     "/subapp1/auth/user",
@@ -42,8 +38,7 @@ path_admin_auth = {
     "/subapp3/auth/user",
 }
 
-
-@pytest.mark.parametrize("logins", ['admin'], indirect=True)
+@pytest.mark.parametrize("logins", ['admin'], indirect = True)
 @pytest.mark.parametrize("path", list(path_admin_auth))
 def test_admin_auth(logins: UserClient, path):
     response = logins.client.get(path)

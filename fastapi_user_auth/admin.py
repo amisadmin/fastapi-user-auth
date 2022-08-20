@@ -11,7 +11,7 @@ from fastapi_user_auth.auth import Auth
 from fastapi_user_auth.auth.models import BaseUser, User, Group, Permission, Role
 from fastapi_user_auth.auth.schemas import UserLoginOut
 from pydantic import BaseModel
-from sqlalchemy import insert, update
+from sqlalchemy import insert, update, select
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
@@ -126,10 +126,10 @@ class UserRegFormAdmin(FormAdmin):
         **kwargs
     ) -> BaseApiOut[BaseModel]:  # self.schema_submit_out
         auth: Auth = request.auth
-        user = await auth.get_user_by_username(data.username)
+        user = await auth.db.scalar(select(self.user_model).where(self.user_model.username == data.username))
         if user:
             return BaseApiOut(status = -1, msg = _('Username has been registered!'), data = None)
-        user = await auth.get_user_by_whereclause(self.user_model.email == data.email)
+        user = await auth.db.scalar(select(self.user_model).where(self.user_model.email == data.email))
         if user:
             return BaseApiOut(status = -2, msg = _('Email has been registered!'), data = None)
         user = self.user_model.parse_obj(data)

@@ -145,9 +145,9 @@ def vip_roles_and_article_update(request: Request):
 
 ```
 
-### 依赖项
+### 依赖项(推荐)
 
-- 推荐场景: 路由集合,FastAPI应用
+- 推荐场景: 单个路由,路由集合,FastAPI应用.
 
 ```python
 from fastapi import Depends
@@ -156,11 +156,10 @@ from fastapi_user_auth.auth import Auth
 from fastapi_user_auth.auth.models import User
 
 
-# 路由参数依赖项
-@app.get("/auth/admin_roles_depend_1")
-def admin_roles(request: Request,
-                auth_result: Tuple[Auth, User] = Depends(auth.requires('admin')())):
-    return request.user
+# 路由参数依赖项, 推荐使用此方式
+@app.get("/auth/admin_roles_depend_1") 
+def admin_roles(user: User = Depends(auth.get_current_user)):
+    return user # or request.user
 
 
 # 路径操作装饰器依赖项
@@ -200,6 +199,7 @@ from fastapi_user_auth.auth.models import User
 
 
 async def get_request_user(request: Request) -> Optional[User]:
+    # user= await auth.get_current_user(request)
     if await auth.requires('admin', response=False)(request):
         return request.user
     else:
