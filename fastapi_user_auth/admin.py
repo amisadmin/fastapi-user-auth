@@ -116,30 +116,29 @@ class UserRegFormAdmin(FormAdmin):
     async def handle(self, request: Request,
                      data: BaseModel,  # self.schema
                      **kwargs) -> BaseApiOut[BaseModel]:  # self.schema_submit_out
-        user = await request.auth.get_user_by_username(data.username)
+        auth: Auth = request.auth
+        user = await auth.get_user_by_username(data.username)
         if user:
             return BaseApiOut(status=-1, msg=_('Username has been registered!'), data=None)
-        user = await request.auth.get_user_by_whereclause(self.user_model.email == data.email)
+        user = await auth.get_user_by_whereclause(self.user_model.email == data.email)
         if user:
             return BaseApiOut(status=-2, msg=_('Email has been registered!'), data=None)
         user = self.user_model.parse_obj(data)
         values = user.dict(exclude={'id', 'password'})
-        values['password'] = request.auth.pwd_context.hash(user.password.get_secret_value())  # 密码hash保存
+        values['password'] = auth.pwd_context.hash(user.password.get_secret_value())  # 密码hash保存
         stmt = insert(self.user_model).values(values)
-        async with request.auth.db.session_maker() as session:
-            try:
-                result = await session.execute(stmt)
-                if result.rowcount:  # type: ignore
-                    await session.commit()
-            except Exception as e:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Error Execute SQL：{e}",
-                ) from e
-            user.id = getattr(result, "lastrowid", None)
+        try:
+            user.id = await auth.db.async_execute(
+                stmt,
+                on_close_pre = lambda r:getattr(r, "lastrowid", None)
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error Execute SQL：{e}",
+            ) from e
         # 注册成功,设置用户信息
         token_info = self.schema_submit_out.parse_obj(user)
-        auth: Auth = request.auth
         token_info.access_token = await auth.backend.token_store.write_token(user.dict())
         return BaseApiOut(code=0, msg=_('Registered successfully!'), data=token_info)
 
@@ -215,9 +214,7 @@ class UserInfoFormAdmin(FormAdmin):
 
     async def handle(self, request: Request, data: BaseModel, **kwargs) -> BaseApiOut[Any]:
         stmt = update(self.user_model).where(self.user_model.username == request.user.username).values(data.dict())
-        async with self.site.db.session_maker() as session:
-            await session.execute(stmt)
-            await session.commit()
+        await self.site.db.async_execute(stmt)
         return BaseApiOut(data={**request.user.dict(), **data.dict()})
 
     async def has_page_permission(self, request: Request) -> bool:
