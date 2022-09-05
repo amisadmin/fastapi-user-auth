@@ -39,7 +39,7 @@ class EmailMixin(SQLModel):
     email: EmailStr = Field(
         None,
         title = _('Email'),
-        sa_column = Column(String(50), unique = True, index = True, nullable = False),
+        sa_column = Column(String(50), unique = True, index = True, nullable = True),
         amis_form_item = 'input-email'
     )
 
@@ -194,14 +194,6 @@ class BaseUser(PkMixin, UsernameMixin, PasswordMixin, EmailMixin, CreateTimeMixi
 
 class User(BaseUser, table = True):
     """用户"""
-    point: float = Field(default = 0, title = _('Point'))
-    phone: str = Field(None, title = _('Tel'), max_length = 15)
-    parent_id: int = Field(None, title = _('Parent'), foreign_key = "auth_user.id")
-    children: List["User"] = Relationship(
-        sa_relationship_kwargs = dict(
-            backref = backref("parent", remote_side = "User.id"),
-        ),
-    )
     roles: List["Role"] = Relationship(link_model = UserRoleLink)
     groups: List["Group"] = Relationship(link_model = UserGroupLink)
 
@@ -220,10 +212,12 @@ class Role(BaseRBAC, table = True):
     groups: List["Group"] = Relationship(back_populates = "roles", link_model = GroupRoleLink)
     permissions: List["Permission"] = Relationship(back_populates = "roles", link_model = RolePermissionLink)
 
-class Group(BaseRBAC, table = True):
-    """用户组"""
+class BaseGroup(BaseRBAC):
     __tablename__ = 'auth_group'
     parent_id: int = Field(None, title = _('Parent'), foreign_key = "auth_group.id")
+
+class Group(BaseGroup, table = True):
+    """用户组"""
     roles: List["Role"] = Relationship(back_populates = "groups", link_model = GroupRoleLink)
 
 class Permission(BaseRBAC, table = True):
