@@ -8,10 +8,12 @@ from pydantic import EmailStr, SecretStr
 from sqlalchemy import Column, String, and_
 from sqlalchemy.orm import backref, Session
 from sqlalchemy.sql.selectable import Exists
-from sqlmodel import SQLModel, Relationship, select
-from sqlmodel.sql.expression import SelectOfScalar
+from sqlmodel import Relationship, select
 
-SelectOfScalar.inherit_cache = True
+try:
+    from sqlmodelx import SQLModel
+except ImportError:
+    from sqlmodel import SQLModel
 
 class PkMixin(SQLModel):
     id: int = Field(default = None, primary_key = True, nullable = False)
