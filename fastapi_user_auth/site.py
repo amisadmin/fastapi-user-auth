@@ -1,4 +1,4 @@
-from typing import Type
+from typing import Type, Union
 
 from fastapi import FastAPI
 from fastapi_amis_admin.admin import Settings, AdminSite
@@ -7,6 +7,7 @@ from fastapi_amis_admin.amis.constants import SizeEnum
 from fastapi_amis_admin.amis.types import AmisAPI
 from fastapi_amis_admin.utils.translation import i18n as _
 from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.future import Engine
 from starlette.requests import Request
 
 from fastapi_user_auth.app import UserAuthApp
@@ -20,7 +21,7 @@ class AuthAdminSite(AdminSite):
         self,
         settings: Settings,
         fastapi: FastAPI = None,
-        engine: AsyncEngine = None,
+        engine: Union[Engine, AsyncEngine] = None,
         auth: Auth = None
     ):
         super().__init__(settings, fastapi, engine)
