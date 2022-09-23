@@ -66,6 +66,7 @@ class UserLoginFormAdmin(FormAdmin):
 
     async def get_form(self, request: Request) -> Form:
         form = await super().get_form(request)
+        form.body.sort(key=lambda form_item: form_item.type, reverse=True)
         form.update_from_kwargs(
             title = '',
             mode = DisplayModeEnum.horizontal,
