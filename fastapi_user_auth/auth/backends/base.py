@@ -2,16 +2,13 @@ from typing import Generic, Optional, TypeVar, Union
 
 from fastapi_user_auth.auth.schemas import BaseTokenData
 
-_TokenDataSchemaT = TypeVar("_TokenDataSchemaT", bound = BaseTokenData)
+_TokenDataSchemaT = TypeVar("_TokenDataSchemaT", bound=BaseTokenData)
+
 
 class BaseTokenStore(Generic[_TokenDataSchemaT]):
     TokenDataSchema: _TokenDataSchemaT
 
-    def __init__(
-        self,
-        expire_seconds: Optional[int] = 60 * 60 * 24 * 3,
-        TokenDataSchema: _TokenDataSchemaT = None
-    ) -> None:
+    def __init__(self, expire_seconds: Optional[int] = 60 * 60 * 24 * 3, TokenDataSchema: _TokenDataSchemaT = None) -> None:
         self.TokenDataSchema = TokenDataSchema or BaseTokenData
         self.expire_seconds = expire_seconds
 

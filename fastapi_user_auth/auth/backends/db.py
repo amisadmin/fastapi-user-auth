@@ -7,20 +7,21 @@ from sqlalchemy_database import AsyncDatabase, Database
 from sqlmodel import Field, select
 
 from ..backends.base import BaseTokenStore, _TokenDataSchemaT
-from ..models import PkMixin, CreateTimeMixin
+from ..models import CreateTimeMixin, PkMixin
 
-class TokenStoreModel(PkMixin, CreateTimeMixin, table = True):
-    __tablename__ = 'auth_token'
-    token: str = Field(..., max_length = 48, sa_column = Column(String(48), unique = True, index = True, nullable = False))
-    data: str = Field(default = '')
+
+class TokenStoreModel(PkMixin, CreateTimeMixin, table=True):
+    __tablename__ = "auth_token"
+    token: str = Field(..., max_length=48, sa_column=Column(String(48), unique=True, index=True, nullable=False))
+    data: str = Field(default="")
+
 
 class DbTokenStore(BaseTokenStore):
-
     def __init__(
         self,
         db: Union[AsyncDatabase, Database],
         expire_seconds: Optional[int] = 60 * 60 * 24 * 3,
-        TokenDataSchema: _TokenDataSchemaT = None
+        TokenDataSchema: _TokenDataSchemaT = None,
     ):
         super().__init__(expire_seconds, TokenDataSchema)
         self.db = db
@@ -31,15 +32,15 @@ class DbTokenStore(BaseTokenStore):
         if obj is None:
             return None
         # expire
-        if obj.create_time < datetime.utcnow() - timedelta(seconds = self.expire_seconds):
-            await self.destroy_token(token = token)
+        if obj.create_time < datetime.utcnow() - timedelta(seconds=self.expire_seconds):
+            await self.destroy_token(token=token)
             return None
         return self.TokenDataSchema.parse_raw(obj.data)
 
     async def write_token(self, token_data: Union[_TokenDataSchemaT, dict]) -> str:
         obj = self.TokenDataSchema.parse_obj(token_data) if isinstance(token_data, dict) else token_data
         token = secrets.token_urlsafe()
-        stmt = insert(TokenStoreModel).values(dict(token = token, data = obj.json()))
+        stmt = insert(TokenStoreModel).values(dict(token=token, data=obj.json()))
         await self.db.async_execute(stmt)
         return token
 
