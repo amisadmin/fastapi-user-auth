@@ -78,6 +78,18 @@ class UserLoginFormAdmin(FormAdmin):
 
     async def get_form(self, request: Request) -> Form:
         form = await super().get_form(request)
+        buttons = []
+        try:
+            buttons.append(
+                ActionType.Link(
+                    actionType="link",
+                    link=f"{self.router_path}{self.router.url_path_for('reg')}",
+                    label=_("Sign up"),
+                )
+            )
+        except NoMatchFound:
+            pass
+        buttons.append(Action(actionType="submit", label=_("Sign in"), level=LevelEnum.primary))
         form.body.sort(key=lambda form_item: form_item.type, reverse=True)
         form.update_from_kwargs(
             title="",
@@ -87,14 +99,7 @@ class UserLoginFormAdmin(FormAdmin):
             panelClassName="",
             wrapWithPanel=True,
             horizontal=Horizontal(left=3, right=9),
-            actions=[
-                ButtonToolbar(
-                    buttons=[
-                        ActionType.Link(actionType="link", link=f"{self.router_path}/reg", label=_("Sign up")),
-                        Action(actionType="submit", label=_("Sign in"), level=LevelEnum.primary),
-                    ]
-                )
-            ],
+            actions=[ButtonToolbar(buttons=buttons)],
         )
         form.redirect = request.query_params.get("redirect") or "/"
         return form
