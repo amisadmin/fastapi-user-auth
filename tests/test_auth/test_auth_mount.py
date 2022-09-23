@@ -2,38 +2,40 @@ import pytest
 from fastapi import Depends, FastAPI, HTTPException
 from starlette.requests import Request
 
-from tests.test_auth.conftest import UserClient, app, auth
-
-subapp1 = FastAPI()
-app.mount("/subapp1", subapp1)
-
-subapp2 = FastAPI()
-app.mount("/subapp2", subapp2)
-auth.backend.attach_middleware(subapp2)
-
-subapp3 = FastAPI(dependencies=[Depends(auth.requires("admin")())])
-app.mount("/subapp3", subapp3)
+from tests.test_auth.conftest import UserClient
 
 
-# auth decorator
-@subapp1.get("/auth/user")
-@auth.requires()
-def user(request: Request):
-    return request.user
+@pytest.fixture(autouse=True)
+def setup(logins: UserClient):
+    app = logins.app
+    auth = logins.auth
+    subapp1 = FastAPI()
+    app.mount("/subapp1", subapp1)
 
+    subapp2 = FastAPI()
+    app.mount("/subapp2", subapp2)
+    auth.backend.attach_middleware(subapp2)
 
-@subapp2.get("/auth/user")
-def user_2(request: Request):
-    if request.user:
+    subapp3 = FastAPI(dependencies=[Depends(auth.requires("admin")())])
+    app.mount("/subapp3", subapp3)
+
+    # auth decorator
+    @subapp1.get("/auth/user")
+    @auth.requires()
+    def user(request: Request):
         return request.user
-    else:
-        raise HTTPException(status_code=403)
 
+    @subapp2.get("/auth/user")
+    def user_2(request: Request):
+        if request.user:
+            return request.user
+        else:
+            raise HTTPException(status_code=403)
 
-@subapp3.get("/auth/user")
-@auth.requires()
-def user_3(request: Request):
-    return request.user
+    @subapp3.get("/auth/user")
+    @auth.requires()
+    def user_3(request: Request):
+        return request.user
 
 
 path_admin_auth = {

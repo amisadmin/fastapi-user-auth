@@ -1,11 +1,11 @@
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from fastapi_user_auth.auth import Auth
 from fastapi_user_auth.auth.models import User
-from tests.test_auth.conftest import auth
 
 
-async def test_create_role_user():
+async def test_create_role_user(auth: Auth):
     user = await auth.create_role_user("admin2")
     assert user.username == "admin2"
     # test user roles
@@ -15,11 +15,11 @@ async def test_create_role_user():
     assert role.key == "admin2"
 
 
-async def test_authenticate_user():
+async def test_authenticate_user(fake_auth: Auth):
     # error
-    user = await auth.authenticate_user("admin", "admin1")
+    user = await fake_auth.authenticate_user("admin", "admin1")
     assert user is None
 
     # admin
-    user = await auth.authenticate_user("admin", "admin")
+    user = await fake_auth.authenticate_user("admin", "admin")
     assert user.username == "admin"

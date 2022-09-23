@@ -7,107 +7,97 @@ from starlette.responses import Response
 
 from fastapi_user_auth.auth.auth import Auth
 from fastapi_user_auth.auth.models import User
-from tests.test_auth.conftest import UserClient, app, auth
+from tests.test_auth.conftest import UserClient
 
 
-# auth decorator
-@app.get("/auth/user")
-@auth.requires()
-def user(request: Request):
-    return request.user
+@pytest.fixture(autouse=True)
+def setup(logins: UserClient):
+    app = logins.app
+    auth = logins.auth
 
-
-@app.get("/auth/admin_roles")
-@auth.requires("admin")
-def admin_roles(request: Request):
-    return request.user
-
-
-@app.get("/auth/vip_roles")
-@auth.requires(["vip"])
-def vip_roles(request: Request):
-    return request.user
-
-
-@app.get("/auth/admin_or_vip_roles")
-@auth.requires(roles=["admin", "vip"])
-def admin_or_vip_roles(request: Request):
-    return request.user
-
-
-# auth async decorator
-@app.get("/auth/admin_roles_async")
-@auth.requires("admin")
-async def admin_roles_async(request: Request):
-    return request.user
-
-
-# auth depend
-
-
-@app.get("/auth/user_1", dependencies=[Depends(auth.backend.authenticate)])
-def user_1(request: Request):
-    if request.user:
-        return request.user
-    else:
-        raise HTTPException(status_code=403)
-
-
-@app.get("/auth/user_2")
-def user_2(request: Request, auth_result: Tuple[Auth, User] = Depends(auth.backend.authenticate)):
-    if request.user:
-        return request.user
-    else:
-        raise HTTPException(status_code=403)
-
-
-@app.get("/auth/user_3")
-async def user_3(request: Request):
-    if await auth.requires()(request):
+    # auth decorator
+    @app.get("/auth/user")
+    @auth.requires()
+    def user(request: Request):
         return request.user
 
+    @app.get("/auth/admin_roles")
+    @auth.requires("admin")
+    def admin_roles(request: Request):
+        return request.user
 
-@app.get("/auth/user_4")
-async def user_4(request: Request, user: User = Depends(auth.get_current_user)):
-    if user is None:
-        raise HTTPException(status_code=403)
-    return request.user
+    @app.get("/auth/vip_roles")
+    @auth.requires(["vip"])
+    def vip_roles(request: Request):
+        return request.user
 
+    @app.get("/auth/admin_or_vip_roles")
+    @auth.requires(roles=["admin", "vip"])
+    def admin_or_vip_roles(request: Request):
+        return request.user
 
-@app.get("/auth/admin_roles_depend_1", dependencies=[Depends(auth.requires("admin")())])
-def admin_roles_1(request: Request):
-    return request.user
+    # auth async decorator
+    @app.get("/auth/admin_roles_async")
+    @auth.requires("admin")
+    async def admin_roles_async(request: Request):
+        return request.user
 
+    # auth depend
 
-@app.get("/auth/admin_roles_depend_2")
-def admin_roles_2(request: Request, auth_result: Union[bool, Response] = Depends(auth.requires("admin")())):
-    return request.user
+    @app.get("/auth/user_1", dependencies=[Depends(auth.backend.authenticate)])
+    def user_1(request: Request):
+        if request.user:
+            return request.user
+        else:
+            raise HTTPException(status_code=403)
 
+    @app.get("/auth/user_2")
+    def user_2(request: Request, auth_result: Tuple[Auth, User] = Depends(auth.backend.authenticate)):
+        if request.user:
+            return request.user
+        else:
+            raise HTTPException(status_code=403)
 
-# auth group
-@app.get("/auth/admin_groups")
-@auth.requires(groups="admin")
-async def admin_groups(request: Request):
-    return request.user
+    @app.get("/auth/user_3")
+    async def user_3(request: Request):
+        if await auth.requires()(request):
+            return request.user
 
+    @app.get("/auth/user_4")
+    async def user_4(request: Request, user: User = Depends(auth.get_current_user)):
+        if user is None:
+            raise HTTPException(status_code=403)
+        return request.user
 
-@app.get("/auth/vip_groups")
-@auth.requires(groups=["vip"])
-async def vip_groups(request: Request):
-    return request.user
+    @app.get("/auth/admin_roles_depend_1", dependencies=[Depends(auth.requires("admin")())])
+    def admin_roles_1(request: Request):
+        return request.user
 
+    @app.get("/auth/admin_roles_depend_2")
+    def admin_roles_2(request: Request, auth_result: Union[bool, Response] = Depends(auth.requires("admin")())):
+        return request.user
 
-@app.get("/auth/admin_or_vip_groups")
-@auth.requires(groups=["admin", "vip"])
-async def admin_or_vip_groups(request: Request):
-    return request.user
+    # auth group
+    @app.get("/auth/admin_groups")
+    @auth.requires(groups="admin")
+    async def admin_groups(request: Request):
+        return request.user
 
+    @app.get("/auth/vip_groups")
+    @auth.requires(groups=["vip"])
+    async def vip_groups(request: Request):
+        return request.user
 
-# auth permission
-@app.get("/auth/permissions")
-@auth.requires(permissions=["test"])
-async def route(request: Request):
-    return request.user
+    @app.get("/auth/admin_or_vip_groups")
+    @auth.requires(groups=["admin", "vip"])
+    async def admin_or_vip_groups(request: Request):
+        return request.user
+
+    # auth permission
+    @app.get("/auth/permissions")
+    @auth.requires(permissions=["test"])
+    async def route(request: Request):
+        return request.user
 
 
 @pytest.mark.parametrize("logins", ["guest"], indirect=True)
