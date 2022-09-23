@@ -58,7 +58,7 @@ from sqlmodel import SQLModel
 app = FastAPI()
 
 # 创建AdminSite实例
-site = AuthAdminSite(settings = Settings(database_url_async = 'sqlite+aiosqlite:///amisadmin.db'))
+site = AuthAdminSite(settings=Settings(database_url_async='sqlite+aiosqlite:///amisadmin.db'))
 auth = site.auth
 # 挂载后台管理系统
 site.mount_app(app)
@@ -66,7 +66,7 @@ site.mount_app(app)
 # 创建初始化数据库表
 @app.on_event("startup")
 async def startup():
-    await site.db.async_run_sync(SQLModel.metadata.create_all, is_session = False)
+    await site.db.async_run_sync(SQLModel.metadata.create_all, is_session=False)
     # 创建默认测试用户, 请及时修改密码!!!
     await auth.create_role_user('admin')
     await auth.create_role_user('vip')
@@ -80,7 +80,7 @@ def get_user(request: Request):
 if __name__ == '__main__':
     import uvicorn
 
-    uvicorn.run(app, debug = True)
+    uvicorn.run(app, debug=True)
 
 ```
 
@@ -112,25 +112,25 @@ async def vip_roles(request: Request):
 
 # 要求: 用户拥有admin角色 或 vip角色
 @app.get("/auth/admin_or_vip_roles")
-@auth.requires(roles = ['admin', 'vip'])
+@auth.requires(roles=['admin', 'vip'])
 def admin_or_vip_roles(request: Request):
     return request.user
 
 # 要求: 用户属于admin用户组
 @app.get("/auth/admin_groups")
-@auth.requires(groups = ['admin'])
+@auth.requires(groups=['admin'])
 def admin_groups(request: Request):
     return request.user
 
 # 要求: 用户拥有admin角色 且 属于admin用户组
 @app.get("/auth/admin_roles_and_admin_groups")
-@auth.requires(roles = ['admin'], groups = ['admin'])
+@auth.requires(roles=['admin'], groups=['admin'])
 def admin_roles_and_admin_groups(request: Request):
     return request.user
 
 # 要求: 用户拥有vip角色 且 拥有`article:update`权限
 @app.get("/auth/vip_roles_and_article_update")
-@auth.requires(roles = ['vip'], permissions = ['article:update'])
+@auth.requires(roles=['vip'], permissions=['article:update'])
 def vip_roles_and_article_update(request: Request):
     return request.user
 
@@ -152,13 +152,13 @@ def admin_roles(user: User = Depends(auth.get_current_user)):
     return user  # or request.user
 
 # 路径操作装饰器依赖项
-@app.get("/auth/admin_roles_depend_2", dependencies = [Depends(auth.requires('admin')())])
+@app.get("/auth/admin_roles_depend_2", dependencies=[Depends(auth.requires('admin')())])
 def admin_roles(request: Request):
     return request.user
 
 # 全局依赖项
 # 在app应用下全部请求都要求拥有admin角色
-app = FastAPI(dependencies = [Depends(auth.requires('admin')())])
+app = FastAPI(dependencies=[Depends(auth.requires('admin')())])
 
 @app.get("/auth/admin_roles_depend_3")
 def admin_roles(request: Request):
@@ -186,7 +186,7 @@ from fastapi_user_auth.auth.models import User
 
 async def get_request_user(request: Request) -> Optional[User]:
     # user= await auth.get_current_user(request)
-    if await auth.requires('admin', response = False)(request):
+    if await auth.requires('admin', response=False)(request):
         return request.user
     else:
         return None
@@ -205,17 +205,17 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy_database import AsyncDatabase
 
 # 创建异步数据库引擎
-engine = create_async_engine(url = 'sqlite+aiosqlite:///amisadmin.db', future = True)
+engine = create_async_engine(url='sqlite+aiosqlite:///amisadmin.db', future=True)
 # 使用`JwtTokenStore`创建auth对象
 auth = Auth(
-    db = AsyncDatabase(engine),
-    token_store = JwtTokenStore(secret_key = '09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7')
+    db=AsyncDatabase(engine),
+    token_store=JwtTokenStore(secret_key='09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7')
 )
 
 # 将auth对象传入AdminSite
 site = AuthAdminSite(
-    settings = Settings(database_url_async = 'sqlite+aiosqlite:///amisadmin.db'),
-    auth = auth
+    settings=Settings(database_url_async='sqlite+aiosqlite:///amisadmin.db'),
+    auth=auth
 )
 
 ```
@@ -227,8 +227,8 @@ site = AuthAdminSite(
 from fastapi_user_auth.auth.backends.db import DbTokenStore
 
 auth = Auth(
-    db = AsyncDatabase(engine),
-    token_store = DbTokenStore(db = AsyncDatabase(engine))
+    db=AsyncDatabase(engine),
+    token_store=DbTokenStore(db=AsyncDatabase(engine))
 )
 ```
 
@@ -240,8 +240,8 @@ from fastapi_user_auth.auth.backends.redis import RedisTokenStore
 from aioredis import Redis
 
 auth = Auth(
-    db = AsyncDatabase(engine),
-    token_store = RedisTokenStore(redis = Redis.from_url('redis://localhost?db=0'))
+    db=AsyncDatabase(engine),
+    token_store=RedisTokenStore(redis=Redis.from_url('redis://localhost?db=0'))
 )
 ```
 
@@ -261,16 +261,20 @@ flowchart LR
 
 ## 高级拓展
 
+```bash
 ### 拓展`User`模型
 
 ```python
 from datetime import date
 
 from fastapi_amis_admin.models.fields import Field
-from fastapi_user_auth.auth.models import BaseUser
+from fastapi_user_auth.auth.models import User
 
-# 自定义`User`模型,继承`BaseUser`
-class MyUser(BaseUser, table = True):
+# 自定义`User`模型,继承`User`
+class MyUser(User, table = True):
+    point: float = Field(default = 0, title = '积分', description = '用户积分')
+    phone: str = Field(None, title = '手机号', max_length = 15)
+    parent_id: int = Field(None, title = "上级", foreign_key = "auth_user.id")
     birthday: date = Field(None, title = "出生日期")
     location: str = Field(None, title = "位置")
 
@@ -281,11 +285,14 @@ auth = Auth(db = AsyncDatabase(engine), user_model = MyUser)
 ### 拓展`Role`,`Group`,`Permission`模型
 
 ```python
+from fastapi_amis_admin.models.fields import Field
+from fastapi_user_auth.auth.models import Group
+
 # 自定义`Group`模型,继承`BaseRBAC`;覆盖`Role`,`Permission`模型类似,区别在于表名.
-class MyGroup(BaseRBAC, table = True):
+class MyGroup(Group, table=True):
     __tablename__ = 'auth_group'  # 数据库表名,必须是这个才能覆盖默认模型
-    icon: str = Field(None, title = '图标')
-    is_active: bool = Field(default = True, title = "是否激活")
+    icon: str = Field(None, title='图标')
+    is_active: bool = Field(default=True, title="是否激活")
 
 ```
 
@@ -299,7 +306,7 @@ class MyGroup(BaseRBAC, table = True):
 # 自定义模型管理类,继承重写对应的默认管理类
 class MyGroupAdmin(admin.ModelAdmin):
     group_schema = None
-    page_schema = PageSchema(label = '用户组管理', icon = 'fa fa-group')
+    page_schema = PageSchema(label='用户组管理', icon='fa fa-group')
     model = MyGroup
     link_model_fields = [Group.roles]
     readonly_fields = ['key']
@@ -313,7 +320,7 @@ class MyAuthAdminSite(AuthAdminSite):
     UserAuthApp = MyUserAuthApp
 
 # 使用自定义的`AuthAdminSite`类,创建site对象
-site = MyAuthAdminSite(settings, auth = auth)
+site = MyAuthAdminSite(settings, auth=auth)
 ```
 
 ## 界面预览
