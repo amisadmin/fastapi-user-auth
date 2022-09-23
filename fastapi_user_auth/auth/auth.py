@@ -144,7 +144,7 @@ class Auth(Generic[_UserModelT]):
             if isinstance(func, Request):
                 return depend(func)
             sig = inspect.signature(func)
-            for idx, parameter in enumerate(sig.parameters.values()):
+            for idx, parameter in enumerate(sig.parameters.values()):  # noqa: B007
                 if parameter.name == "request" or parameter.name == "websocket":
                     type_ = parameter.name
                     break
