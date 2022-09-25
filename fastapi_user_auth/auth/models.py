@@ -79,7 +79,7 @@ class BaseUser(PkMixin, UsernameMixin, PasswordMixin, EmailMixin, CreateTimeMixi
         None,
         title=_("Avatar"),
         max_length=255,
-        amis_form_item=InputImage(maxLength=1, maxSize=2 * 1024 * 1024, receiver="post:/admin/file/upload"),
+        amis_form_item=InputImage(maxLength=1, maxSize=2 * 1024 * 1024),
         amis_table_column=ColumnImage(width=50, height=50, enlargeAble=True),
     )
 
