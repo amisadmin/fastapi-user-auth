@@ -119,7 +119,7 @@ class Auth(Generic[_UserModelT]):
     ) -> Callable:  # sourcery no-metrics
         async def has_requires(user: _UserModelT) -> bool:
             return user and await self.db.async_run_sync(
-                user.has_requires, roles=roles, groups=groups, permissions=permissions, is_session=True
+                user.has_requires, roles=roles, groups=groups, permissions=permissions, commit=False
             )
 
         async def depend(
