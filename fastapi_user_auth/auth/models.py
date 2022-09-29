@@ -5,7 +5,7 @@ from fastapi_amis_admin.amis.components import ColumnImage, InputImage
 from fastapi_amis_admin.models.fields import Field
 from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import EmailStr, SecretStr
-from sqlalchemy import Column, String, and_
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.selectable import Exists
 from sqlmodel import Relationship, select
@@ -24,10 +24,16 @@ class CreateTimeMixin(SQLModel):
     create_time: datetime = Field(default_factory=datetime.now, title=_("Create Time"))
 
 
-class UsernameMixin(SQLModel):
-    username: str = Field(
-        title=_("Username"), max_length=32, sa_column=Column(String(32), unique=True, index=True, nullable=False)
+class UpdateTimeMixin(SQLModel):
+    update_time: Optional[datetime] = Field(
+        default_factory=datetime.now,
+        title=_("Update Time"),
+        sa_column_kwargs={"onupdate": func.now(), "server_default": func.now()},
     )
+
+
+class UsernameMixin(SQLModel):
+    username: str = Field(title=_("Username"), max_length=32, unique=True, index=True, nullable=False)
 
 
 class PasswordStr(SecretStr, str):
@@ -35,15 +41,11 @@ class PasswordStr(SecretStr, str):
 
 
 class PasswordMixin(SQLModel):
-    password: PasswordStr = Field(
-        title=_("Password"), max_length=128, sa_column=Column(String(128), nullable=False), amis_form_item="input-password"
-    )
+    password: PasswordStr = Field(title=_("Password"), max_length=128, nullable=False, amis_form_item="input-password")
 
 
 class EmailMixin(SQLModel):
-    email: EmailStr = Field(
-        None, title=_("Email"), sa_column=Column(String(50), unique=True, index=True, nullable=True), amis_form_item="input-email"
-    )
+    email: EmailStr = Field(None, title=_("Email"), unique=True, index=True, nullable=True, amis_form_item="input-email")
 
 
 class UserRoleLink(SQLModel, table=True):
@@ -193,9 +195,7 @@ class User(BaseUser, table=True):
 
 class BaseRBAC(PkMixin):
     __table_args__ = {"extend_existing": True}
-    key: str = Field(
-        ..., title=_("Identify"), max_length=20, sa_column=Column(String(20), unique=True, index=True, nullable=False)
-    )
+    key: str = Field(..., title=_("Identify"), max_length=20, unique=True, index=True, nullable=False)
     name: str = Field(..., title=_("Name"), max_length=20)
     desc: str = Field(default="", title=_("Description"), max_length=400, amis_form_item="textarea")
 
