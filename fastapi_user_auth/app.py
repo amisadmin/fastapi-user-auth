@@ -30,6 +30,7 @@ class UserAuthApp(AdminApp, AuthRouter):
 
     def __init__(self, app: "AdminApp"):
         AdminApp.__init__(self, app)
+        self.auth = self.auth or self.site.auth
         AuthRouter.__init__(self)
         self.UserAdmin.model = self.UserAdmin.model or self.auth.user_model
         self.UserLoginFormAdmin.schema = self.UserLoginFormAdmin.schema or schema_create_by_schema(

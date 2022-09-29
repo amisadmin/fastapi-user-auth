@@ -21,7 +21,6 @@ class AuthAdminSite(AdminSite):
     def __init__(self, settings: Settings, fastapi: FastAPI = None, engine: Union[Engine, AsyncEngine] = None, auth: Auth = None):
         super().__init__(settings, fastapi, engine)
         self.auth = auth or self.auth or Auth(db=self.db)
-        self.UserAuthApp.auth = self.auth
         self.register_admin(self.UserAuthApp)
 
     async def get_page(self, request: Request) -> App:
