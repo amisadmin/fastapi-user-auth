@@ -134,14 +134,14 @@ dependencies = [
 
 [[package]]
 name = "fastapi-amis-admin"
-version = "0.2.2"
+version = "0.2.3"
 requires_python = ">=3.7"
 summary = "FastAPI-Amis-Admin is a high-performance, efficient and easily extensible FastAPI admin framework. Inspired by Django-admin, and has as many powerful functions as Django-admin. "
 dependencies = [
     "aiofiles>=0.17.0",
     "fastapi>=0.68.0",
     "python-multipart>=0.0.5",
-    "sqlalchemy-database<0.1.0,>=0.0.7",
+    "sqlalchemy-database<0.1.0,>=0.0.8",
     "sqlmodel>=0.0.7",
 ]
 
@@ -393,8 +393,8 @@ dependencies = [
 
 [[package]]
 name = "sqlalchemy-database"
-version = "0.0.7"
-requires_python = ">=3.6.1"
+version = "0.0.9"
+requires_python = ">=3.7"
 summary = "SQLAlchemy-Database provides shortcut functions to common database operations for SQLAlchemy ORM."
 dependencies = [
     "sqlalchemy",
@@ -525,7 +525,7 @@ summary = "Backport of pathlib-compatible object wrapper for zip files"
 
 [metadata]
 lock_version = "4.0"
-content_hash = "sha256:c7feee39425c534739a4ca957341afe884108712152d2b427d121831b159c714"
+content_hash = "sha256:ae68669459c0e03161701da6048b6013251a430f2f1c06e1d9ba4740fc5355c0"
 
 [metadata.files]
 "aiofiles 22.1.0" = [
@@ -605,9 +605,9 @@ content_hash = "sha256:c7feee39425c534739a4ca957341afe884108712152d2b427d121831b
     {url = "https://mirrors.aliyun.com/pypi/packages/f2/74/15805b9921c0fa99a732bbab71fc548a269d027b6540f48043f87338a273/fastapi-0.85.0.tar.gz", hash = "sha256:bb219cfafd0d2ccf8f32310c9a257a06b0210bd8e2a03706a6f5a9f9f1416878"},
     {url = "https://mirrors.aliyun.com/pypi/packages/f8/f6/5334a17a8acb95b2b71825db6c8c3d2b984d1d0c31266fcda02480ab62ab/fastapi-0.85.0-py3-none-any.whl", hash = "sha256:1803d962f169dc9f8dde54a64b22eb16f6d81573f54401971f90f0a67234a8b4"},
 ]
-"fastapi-amis-admin 0.2.2" = [
-    {url = "https://mirrors.aliyun.com/pypi/packages/05/ce/1411f9659030ca8f0a7421f2dadfa70d9fd256ebc3c67d27c2aad1dc4ed4/fastapi_amis_admin-0.2.2.tar.gz", hash = "sha256:1ff53b98da69e201bc7212bcb71bb2d8ec284d44f167d073944feb7d3d7d5608"},
-    {url = "https://mirrors.aliyun.com/pypi/packages/d1/53/ffa1cfac7450e8c2a2d6db6421ef4083fa228c9011f3608633de7572ac25/fastapi_amis_admin-0.2.2-py3-none-any.whl", hash = "sha256:52de4355e60506e16e2a2650067e7385067bd8de6a57fb2873b7cdb2c7e7dc02"},
+"fastapi-amis-admin 0.2.3" = [
+    {url = "https://mirrors.aliyun.com/pypi/packages/32/d0/999c2104b9b924fdc7448f213998b29ea889ab34e935d5490a8ba76cff9b/fastapi_amis_admin-0.2.3-py3-none-any.whl", hash = "sha256:8d6246676c78cc652e15ed7109bb284501b3ee98894de8922e0f8dd66977f692"},
+    {url = "https://mirrors.aliyun.com/pypi/packages/86/6b/291031eca89ea6050cb2c8de5803a2410ed1d6d028ccfee027113cb79da4/fastapi_amis_admin-0.2.3.tar.gz", hash = "sha256:231f9d1cc9e008b3c53b0f385a52f4a74a2d621a52dccc66bedf4dca5aec13ea"},
 ]
 "filelock 3.8.0" = [
     {url = "https://mirrors.aliyun.com/pypi/packages/94/b3/ff2845971788613e646e667043fdb5f128e2e540aefa09a3c55be8290d6d/filelock-3.8.0-py3-none-any.whl", hash = "sha256:617eb4e5eedc82fc5f47b6d61e4d11cb837c56cb4544e39081099fa17ad109d4"},
@@ -949,9 +949,9 @@ content_hash = "sha256:c7feee39425c534739a4ca957341afe884108712152d2b427d121831b
     {url = "https://mirrors.aliyun.com/pypi/packages/fe/28/f22792eee334cd83a15ef34b825761ee057d330b9b24d3f1496b95faa557/SQLAlchemy-1.4.41-cp311-cp311-macosx_10_15_x86_64.whl", hash = "sha256:90484a2b00baedad361402c257895b13faa3f01780f18f4a104a2f5c413e4536"},
     {url = "https://mirrors.aliyun.com/pypi/packages/ff/1c/55bf52c1961ce01164835047ed2c09e44b76d1f18a75841715626f2786b1/SQLAlchemy-1.4.41-cp27-cp27mu-manylinux_2_5_x86_64.manylinux1_x86_64.whl", hash = "sha256:f37fa70d95658763254941ddd30ecb23fc4ec0c5a788a7c21034fc2305dab7cc"},
 ]
-"sqlalchemy-database 0.0.7" = [
-    {url = "https://mirrors.aliyun.com/pypi/packages/3c/ee/b15f41de8cf79fca6fe763ea5c8ab94b3faddcc9423f6c1889fead2a1a5a/sqlalchemy_database-0.0.7-py3-none-any.whl", hash = "sha256:0064da9661561aca0a16b8d3d118f6a3785658a91ff5ba0a8bfcc08edf62fb5c"},
-    {url = "https://mirrors.aliyun.com/pypi/packages/9e/a5/0c4d0f18524d05682f03b7658f601e02440da46768d3800c2344175420ef/sqlalchemy_database-0.0.7.tar.gz", hash = "sha256:6fe835f6b386e995959a1d8282f529a854830067b2699e00c8ef4d2b3829c7cc"},
+"sqlalchemy-database 0.0.9" = [
+    {url = "https://mirrors.aliyun.com/pypi/packages/0e/80/f08ccd9f7098e8fb6198163beb5757e21c12b2b2e31878aa0731adc2a980/sqlalchemy_database-0.0.9.tar.gz", hash = "sha256:b9b15c35867d6a60cd468513c280bf846fff727427ed60878cb829a48e904784"},
+    {url = "https://mirrors.aliyun.com/pypi/packages/e1/09/340157b196d93edef9c1d37af85aa96fa17c801628aa19b557bc06f11841/sqlalchemy_database-0.0.9-py3-none-any.whl", hash = "sha256:419b5ca4164774c682ade675133a9eb57d57f9f84f4f61d36b640d53514cb47f"},
 ]
 "sqlalchemy2-stubs 0.0.2a27" = [
     {url = "https://mirrors.aliyun.com/pypi/packages/bf/4e/2f6b738a97f6ad2c538f851992bf477313faba42e2b3be495da34c91c0df/sqlalchemy2-stubs-0.0.2a27.tar.gz", hash = "sha256:f79bce50b7837a2c2374ef4480b41e2b8a8226f313f347dc2a70526a4191db93"},

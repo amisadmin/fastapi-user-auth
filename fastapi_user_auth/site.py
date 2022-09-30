@@ -1,13 +1,12 @@
-from typing import Type, Union
+from typing import Type
 
 from fastapi import FastAPI
 from fastapi_amis_admin.admin import AdminSite, Settings
 from fastapi_amis_admin.amis.components import ActionType, App, Dialog, Flex, Service
 from fastapi_amis_admin.amis.constants import SizeEnum
 from fastapi_amis_admin.amis.types import AmisAPI
+from fastapi_amis_admin.crud.utils import SqlalchemyDatabase
 from fastapi_amis_admin.utils.translation import i18n as _
-from sqlalchemy.ext.asyncio import AsyncEngine
-from sqlalchemy.future import Engine
 from starlette.requests import Request
 
 from fastapi_user_auth.app import UserAuthApp as DefaultUserAuthApp
@@ -18,7 +17,7 @@ class AuthAdminSite(AdminSite):
     auth: Auth = None
     UserAuthApp: Type[DefaultUserAuthApp] = DefaultUserAuthApp
 
-    def __init__(self, settings: Settings, fastapi: FastAPI = None, engine: Union[Engine, AsyncEngine] = None, auth: Auth = None):
+    def __init__(self, settings: Settings, fastapi: FastAPI = None, engine: SqlalchemyDatabase = None, auth: Auth = None):
         super().__init__(settings, fastapi, engine)
         self.auth = auth or self.auth or Auth(db=self.db)
         self.register_admin(self.UserAuthApp)
