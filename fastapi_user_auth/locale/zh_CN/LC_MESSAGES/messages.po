@@ -97,7 +97,6 @@ msgid "Create Time"
 msgstr "创建时间"
 
 #: auth/models.py:30
-#, fuzzy
 msgid "Update Time"
 msgstr "更新时间"
 
