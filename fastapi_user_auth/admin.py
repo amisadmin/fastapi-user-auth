@@ -233,7 +233,8 @@ class UserInfoFormAdmin(FormAdmin):
     async def handle(self, request: Request, data: BaseModel, **kwargs) -> BaseApiOut[Any]:
         stmt = update(self.user_model).where(self.user_model.username == request.user.username).values(data.dict())
         await self.site.db.async_execute(stmt)
-        return BaseApiOut(data={**request.user.dict(), **data.dict()})
+        await self.site.db.async_refresh(request.user)
+        return BaseApiOut(data=self.schema_submit_out.parse_obj(request.user))
 
     async def has_page_permission(self, request: Request) -> bool:
         return await self.site.auth.requires(response=False)(request)

@@ -41,6 +41,7 @@ class UserAuthApp(AdminApp, AuthRouter):
             self.auth.user_model, "UserRegIn", include={"username", "password", "email"}
         )
         self.UserRegFormAdmin.schema_submit_out = self.UserRegFormAdmin.schema_submit_out or self.schema_user_login_out
+        self.UserInfoFormAdmin.user_model = self.auth.user_model
         self.UserInfoFormAdmin.schema = self.UserInfoFormAdmin.schema or schema_create_by_schema(
             self.auth.user_model,
             "UserInfoForm",

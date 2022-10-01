@@ -42,6 +42,7 @@ dependencies = [
     "passlib>=1.7.4",
     "bcrypt>=4.0.0",
     "sqlmodelx>=0.0.2",
+    "sqlalchemy-database>=0.0.10",
 ]
 
 
