@@ -57,11 +57,9 @@ test = [
     "pytest >=6.2.4,<7.0.0",
     "pytest-asyncio>=0.17",
     "aiosqlite",
-    "jose==1.0.0",
     "python-jose==3.3.0",
 ]
 jwt = [
-    "jose==1.0.0",
     "python-jose==3.3.0",
 ]
 redis = ["aioredis"]
