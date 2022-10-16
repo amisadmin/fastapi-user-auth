@@ -7,6 +7,7 @@ from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import EmailStr, SecretStr
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
+from sqlalchemy.schema import ForeignKey
 from sqlalchemy.sql.selectable import Exists
 from sqlmodel import Relationship, select
 
@@ -50,31 +51,94 @@ class EmailMixin(SQLModel):
 
 class UserRoleLink(SQLModel, table=True):
     __tablename__ = "auth_user_roles"
-    user_id: Optional[int] = Field(default=None, foreign_key="auth_user.id", primary_key=True, nullable=False)
-    role_id: Optional[int] = Field(default=None, foreign_key="auth_role.id", primary_key=True, nullable=False)
+    user_id: int = Field(
+        primary_key=True,
+        sa_column_args=(
+            ForeignKey(
+                "auth_user.id",
+                ondelete="CASCADE",
+            ),
+        ),
+    )
+    role_id: int = Field(
+        primary_key=True,
+        sa_column_args=(
+            ForeignKey(
+                "auth_role.id",
+                ondelete="CASCADE",
+            ),
+        ),
+    )
 
 
 class UserGroupLink(SQLModel, table=True):
     __tablename__ = "auth_user_groups"
-    user_id: Optional[int] = Field(default=None, foreign_key="auth_user.id", primary_key=True, nullable=False)
-    group_id: Optional[int] = Field(default=None, foreign_key="auth_group.id", primary_key=True, nullable=False)
+    user_id: int = Field(
+        primary_key=True,
+        sa_column_args=(
+            ForeignKey(
+                "auth_user.id",
+                ondelete="CASCADE",
+            ),
+        ),
+    )
+    group_id: int = Field(
+        primary_key=True,
+        sa_column_args=(
+            ForeignKey(
+                "auth_group.id",
+                ondelete="CASCADE",
+            ),
+        ),
+    )
 
 
 class GroupRoleLink(SQLModel, table=True):
     __tablename__ = "auth_group_roles"
-    group_id: Optional[int] = Field(default=None, foreign_key="auth_group.id", primary_key=True, nullable=False)
-    role_id: Optional[int] = Field(default=None, foreign_key="auth_role.id", primary_key=True, nullable=False)
+    group_id: int = Field(
+        primary_key=True,
+        sa_column_args=(
+            ForeignKey(
+                "auth_group.id",
+                ondelete="CASCADE",
+            ),
+        ),
+    )
+    role_id: int = Field(
+        primary_key=True,
+        sa_column_args=(
+            ForeignKey(
+                "auth_role.id",
+                ondelete="CASCADE",
+            ),
+        ),
+    )
 
 
 class RolePermissionLink(SQLModel, table=True):
     __tablename__ = "auth_role_permissions"
-    role_id: Optional[int] = Field(default=None, foreign_key="auth_role.id", primary_key=True, nullable=False)
-    permission_id: Optional[int] = Field(default=None, foreign_key="auth_permission.id", primary_key=True, nullable=False)
+    role_id: int = Field(
+        primary_key=True,
+        sa_column_args=(
+            ForeignKey(
+                "auth_role.id",
+                ondelete="CASCADE",
+            ),
+        ),
+    )
+    permission_id: int = Field(
+        primary_key=True,
+        sa_column_args=(
+            ForeignKey(
+                "auth_permission.id",
+                ondelete="CASCADE",
+            ),
+        ),
+    )
 
 
 class BaseUser(PkMixin, UsernameMixin, PasswordMixin, EmailMixin, CreateTimeMixin):
     __tablename__ = "auth_user"
-    __table_args__ = {"extend_existing": True}
     is_active: bool = Field(default=True, title=_("Is Active"))
     nickname: str = Field(None, title=_("Nickname"), max_length=40)
     avatar: str = Field(
@@ -210,7 +274,16 @@ class Role(BaseRBAC, table=True):
 
 class BaseGroup(BaseRBAC):
     __tablename__ = "auth_group"
-    parent_id: int = Field(None, title=_("Parent"), foreign_key="auth_group.id")
+    parent_id: int = Field(
+        None,
+        title=_("Parent"),
+        sa_column_args=(
+            ForeignKey(
+                "auth_group.id",
+                ondelete="SET NULL",
+            ),
+        ),
+    )
 
 
 class Group(BaseGroup, table=True):
