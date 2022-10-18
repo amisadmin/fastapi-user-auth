@@ -1,11 +1,11 @@
-# 项目介绍
+# Project Introduction
 
 <h2 align="center">
   FastAPI-User-Auth
 </h2>
 <p align="center">
-    <em>FastAPI-User-Auth是一个简单而强大的FastAPI用户RBAC认证与授权库.</em><br/>
-    <em>基于FastAPI-Amis-Admin并提供可自由拓展的可视化管理界面.</em>
+    <em>FastAPI-User-Auth is a simple and powerful FastAPI user RBAC authentication and authorization library.</em><br/>
+    <em>It is based on FastAPI-Amis-Admin and provides a freely extensible visual management interface.</em>
 </p>
 <p align="center">
     <a href="https://github.com/amisadmin/fastapi_amis_admin/actions/workflows/pytest.yml" target="_blank">
@@ -25,27 +25,27 @@
     </a>
 </p>
 <p align="center">
-  <a href="https://github.com/amisadmin/fastapi_user_auth" target="_blank">源码</a>
+  <a href="https://github.com/amisadmin/fastapi_user_auth" target="_blank">SourceCode</a>
   ·
-  <a href="http://user-auth.demo.amis.work/" target="_blank">在线演示</a>
+  <a href="http://user-auth.demo.amis.work/" target="_blank">OnlineDemo</a>
   ·
-  <a href="http://docs.amis.work" target="_blank">文档</a>
+  <a href="http://docs.amis.work" target="_blank">Documentation</a>
   ·
-  <a href="http://docs.gh.amis.work" target="_blank">文档打不开？</a>
+  <a href="http://docs.gh.amis.work" target="_blank">Can't open the document？</a>
 </p>
 
 ------
 
-`FastAPI-User-Auth`是一个基于 [FastAPI-Amis-Admin](https://github.com/amisadmin/fastapi_amis_admin)
-的应用插件,与`FastAPI-Amis-Admin`深度结合,为其提供用户认证与授权.
+`FastAPI-User-Auth` It is an application plug -in based on [FastAPI-Amis-Admin](https://github.com/amisadmin/fastapi_amis_admin)
+, which is deeply integrated to provide user authentication and authorization..
 
-## 安装
+## Install
 
 ```bash
 pip install fastapi-user-auth
 ```
 
-## 简单示例
+## Simple example
 
 ```python
 from fastapi import FastAPI
@@ -54,24 +54,24 @@ from fastapi_user_auth.site import AuthAdminSite
 from starlette.requests import Request
 from sqlmodel import SQLModel
 
-# 创建FastAPI应用
+# Create Fast API application
 app = FastAPI()
 
-# 创建AdminSite实例
+# Create an Admin Site instance
 site = AuthAdminSite(settings=Settings(database_url_async='sqlite+aiosqlite:///amisadmin.db'))
 auth = site.auth
-# 挂载后台管理系统
+# Mount the Site management system to the FastAPI instance
 site.mount_app(app)
 
-# 创建初始化数据库表
+# Create initialization database table
 @app.on_event("startup")
 async def startup():
     await site.db.async_run_sync(SQLModel.metadata.create_all, is_session=False)
-    # 创建默认测试用户, 请及时修改密码!!!
+    # Create default test user, Please change your password in time!!!
     await auth.create_role_user('admin')
     await auth.create_role_user('vip')
 
-# 要求: 用户必须登录
+# Requirements: User must be logged in
 @app.get("/auth/get_user")
 @auth.requires()
 def get_user(request: Request):
@@ -84,51 +84,51 @@ if __name__ == '__main__':
 
 ```
 
-## 验证方式
+## Ways of identifying
 
-### 装饰器
+### Decorator
 
-- 推荐场景: 单个路由.支持同步/异步路由.
+- Recommended scenario: Single route. Supports synchronous and asynchronous routing.
 
 ```python
-# 要求: 用户必须登录
+# Requirements: User must be logged in
 @app.get("/auth/user")
 @auth.requires()
 def user(request: Request):
-    return request.user  # 当前请求用户对象.
+    return request.user  # current request user object.
 
-# 验证路由: 用户拥有admin角色
+# Authentication route: user has admin role
 @app.get("/auth/admin_roles")
 @auth.requires('admin')
 def admin_roles(request: Request):
     return request.user
 
-# 要求: 用户拥有vip角色
-# 支持同步/异步路由
+# Requirement: User has vip role
+# Support synchronous and asynchronous routing
 @app.get("/auth/vip_roles")
 @auth.requires(['vip'])
 async def vip_roles(request: Request):
     return request.user
 
-# 要求: 用户拥有admin角色 或 vip角色
+# Requirements: User has admin role or vip role
 @app.get("/auth/admin_or_vip_roles")
 @auth.requires(roles=['admin', 'vip'])
 def admin_or_vip_roles(request: Request):
     return request.user
 
-# 要求: 用户属于admin用户组
+# Requirement: The user belongs to the admin user group
 @app.get("/auth/admin_groups")
 @auth.requires(groups=['admin'])
 def admin_groups(request: Request):
     return request.user
 
-# 要求: 用户拥有admin角色 且 属于admin用户组
+# Requirements: The user has the admin role and belongs to the admin user group
 @app.get("/auth/admin_roles_and_admin_groups")
 @auth.requires(roles=['admin'], groups=['admin'])
 def admin_roles_and_admin_groups(request: Request):
     return request.user
 
-# 要求: 用户拥有vip角色 且 拥有`article:update`权限
+# Requirements: The user has the vip role and has the `article:update` permission
 @app.get("/auth/vip_roles_and_article_update")
 @auth.requires(roles=['vip'], permissions=['article:update'])
 def vip_roles_and_article_update(request: Request):
@@ -136,9 +136,9 @@ def vip_roles_and_article_update(request: Request):
 
 ```
 
-### 依赖项(推荐)
+### Dependencies (recommended)
 
-- 推荐场景: 单个路由,路由集合,FastAPI应用.
+- Recommended scenarios: single route, route collection, FastAPI application.
 
 ```python
 from fastapi import Depends
@@ -146,18 +146,18 @@ from typing import Tuple
 from fastapi_user_auth.auth import Auth
 from fastapi_user_auth.auth.models import User
 
-# 路由参数依赖项, 推荐使用此方式
+# Route parameter dependencies, this method is recommended
 @app.get("/auth/admin_roles_depend_1")
 def admin_roles(user: User = Depends(auth.get_current_user)):
     return user  # or request.user
 
-# 路径操作装饰器依赖项
+# Path manipulation decorator dependencies
 @app.get("/auth/admin_roles_depend_2", dependencies=[Depends(auth.requires('admin')())])
 def admin_roles(request: Request):
     return request.user
 
-# 全局依赖项
-# 在app应用下全部请求都要求拥有admin角色
+# Global dependencies
+# All requests under the app application require the admin role
 app = FastAPI(dependencies=[Depends(auth.requires('admin')())])
 
 @app.get("/auth/admin_roles_depend_3")
@@ -166,20 +166,20 @@ def admin_roles(request: Request):
 
 ```
 
-### 中间件
+### Middleware
 
-- 推荐场景: FastAPI应用
+- Recommended Scenario: FastAPI Application
 
 ```python
 app = FastAPI()
-# 在app应用下每条请求处理之前都附加`request.auth`和`request.user`对象
+# Append `request.auth` and `request.user` objects before each request processing under the app
 auth.backend.attach_middleware(app)
 
 ```
 
-### 直接调用
+### Call directly
 
-- 推荐场景: 非路由方法
+- Recommended scenarios: non-routing methods
 
 ```python
 from fastapi_user_auth.auth.models import User
@@ -193,9 +193,9 @@ async def get_request_user(request: Request) -> Optional[User]:
 
 ```
 
-## Token存储后端
+## Token storage backend
 
-`fastapi-user-auth` 支持多种token存储方式.默认为: `DbTokenStore`, 建议自定义修改为: `JwtTokenStore`
+`fastapi-user-auth` Supports multiple token storage methods. The default is: `DbTokenStore`, It is recommended to customize the modification to: `JwtTokenStore`
 
 ### JwtTokenStore
 
@@ -204,15 +204,15 @@ from fastapi_user_auth.auth.backends.jwt import JwtTokenStore
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy_database import AsyncDatabase
 
-# 创建异步数据库引擎
+# Create an asynchronous database engine
 engine = create_async_engine(url='sqlite+aiosqlite:///amisadmin.db', future=True)
-# 使用`JwtTokenStore`创建auth对象
+# Create auth object using `Jwt Token Store`
 auth = Auth(
     db=AsyncDatabase(engine),
     token_store=JwtTokenStore(secret_key='09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7')
 )
 
-# 将auth对象传入AdminSite
+# Pass the auth object into the Admin Site
 site = AuthAdminSite(
     settings=Settings(database_url_async='sqlite+aiosqlite:///amisadmin.db'),
     auth=auth
@@ -223,7 +223,7 @@ site = AuthAdminSite(
 ### DbTokenStore
 
 ```python
-# 使用`DbTokenStore`创建auth对象
+# Create auth object using `Db Token Store`
 from fastapi_user_auth.auth.backends.db import DbTokenStore
 
 auth = Auth(
@@ -235,7 +235,7 @@ auth = Auth(
 ### RedisTokenStore
 
 ```python
-# 使用`RedisTokenStore`创建auth对象
+# Create auth object using `Redis Token Store`
 from fastapi_user_auth.auth.backends.redis import RedisTokenStore
 from aioredis import Redis
 
@@ -245,11 +245,11 @@ auth = Auth(
 )
 ```
 
-## RBAC模型
+## RBAC model
 
-本系统采用的`RBAC`模型如下, 你也可以根据自己的需求进行拓展.
+The `RBAC` model adopted by this system is as follows, you can also expand it according to your own needs.
 
-- 参考: [权限系统的设计](https://blog.csdn.net/qq_25889465/article/details/98473611)
+- Reference: [Design of Permission System](https://blog.csdn.net/qq_25889465/article/details/98473611)
 
 ```mermaid
 flowchart LR
@@ -259,10 +259,10 @@ flowchart LR
 	 Role -. m:n .-> Perimission 
 ```
 
-## 高级拓展
+## Advanced Extension
 
 ```bash
-### 拓展`User`模型
+### Extending the `User` model
 
 ```python
 from datetime import date
@@ -270,40 +270,41 @@ from datetime import date
 from fastapi_amis_admin.models.fields import Field
 from fastapi_user_auth.auth.models import User
 
-# 自定义`User`模型,继承`User`
+# Customize `User` model, inherit `User`
 class MyUser(User, table = True):
-    point: float = Field(default = 0, title = '积分', description = '用户积分')
-    phone: str = Field(None, title = '手机号', max_length = 15)
-    parent_id: int = Field(None, title = "上级", foreign_key = "auth_user.id")
-    birthday: date = Field(None, title = "出生日期")
-    location: str = Field(None, title = "位置")
+    point: float = Field(default = 0, title = 'Source', description = 'User source')
+    phone: str = Field(None, title = 'Phone number', max_length = 15)
+    parent_id: int = Field(None, title = "Superior", foreign_key = "auth_user.id")
+    birthday: date = Field(None, title = "Date of birth")
+    location: str = Field(None, title = "Location")
 
-# 使用自定义的`User`模型,创建auth对象
+# Create an auth object using a custom `User` model
 auth = Auth(db = AsyncDatabase(engine), user_model = MyUser)
 ```
 
-### 拓展`Role`,`Group`,`Permission`模型
+### Extend the `Role`, `Group`, `Permission` models
 
 ```python
 from fastapi_amis_admin.models.fields import Field
 from fastapi_user_auth.auth.models import Group
 
-# 自定义`Group`模型,继承`BaseRBAC`;覆盖`Role`,`Permission`模型类似,区别在于表名.
+# Customize the `Group` model, inherit `Base RBAC`; override the `Role`, the `Permission` model is similar, 
+# the difference is the table name.
 class MyGroup(Group, table=True):
-    __tablename__ = 'auth_group'  # 数据库表名,必须是这个才能覆盖默认模型
-    icon: str = Field(None, title='图标')
-    is_active: bool = Field(default=True, title="是否激活")
+    __tablename__ = 'auth_group'  # Database table name, must be this to override the default model
+    icon: str = Field(None, title='Icon')
+    is_active: bool = Field(default=True, title="Activate now")
 
 ```
 
-### 自定义`UserAuthApp`默认管理类
+### Custom `User Auth App` default management class
 
-默认管理类均可通过继承重写替换.
-例如: `UserLoginFormAdmin`,`UserRegFormAdmin`,`UserInfoFormAdmin`,
+Default management classes can be overridden and replaced by inheritance.
+For Example: `UserLoginFormAdmin`,`UserRegFormAdmin`,`UserInfoFormAdmin`,
 `UserAdmin`,`GroupAdmin`,`RoleAdmin`,`PermissionAdmin`
 
 ```python
-# 自定义模型管理类,继承重写对应的默认管理类
+# Customize the model management class, inherit and override the corresponding default management class
 class MyGroupAdmin(admin.ModelAdmin):
     group_schema = None
     page_schema = PageSchema(label='用户组管理', icon='fa fa-group')
@@ -311,19 +312,19 @@ class MyGroupAdmin(admin.ModelAdmin):
     link_model_fields = [Group.roles]
     readonly_fields = ['key']
 
-# 自定义用户认证应用,继承重写默认的用户认证应用
+# Customize the user authentication application, inherit and override the default user authentication application
 class MyUserAuthApp(UserAuthApp):
     GroupAdmin = MyGroupAdmin
 
-# 自定义用户管理站点,继承重写默认的用户管理站点
+# Customize the user management site, inherit and override the default user management site
 class MyAuthAdminSite(AuthAdminSite):
     UserAuthApp = MyUserAuthApp
 
-# 使用自定义的`AuthAdminSite`类,创建site对象
+# Create a site object using a custom `Auth Admin Site` class
 site = MyAuthAdminSite(settings, auth=auth)
 ```
 
-## 界面预览
+## Interface/UI preview
 
 - Open `http://127.0.0.1:8000/admin/auth/form/login` in your browser:
 
@@ -337,13 +338,13 @@ site = MyAuthAdminSite(settings, auth=auth)
 
 ![Docs](https://s2.loli.net/2022/03/20/1GcCiPdmXayxrbH.png)
 
-## 许可协议
+## License
 
-- `fastapi-amis-admin`基于`Apache2.0`开源免费使用，可以免费用于商业用途，但请在展示界面中明确显示关于FastAPI-Amis-Admin的版权信息.
+- `fastapi-amis-admin` is based on `Apache2.0` Open source is free to use and can be freely used for commercial purposes, but please clearly display the copyright information about Fast API-Amis-Admin in the display interface.
 
-## 鸣谢
+## Thanks
 
-感谢以下开发者对 FastAPI-User-Auth 作出的贡献：
+Thanks to the following developers for their contributions to FastAPI-User-Auth:
 
 <a href="https://github.com/amisadmin/fastapi_user_auth/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=amisadmin/fastapi_user_auth"  alt=""/>
