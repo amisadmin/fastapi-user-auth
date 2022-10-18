@@ -46,7 +46,11 @@ class PasswordMixin(SQLModel):
 
 
 class EmailMixin(SQLModel):
-    email: EmailStr = Field(None, title=_("Email"), unique=True, index=True, nullable=True, amis_form_item="input-email")
+    """If you need to define the email field as unique, you can achieve it by adding the following parameters in the subclass:
+    __table_args__ = (UniqueConstraint("email", name="email"),)
+    """
+
+    email: EmailStr = Field(None, title=_("Email"), index=True, nullable=True, amis_form_item="input-email")
 
 
 class UserRoleLink(SQLModel, table=True):
