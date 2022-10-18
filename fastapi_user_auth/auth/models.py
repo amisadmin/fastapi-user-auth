@@ -274,7 +274,7 @@ class Role(BaseRBAC, table=True):
 
 class BaseGroup(BaseRBAC):
     __tablename__ = "auth_group"
-    parent_id: int = Field(
+    parent_id: Optional[int] = Field(
         None,
         title=_("Parent"),
         sa_column_args=(
