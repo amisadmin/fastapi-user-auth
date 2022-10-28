@@ -25,7 +25,6 @@ from fastapi_amis_admin.utils.functools import cached_property
 from fastapi_amis_admin.utils.translation import i18n as _
 from passlib.context import CryptContext
 from pydantic import BaseModel, SecretStr
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlalchemy_database import AsyncDatabase, Database
 from sqlmodel import select
@@ -52,9 +51,7 @@ class AuthBackend(AuthenticationBackend, Generic[_UserModelT]):
     def get_user_token(request: Request) -> Optional[str]:
         authorization: str = request.headers.get("Authorization") or request.cookies.get("Authorization")
         scheme, token = get_authorization_scheme_param(authorization)
-        if not authorization or scheme.lower() != "bearer":
-            return None
-        return token
+        return None if not authorization or scheme.lower() != "bearer" else token
 
     async def authenticate(self, request: Request) -> Tuple["Auth", Optional[_UserModelT]]:
         return self.auth, await self.auth.get_current_user(request)
@@ -92,9 +89,7 @@ class Auth(Generic[_UserModelT]):
 
     @cached_property
     def get_current_user(self):
-        async def _get_current_user(
-            request: Request, session: Union[Session, AsyncSession, None] = Depends(self.db.session_generator)
-        ) -> Optional[_UserModelT]:
+        async def _get_current_user(request: Request) -> Optional[_UserModelT]:
             if request.scope.get("auth"):  # 防止重复授权
                 return request.scope.get("user")
             request.scope["auth"], request.scope["user"] = self, None
@@ -103,7 +98,7 @@ class Auth(Generic[_UserModelT]):
                 return None
             token_data = await self.backend.token_store.read_token(token)
             if token_data is not None:
-                request.scope["user"]: _UserModelT = await self.db.async_get(self.user_model, token_data.id, session=session)
+                request.scope["user"]: _UserModelT = await self.db.async_get(self.user_model, token_data.id)
             return request.user
 
         return _get_current_user
@@ -117,18 +112,27 @@ class Auth(Generic[_UserModelT]):
         redirect: str = None,
         response: Union[bool, Response] = None,
     ) -> Callable:  # sourcery no-metrics
+        groups_ = (groups,) if not groups or isinstance(groups, str) else tuple(groups)
+        roles_ = (roles,) if not roles or isinstance(roles, str) else tuple(roles)
+        permissions_ = (permissions,) if not permissions or isinstance(permissions, str) else tuple(permissions)
+
         async def has_requires(user: _UserModelT) -> bool:
-            return user and await self.db.async_run_sync(
-                user.has_requires, roles=roles, groups=groups, permissions=permissions, commit=False
-            )
+            return user and await self.db.async_run_sync(user.has_requires, roles=roles, groups=groups, permissions=permissions)
 
         async def depend(
             request: Request,
             user: _UserModelT = Depends(self.get_current_user),
         ) -> Union[bool, Response]:
-            if isinstance(user, params.Depends):
-                user = await self.get_current_user(request)
-            if not await has_requires(user):
+            user_auth = request.scope.get("__user_auth__", None)
+            if user_auth is None:
+                request.scope["__user_auth__"] = {}
+            cache_key = (groups_, roles_, permissions_)
+            if cache_key not in request.scope["__user_auth__"]:  # 防止重复授权
+                if isinstance(user, params.Depends):
+                    user = await self.get_current_user(request)
+                result = await has_requires(user)
+                request.scope["__user_auth__"][cache_key] = result
+            if not request.scope["__user_auth__"][cache_key]:
                 if response is not None:
                     return response
                 code, headers = status_code, {}
@@ -145,7 +149,7 @@ class Auth(Generic[_UserModelT]):
                 return depend(func)
             sig = inspect.signature(func)
             for idx, parameter in enumerate(sig.parameters.values()):  # noqa: B007
-                if parameter.name == "request" or parameter.name == "websocket":
+                if parameter.name in ["request", "websocket"]:
                     type_ = parameter.name
                     break
             else:
@@ -218,11 +222,10 @@ class Auth(Generic[_UserModelT]):
             )
             session.add(user)
             session.flush()
-
         return user
 
     async def create_role_user(self, role_key: str = "admin") -> User:
-        return await self.db.async_run_sync(self._create_role_user_sync, role_key, on_close_pre=lambda user: User.parse_obj(user))
+        return await self.db.async_run_sync(self._create_role_user_sync, role_key)
 
 
 class AuthRouter(RouterMixin):
@@ -249,7 +252,12 @@ class AuthRouter(RouterMixin):
             response_model=BaseApiOut[self.schema_user_info],
         )
         self.router.add_api_route(
-            "/logout", self.route_logout, methods=["GET"], description=_("Sign out"), dependencies=None, response_model=BaseApiOut
+            "/logout",
+            self.route_logout,
+            methods=["GET"],
+            description=_("Sign out"),
+            dependencies=None,
+            response_model=BaseApiOut,
         )
         # oauth2
         self.router.dependencies.append(Depends(self.OAuth2(tokenUrl=f"{self.router_path}/gettoken", auto_error=False)))

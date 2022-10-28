@@ -2,7 +2,7 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional, Union
 
-from sqlalchemy import Column, String, delete, insert
+from sqlalchemy import Column, String, delete
 from sqlalchemy_database import AsyncDatabase, Database
 from sqlmodel import Field, select
 
@@ -32,7 +32,7 @@ class DbTokenStore(BaseTokenStore):
         if obj is None:
             return None
         # expire
-        if obj.create_time < datetime.utcnow() - timedelta(seconds=self.expire_seconds):
+        if obj.create_time < datetime.now() - timedelta(seconds=self.expire_seconds):
             await self.destroy_token(token=token)
             return None
         return self.TokenDataSchema.parse_raw(obj.data)
@@ -40,10 +40,12 @@ class DbTokenStore(BaseTokenStore):
     async def write_token(self, token_data: Union[_TokenDataSchemaT, dict]) -> str:
         obj = self.TokenDataSchema.parse_obj(token_data) if isinstance(token_data, dict) else token_data
         token = secrets.token_urlsafe()
-        stmt = insert(TokenStoreModel).values(dict(token=token, data=obj.json()))
-        await self.db.async_execute(stmt)
+        model = TokenStoreModel(token=token, data=obj.json())
+        self.db.add(model)
+        await self.db.async_flush()
         return token
 
     async def destroy_token(self, token: str) -> None:
         stmt = delete(TokenStoreModel).where(TokenStoreModel.token == token)
         await self.db.async_execute(stmt)
+        await self.db.async_flush()

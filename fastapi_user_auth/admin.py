@@ -1,3 +1,4 @@
+import contextlib
 from typing import Any, Callable, Dict, List, Type
 
 from fastapi import Depends, HTTPException
@@ -14,10 +15,11 @@ from fastapi_amis_admin.amis.components import (
     PageSchema,
 )
 from fastapi_amis_admin.amis.constants import DisplayModeEnum, LevelEnum
+from fastapi_amis_admin.crud.base import SchemaUpdateT
 from fastapi_amis_admin.crud.schema import BaseApiOut
 from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import BaseModel
-from sqlalchemy import insert, select, update
+from sqlalchemy import select
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
@@ -46,14 +48,12 @@ class UserLoginFormAdmin(FormAdmin):
     page = Page(title=_("User Login"))
     page_path = "/login"
     page_parser_mode = "html"
-    schema: Type[BaseModel] = None
+    schema: Type[SchemaUpdateT] = None
     schema_submit_out: Type[UserLoginOut] = None
     page_schema = None
     page_route_kwargs = {"name": "login"}
 
-    async def handle(
-        self, request: Request, data: BaseModel, **kwargs  # self.schema
-    ) -> BaseApiOut[BaseModel]:  # self.schema_submit_out
+    async def handle(self, request: Request, data: SchemaUpdateT, **kwargs) -> BaseApiOut[BaseModel]:  # self.schema_submit_out
         if request.user:
             return BaseApiOut(code=1, msg=_("User logged in!"), data=self.schema_submit_out.parse_obj(request.user))
         user = await request.auth.authenticate_user(username=data.username, password=data.password)  # type:ignore
@@ -79,16 +79,14 @@ class UserLoginFormAdmin(FormAdmin):
     async def get_form(self, request: Request) -> Form:
         form = await super().get_form(request)
         buttons = []
-        try:
+        with contextlib.suppress(NoMatchFound):
             buttons.append(
                 ActionType.Link(
                     actionType="link",
-                    link=f"{self.router_path}{self.router.url_path_for('reg')}",
+                    link=f"{self.site.router_path}{self.app.router.url_path_for('reg')}",
                     label=_("Sign up"),
                 )
             )
-        except NoMatchFound:
-            pass
         buttons.append(Action(actionType="submit", label=_("Sign in"), level=LevelEnum.primary))
         form.body.sort(key=lambda form_item: form_item.type, reverse=True)
         form.update_from_kwargs(
@@ -130,27 +128,25 @@ class UserRegFormAdmin(FormAdmin):
     page = Page(title=_("User Register"))
     page_path = "/reg"
     page_parser_mode = "html"
-    schema: Type[BaseModel] = None
+    schema: Type[SchemaUpdateT] = None
     schema_submit_out: Type[UserLoginOut] = None
     page_schema = None
     page_route_kwargs = {"name": "reg"}
 
-    async def handle(
-        self, request: Request, data: BaseModel, **kwargs  # self.schema
-    ) -> BaseApiOut[BaseModel]:  # self.schema_submit_out
+    async def handle(self, request: Request, data: SchemaUpdateT, **kwargs) -> BaseApiOut[BaseModel]:  # self.schema_submit_out
         auth: Auth = request.auth
-        user = await auth.db.scalar(select(self.user_model).where(self.user_model.username == data.username))
+        user = await auth.db.async_scalar(select(self.user_model).where(self.user_model.username == data.username))
         if user:
             return BaseApiOut(status=-1, msg=_("Username has been registered!"), data=None)
-        user = await auth.db.scalar(select(self.user_model).where(self.user_model.email == data.email))
+        user = await auth.db.async_scalar(select(self.user_model).where(self.user_model.email == data.email))
         if user:
             return BaseApiOut(status=-2, msg=_("Email has been registered!"), data=None)
-        user = self.user_model.parse_obj(data)
-        values = user.dict(exclude={"id", "password"})
-        values["password"] = auth.pwd_context.hash(user.password.get_secret_value())  # 密码hash保存
-        stmt = insert(self.user_model).values(values)
+        values = data.dict(exclude={"id", "password"})
+        values["password"] = auth.pwd_context.hash(data.password.get_secret_value())  # 密码hash保存
+        user = self.user_model.parse_obj(values)
         try:
-            user.id = await auth.db.async_execute(stmt, on_close_pre=lambda r: getattr(r, "lastrowid", None))
+            auth.db.add(user)
+            await auth.db.async_flush()
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -211,7 +207,7 @@ class UserInfoFormAdmin(FormAdmin):
     user_model: Type[BaseUser] = User
     page = Page(title=_("User Profile"))
     page_path = "/userinfo"
-    schema: Type[BaseModel] = None
+    schema: Type[SchemaUpdateT] = None
     schema_submit_out: Type[BaseUser] = None
     form_init = True
     form = Form(mode=DisplayModeEnum.horizontal)
@@ -230,10 +226,9 @@ class UserInfoFormAdmin(FormAdmin):
         form.body.extend(formitem.update_from_kwargs(disabled=True) for formitem in formitems if formitem)
         return form
 
-    async def handle(self, request: Request, data: BaseModel, **kwargs) -> BaseApiOut[Any]:
-        stmt = update(self.user_model).where(self.user_model.username == request.user.username).values(data.dict())
-        await self.site.db.async_execute(stmt)
-        await self.site.db.async_refresh(request.user)
+    async def handle(self, request: Request, data: SchemaUpdateT, **kwargs) -> BaseApiOut[Any]:
+        for k, v in data.dict().items():
+            setattr(request.user, k, v)
         return BaseApiOut(data=self.schema_submit_out.parse_obj(request.user))
 
     async def has_page_permission(self, request: Request) -> bool:

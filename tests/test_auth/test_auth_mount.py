@@ -33,7 +33,6 @@ def setup(logins: UserClient):
             raise HTTPException(status_code=403)
 
     @subapp3.get("/auth/user")
-    @auth.requires()
     def user_3(request: Request):
         return request.user
 

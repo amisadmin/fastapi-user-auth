@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from sqlalchemy.orm import Session
 from sqlalchemy_database import AsyncDatabase, Database
 from sqlmodel import SQLModel
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.testclient import TestClient
 
 from fastapi_user_auth.auth.auth import Auth, AuthRouter
@@ -19,6 +20,7 @@ async def db(request) -> Union[Database, AsyncDatabase]:
     await database.async_run_sync(SQLModel.metadata.create_all, is_session=False)
     yield database
     await database.async_run_sync(SQLModel.metadata.drop_all, is_session=False)
+    await database.async_close()
 
 
 @pytest.fixture()
@@ -35,7 +37,7 @@ def event_loop():
 
 @pytest.fixture(scope="session")
 async def fake_auth() -> Auth:
-    auth = Auth(db=AsyncDatabase.create("sqlite+aiosqlite:///amisadmin.db?check_same_thread=False"))
+    auth = Auth(db=async_db)
 
     # noinspection PyTypeChecker
     def create_fake_users(session: Session):
@@ -80,8 +82,10 @@ async def fake_auth() -> Auth:
 
     await auth.db.async_run_sync(SQLModel.metadata.create_all, is_session=False)
     await auth.db.async_run_sync(create_fake_users)
+    await auth.db.async_commit()
     yield auth
     await auth.db.async_run_sync(SQLModel.metadata.drop_all, is_session=False)
+    await auth.db.async_close()
 
 
 class UserClient:
@@ -95,6 +99,7 @@ class UserClient:
 @pytest.fixture(scope="session")
 def logins(request, fake_auth: Auth) -> UserClient:
     app = FastAPI()
+    app.add_middleware(BaseHTTPMiddleware, dispatch=async_db.asgi_dispatch)
     #  注册auth基础路由
     auth_router = AuthRouter(auth=fake_auth)
     app.include_router(auth_router.router)
@@ -105,7 +110,6 @@ def logins(request, fake_auth: Auth) -> UserClient:
         "test": {"username": "test", "password": "test"},
         "guest": {"username": None, "password": None},
     }
-    user = user_data.get(request.param) or {}
 
     def get_login_client(username: str = None, password: str = None) -> UserClient:
         client = TestClient(app)
@@ -123,4 +127,4 @@ def logins(request, fake_auth: Auth) -> UserClient:
         assert user.username == username
         return UserClient(fake_auth, client=client, user=user)
 
-    return get_login_client(**user)
+    return get_login_client(**user_data.get(request.param, {}))

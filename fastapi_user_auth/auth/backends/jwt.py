@@ -28,7 +28,7 @@ class JwtTokenStore(BaseTokenStore):
     async def write_token(self, token_data: Union[_TokenDataSchemaT, dict]) -> str:
         obj = self.TokenDataSchema.parse_obj(token_data) if isinstance(token_data, dict) else token_data
         data = obj.dict()
-        expire = datetime.utcnow() + timedelta(seconds=self.expire_seconds)
+        expire = datetime.now() + timedelta(seconds=self.expire_seconds)
         data.update({"exp": expire})
         return jwt.encode(data, self.secret_key, algorithm=self.algorithm)
 

@@ -241,6 +241,8 @@ class BaseUser(PkMixin, UsernameMixin, PasswordMixin, EmailMixin, CreateTimeMixi
         Returns:
             检测成功返回`True`
         """
+        if not groups and not roles and not permissions:
+            return True
         stmt = select(1)
         if groups:
             groups_list = [groups] if isinstance(groups, str) else list(groups)

@@ -22,10 +22,12 @@ async def test_jwt_token_store():
 async def test_db_token_store(db):
     store = DbTokenStore(db)
     token = await store.write_token(token_data)
+    await db.async_commit()
     assert token
     data = await store.read_token(token=token)
     assert data == token_data
     await store.destroy_token(token=token)
+    await db.async_commit()
     data = await store.read_token(token=token)
     assert data is None
 
