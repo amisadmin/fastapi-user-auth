@@ -265,8 +265,8 @@ class User(BaseUser, table=True):
 
 class BaseRBAC(PkMixin):
     __table_args__ = {"extend_existing": True}
-    key: str = Field(..., title=_("Identify"), max_length=20, unique=True, index=True, nullable=False)
-    name: str = Field(..., title=_("Name"), max_length=20)
+    key: str = Field(title=_("Identify"), max_length=40, unique=True, index=True, nullable=False)
+    name: str = Field(default="", title=_("Name"), max_length=40)
     desc: str = Field(default="", title=_("Description"), max_length=400, amis_form_item="textarea")
 
 
