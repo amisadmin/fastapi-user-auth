@@ -224,8 +224,11 @@ class Auth(Generic[_UserModelT]):
             session.flush()
         return user
 
-    async def create_role_user(self, role_key: str = "admin") -> User:
-        return await self.db.async_run_sync(self._create_role_user_sync, role_key)
+    async def create_role_user(self, role_key: str = "admin", commit: bool = True) -> User:
+        user = await self.db.async_run_sync(self._create_role_user_sync, role_key)
+        if commit:
+            await self.db.async_commit()
+        return user
 
 
 class AuthRouter(RouterMixin):
