@@ -221,13 +221,18 @@ class UserInfoFormAdmin(FormAdmin):
         formitems = [
             await self.get_form_item(request, modelfield)
             for k, modelfield in self.user_model.__fields__.items()
-            if k not in self.schema.__fields__ and k != "password"
+            if k not in self.schema.__fields__
         ]
         form.body.extend(formitem.update_from_kwargs(disabled=True) for formitem in formitems if formitem)
         return form
 
     async def handle(self, request: Request, data: SchemaUpdateT, **kwargs) -> BaseApiOut[Any]:
-        for k, v in data.dict().items():
+        for k, v in data.dict(exclude_none=True).items():
+            if k == "password":
+                if not v:
+                    continue
+                else:
+                    v = request.auth.pwd_context.hash(v)  # 密码hash保存
             setattr(request.user, k, v)
         return BaseApiOut(data=self.schema_submit_out.parse_obj(request.user))
 

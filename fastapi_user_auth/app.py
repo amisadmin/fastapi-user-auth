@@ -45,7 +45,8 @@ class UserAuthApp(AdminApp, AuthRouter):
         self.UserInfoFormAdmin.schema = self.UserInfoFormAdmin.schema or schema_create_by_schema(
             self.auth.user_model,
             "UserInfoForm",
-            exclude={"id", "username", "password", "is_active", "create_time"},
+            include={"nickname", "password", "avatar", "email"},
+            set_none=True,
         )
         self.UserInfoFormAdmin.schema_submit_out = self.UserInfoFormAdmin.schema_submit_out or self.schema_user_info
         # register admin
