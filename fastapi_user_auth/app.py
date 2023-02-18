@@ -1,6 +1,6 @@
 from typing import Type
 
-from fastapi_amis_admin.admin import AdminApp, ModelAdmin
+from fastapi_amis_admin.admin import AdminApp, ModelAdmin, PageSchemaAdmin
 from fastapi_amis_admin.amis.components import PageSchema
 from fastapi_amis_admin.crud.utils import schema_create_by_schema
 from fastapi_amis_admin.utils.translation import i18n as _
@@ -60,5 +60,5 @@ class UserAuthApp(AdminApp, AuthRouter):
             self.PermissionAdmin,
         )
 
-    async def has_page_permission(self, request: Request) -> bool:
+    async def has_page_permission(self, request: Request, obj: PageSchemaAdmin = None, action: str = None) -> bool:
         return await super().has_page_permission(request) and await request.auth.requires(roles="admin", response=False)(request)

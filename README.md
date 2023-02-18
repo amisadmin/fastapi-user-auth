@@ -309,7 +309,6 @@ For Example: `UserLoginFormAdmin`,`UserRegFormAdmin`,`UserInfoFormAdmin`,
 ```python
 # Customize the model management class, inherit and override the corresponding default management class
 class MyGroupAdmin(admin.ModelAdmin):
-    group_schema = None
     page_schema = PageSchema(label='用户组管理', icon='fa fa-group')
     model = MyGroup
     link_model_fields = [Group.roles]

@@ -2,7 +2,7 @@ import contextlib
 from typing import Any, Callable, Dict, List, Type
 
 from fastapi import Depends, HTTPException
-from fastapi_amis_admin.admin import FormAdmin, ModelAdmin
+from fastapi_amis_admin.admin import FormAdmin, ModelAdmin, PageSchemaAdmin
 from fastapi_amis_admin.amis.components import (
     Action,
     ActionType,
@@ -119,7 +119,7 @@ class UserLoginFormAdmin(FormAdmin):
 
         return route
 
-    async def has_page_permission(self, request: Request) -> bool:
+    async def has_page_permission(self, request: Request, obj: PageSchemaAdmin = None, action: str = None) -> bool:
         return True
 
 
@@ -197,13 +197,12 @@ class UserRegFormAdmin(FormAdmin):
         page = await super().get_page(request)
         return attach_page_head(page)
 
-    async def has_page_permission(self, request: Request) -> bool:
+    async def has_page_permission(self, request: Request, obj: PageSchemaAdmin = None, action: str = None) -> bool:
         return True
 
 
 class UserInfoFormAdmin(FormAdmin):
     page_schema = None
-    group_schema = None
     user_model: Type[BaseUser] = User
     page = Page(title=_("User Profile"))
     page_path = "/userinfo"
@@ -236,12 +235,11 @@ class UserInfoFormAdmin(FormAdmin):
             setattr(request.user, k, v)
         return BaseApiOut(data=self.schema_submit_out.parse_obj(request.user))
 
-    async def has_page_permission(self, request: Request) -> bool:
+    async def has_page_permission(self, request: Request, obj: PageSchemaAdmin = None, action: str = None) -> bool:
         return await self.site.auth.requires(response=False)(request)
 
 
 class UserAdmin(ModelAdmin):
-    group_schema = None
     page_schema = PageSchema(label=_("User"), icon="fa fa-user")
     model: Type[BaseUser] = None
     exclude = ["password"]
@@ -262,7 +260,6 @@ class UserAdmin(ModelAdmin):
 
 
 class RoleAdmin(ModelAdmin):
-    group_schema = None
     page_schema = PageSchema(label=_("Role"), icon="fa fa-group")
     model = Role
     link_model_fields = [Role.permissions]
@@ -270,7 +267,6 @@ class RoleAdmin(ModelAdmin):
 
 
 class GroupAdmin(ModelAdmin):
-    group_schema = None
     page_schema = PageSchema(label=_("Group"), icon="fa fa-group")
     model = Group
     link_model_fields = [Group.roles]
@@ -278,7 +274,6 @@ class GroupAdmin(ModelAdmin):
 
 
 class PermissionAdmin(ModelAdmin):
-    group_schema = None
     page_schema = PageSchema(label=_("Permission"), icon="fa fa-lock")
     model = Permission
     readonly_fields = ["key"]

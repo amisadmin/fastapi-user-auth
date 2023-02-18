@@ -308,7 +308,6 @@ class MyGroup(Group, table=True):
 ```python
 # 自定义模型管理类,继承重写对应的默认管理类
 class MyGroupAdmin(admin.ModelAdmin):
-    group_schema = None
     page_schema = PageSchema(label='用户组管理', icon='fa fa-group')
     model = MyGroup
     link_model_fields = [Group.roles]

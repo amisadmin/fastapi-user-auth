@@ -1,7 +1,7 @@
 from typing import Type
 
 from fastapi import FastAPI
-from fastapi_amis_admin.admin import AdminSite, Settings
+from fastapi_amis_admin.admin import AdminSite, PageSchemaAdmin, Settings
 from fastapi_amis_admin.amis.components import ActionType, App, Dialog, Flex, Service
 from fastapi_amis_admin.amis.constants import SizeEnum
 from fastapi_amis_admin.amis.types import AmisAPI
@@ -60,5 +60,5 @@ class AuthAdminSite(AdminSite):
         )
         return app
 
-    async def has_page_permission(self, request: Request) -> bool:
+    async def has_page_permission(self, request: Request, obj: PageSchemaAdmin = None, action: str = None) -> bool:
         return await self.auth.requires(response=False)(request)
