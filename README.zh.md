@@ -70,9 +70,9 @@ site.mount_app(app)
 @app.on_event("startup")
 async def startup():
     await site.db.async_run_sync(SQLModel.metadata.create_all, is_session=False)
-    # 创建默认测试用户, 请及时修改密码!!!
+    # 创建默认管理员,用户名: admin,密码: admin, 请及时修改密码!!!
     await auth.create_role_user('admin')
-    await auth.create_role_user('vip')
+
 
 # 要求: 用户必须登录
 @app.get("/auth/get_user")

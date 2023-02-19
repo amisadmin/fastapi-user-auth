@@ -70,7 +70,7 @@ site.mount_app(app)
 @app.on_event("startup")
 async def startup():
     await site.db.async_run_sync(SQLModel.metadata.create_all, is_session=False)
-    # Create default test user, Please change your password in time!!!
+    # Create default admin user,user name:admin,password:admin,please change it after login!!!
     await auth.create_role_user('admin')
     await auth.create_role_user('vip')
 
