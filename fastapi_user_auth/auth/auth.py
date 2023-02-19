@@ -3,6 +3,7 @@ import contextlib
 import functools
 import inspect
 from collections.abc import Coroutine
+from pathlib import Path
 from typing import (
     Any,
     Callable,
@@ -15,6 +16,7 @@ from typing import (
     Union,
 )
 
+from casbin import Enforcer
 from fastapi import Depends, FastAPI, Form, HTTPException, params
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.security.utils import get_authorization_scheme_param
@@ -36,13 +38,14 @@ from starlette.websockets import WebSocket
 
 from .backends.base import BaseTokenStore
 from .backends.db import DbTokenStore
-from .models import BaseUser, Role, User, UserRoleLink
+from .models import BaseUser, CasbinRule, Role, User, UserRoleLink
 from .schemas import UserLoginOut
+from .sqlachemy_adapter import Adapter
 
-_UserModelT = TypeVar("_UserModelT", bound=BaseUser)
+UserModelT = TypeVar("UserModelT", bound=BaseUser)
 
 
-class AuthBackend(AuthenticationBackend, Generic[_UserModelT]):
+class AuthBackend(AuthenticationBackend, Generic[UserModelT]):
     def __init__(self, auth: "Auth", token_store: BaseTokenStore):
         self.auth = auth
         self.token_store = token_store
@@ -53,32 +56,37 @@ class AuthBackend(AuthenticationBackend, Generic[_UserModelT]):
         scheme, token = get_authorization_scheme_param(authorization)
         return None if not authorization or scheme.lower() != "bearer" else token
 
-    async def authenticate(self, request: Request) -> Tuple["Auth", Optional[_UserModelT]]:
+    async def authenticate(self, request: Request) -> Tuple["Auth", Optional[UserModelT]]:
         return self.auth, await self.auth.get_current_user(request)
 
     def attach_middleware(self, app: FastAPI):
         app.add_middleware(AuthenticationMiddleware, backend=self)  # 添加auth中间件
 
 
-class Auth(Generic[_UserModelT]):
-    user_model: Type[_UserModelT] = None
+class Auth(Generic[UserModelT]):
+    user_model: Type[UserModelT] = None
     db: Union[AsyncDatabase, Database] = None
-    backend: AuthBackend[_UserModelT] = None
+    backend: AuthBackend[UserModelT] = None
 
     def __init__(
         self,
         db: Union[AsyncDatabase, Database],
         token_store: BaseTokenStore = None,
-        user_model: Type[_UserModelT] = User,
+        user_model: Type[UserModelT] = User,
         pwd_context: CryptContext = CryptContext(schemes=["bcrypt"], deprecated="auto"),
+        enforcer: Enforcer = None,
     ):
         self.user_model = user_model or self.user_model
         assert self.user_model, "user_model is None"
         self.db = db or self.db
         self.backend = self.backend or AuthBackend(self, token_store or DbTokenStore(self.db))
         self.pwd_context = pwd_context
+        # todo 使用sqlalchemy_database支持同步引擎.
+        self.enforcer = enforcer or Enforcer(
+            model=str(Path(__file__).parent / "model.conf"), adapter=Adapter(db=self.db, db_class=CasbinRule)
+        )
 
-    async def authenticate_user(self, username: str, password: Union[str, SecretStr]) -> Optional[_UserModelT]:
+    async def authenticate_user(self, username: str, password: Union[str, SecretStr]) -> Optional[UserModelT]:
         user = await self.db.async_scalar(select(self.user_model).where(self.user_model.username == username))
         if user:
             pwd = password.get_secret_value() if isinstance(password, SecretStr) else password
@@ -87,46 +95,57 @@ class Auth(Generic[_UserModelT]):
                 return user
         return None
 
-    @cached_property
-    def get_current_user(self):
-        async def _get_current_user(request: Request) -> Optional[_UserModelT]:
-            if request.scope.get("auth"):  # 防止重复授权
-                return request.scope.get("user")
-            request.scope["auth"], request.scope["user"] = self, None
-            token = self.backend.get_user_token(request)
-            if not token:
-                return None
-            token_data = await self.backend.token_store.read_token(token)
-            if token_data is not None:
-                request.scope["user"]: _UserModelT = await self.db.async_get(self.user_model, token_data.id)
-            return request.user
+    async def get_current_user_id(self, request: Request) -> Optional[int]:
+        user = request.scope.get("user", None)
+        if user:  # 防止重复授权
+            return user.id
+        request.scope["auth"], request.scope["user"] = self, None
+        token = self.backend.get_user_token(request)
+        if not token:
+            return None
+        token_data = await self.backend.token_store.read_token(token)
+        if token_data is not None:
+            return token_data.id
+        return None
 
-        return _get_current_user
+    async def get_current_user(self, request: Request) -> Optional[UserModelT]:
+        if request.scope.get("auth"):  # 防止重复授权
+            return request.scope.get("user")
+        user_id = await self.get_current_user_id(request)
+        if user_id:
+            request.scope["user"]: UserModelT = await self.db.async_get(self.user_model, user_id)
+        return request.user
 
     def requires(
         self,
         roles: Union[str, Sequence[str]] = None,
-        groups: Union[str, Sequence[str]] = None,
-        permissions: Union[str, Sequence[str]] = None,
         status_code: int = 403,
         redirect: str = None,
         response: Union[bool, Response] = None,
     ) -> Callable:  # sourcery no-metrics
-        groups_ = (groups,) if not groups or isinstance(groups, str) else tuple(groups)
+        # todo 优化
         roles_ = (roles,) if not roles or isinstance(roles, str) else tuple(roles)
-        permissions_ = (permissions,) if not permissions or isinstance(permissions, str) else tuple(permissions)
 
-        async def has_requires(user: _UserModelT) -> bool:
-            return user and await self.db.async_run_sync(user.has_requires, roles=roles, groups=groups, permissions=permissions)
+        async def has_requires(user: UserModelT) -> bool:  # todo 优化
+            if not user:
+                return False
+            if roles_ == (None,):
+                return True
+            for role in roles_:
+                if not role:
+                    continue
+                if await self.enforcer.has_role_for_user(user.identity, role):  # todo  这里不需要用户登录
+                    return True
+            return False
 
         async def depend(
             request: Request,
-            user: _UserModelT = Depends(self.get_current_user),
+            user: UserModelT = Depends(self.get_current_user),
         ) -> Union[bool, Response]:
             user_auth = request.scope.get("__user_auth__", None)
             if user_auth is None:
                 request.scope["__user_auth__"] = {}
-            cache_key = (groups_, roles_, permissions_)
+            cache_key = (roles_,)
             if cache_key not in request.scope["__user_auth__"]:  # 防止重复授权
                 if isinstance(user, params.Depends):
                     user = await self.get_current_user(request)
@@ -162,6 +181,7 @@ class Auth(Generic[_UserModelT]):
                     websocket = kwargs.get("websocket", args[idx] if args else None)
                     assert isinstance(websocket, WebSocket)
                     user = await self.get_current_user(websocket)  # type: ignore
+                    print("user", user)
                     if not await has_requires(user):
                         await websocket.close()
                     else:

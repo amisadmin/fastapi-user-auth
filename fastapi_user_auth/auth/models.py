@@ -1,15 +1,13 @@
 from datetime import datetime
-from typing import Any, List, Optional, Sequence, Union
+from typing import List, Optional
 
 from fastapi_amis_admin.amis.components import ColumnImage, InputImage
 from fastapi_amis_admin.models.fields import Field
 from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import EmailStr, SecretStr
-from sqlalchemy import and_, func
-from sqlalchemy.orm import Session
+from sqlalchemy import func
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.sql.selectable import Exists
-from sqlmodel import Relationship, select
+from sqlmodel import Relationship
 
 try:
     from sqlmodelx import SQLModel
@@ -53,7 +51,7 @@ class EmailMixin(SQLModel):
     email: EmailStr = Field(None, title=_("Email"), index=True, nullable=True, amis_form_item="input-email")
 
 
-class UserRoleLink(SQLModel, table=True):
+class UserRoleLink(SQLModel, table=True):  # todo: remove
     __tablename__ = "auth_user_roles"
     user_id: int = Field(
         primary_key=True,
@@ -69,72 +67,6 @@ class UserRoleLink(SQLModel, table=True):
         sa_column_args=(
             ForeignKey(
                 "auth_role.id",
-                ondelete="CASCADE",
-            ),
-        ),
-    )
-
-
-class UserGroupLink(SQLModel, table=True):
-    __tablename__ = "auth_user_groups"
-    user_id: int = Field(
-        primary_key=True,
-        sa_column_args=(
-            ForeignKey(
-                "auth_user.id",
-                ondelete="CASCADE",
-            ),
-        ),
-    )
-    group_id: int = Field(
-        primary_key=True,
-        sa_column_args=(
-            ForeignKey(
-                "auth_group.id",
-                ondelete="CASCADE",
-            ),
-        ),
-    )
-
-
-class GroupRoleLink(SQLModel, table=True):
-    __tablename__ = "auth_group_roles"
-    group_id: int = Field(
-        primary_key=True,
-        sa_column_args=(
-            ForeignKey(
-                "auth_group.id",
-                ondelete="CASCADE",
-            ),
-        ),
-    )
-    role_id: int = Field(
-        primary_key=True,
-        sa_column_args=(
-            ForeignKey(
-                "auth_role.id",
-                ondelete="CASCADE",
-            ),
-        ),
-    )
-
-
-class RolePermissionLink(SQLModel, table=True):
-    __tablename__ = "auth_role_permissions"
-    role_id: int = Field(
-        primary_key=True,
-        sa_column_args=(
-            ForeignKey(
-                "auth_role.id",
-                ondelete="CASCADE",
-            ),
-        ),
-    )
-    permission_id: int = Field(
-        primary_key=True,
-        sa_column_args=(
-            ForeignKey(
-                "auth_permission.id",
                 ondelete="CASCADE",
             ),
         ),
@@ -165,141 +97,43 @@ class BaseUser(PkMixin, UsernameMixin, PasswordMixin, EmailMixin, CreateTimeMixi
     def identity(self) -> str:
         return self.username
 
-    def _exists_role(self, *role_whereclause: Any) -> Exists:
-        # check user role
-        user_role_ids = (
-            select(Role.id)
-            .join(UserRoleLink, (UserRoleLink.user_id == self.id) & (UserRoleLink.role_id == Role.id))
-            .where(*role_whereclause)
-        )
-        # check user group
-        role_group_ids = select(GroupRoleLink.group_id).join(Role, and_(*role_whereclause, Role.id == GroupRoleLink.role_id))
-        group_user_ids = (
-            select(UserGroupLink.user_id)
-            .where(UserGroupLink.user_id == self.id)
-            .where(UserGroupLink.group_id.in_(role_group_ids))
-        )
-        return user_role_ids.exists() | group_user_ids.exists()
-
-    def _exists_roles(self, roles: List[str]) -> Exists:
-        """
-        检查用户是否属于指定用户角色,或属于包含指定用户角色的用户组
-        Args:
-            roles:
-
-        Returns:
-
-        """
-        return self._exists_role(Role.key.in_(roles))
-
-    def _exists_groups(self, groups: List[str]) -> Exists:
-        """
-        检查用户是否属于指定用户组
-        Args:
-            groups:
-
-        Returns:
-
-        """
-        group_ids = (
-            select(Group.id)
-            .join(UserGroupLink, (UserGroupLink.user_id == self.id) & (UserGroupLink.group_id == Group.id))
-            .where(Group.key.in_(groups))
-        )
-        return group_ids.exists()
-
-    def _exists_permissions(self, permissions: List[str]) -> Exists:
-        """
-        检查用户是否属于拥有指定权限的用户角色
-        Args:
-            permissions:
-
-        Returns:
-
-        """
-        role_ids = select(RolePermissionLink.role_id).join(
-            Permission, Permission.key.in_(permissions) & (Permission.id == RolePermissionLink.permission_id)
-        )
-        return self._exists_role(Role.id.in_(role_ids))
-
-    def has_requires(
-        self,
-        session: Session,
-        *,
-        roles: Union[str, Sequence[str]] = None,
-        groups: Union[str, Sequence[str]] = None,
-        permissions: Union[str, Sequence[str]] = None,
-    ) -> bool:
-        """
-        检查用户是否属于拥有指定的RBAC权限
-        Args:
-            session: sqlalchemy `Session`;异步`AsyncSession`,请使用`run_sync`方法.
-            roles: 角色列表
-            groups: 用户组列表
-            permissions: 权限列表
-
-        Returns:
-            检测成功返回`True`
-        """
-        if not groups and not roles and not permissions:
-            return True
-        stmt = select(1)
-        if groups:
-            groups_list = [groups] if isinstance(groups, str) else list(groups)
-            stmt = stmt.where(self._exists_groups(groups_list))
-        if roles:
-            roles_list = [roles] if isinstance(roles, str) else list(roles)
-            stmt = stmt.where(self._exists_roles(roles_list))
-        if permissions:
-            permissions_list = [permissions] if isinstance(permissions, str) else list(permissions)
-            stmt = stmt.where(self._exists_permissions(permissions_list))
-        return bool(session.scalar(stmt))
-
 
 class User(BaseUser, table=True):
     """用户"""
 
     roles: List["Role"] = Relationship(link_model=UserRoleLink)
-    groups: List["Group"] = Relationship(link_model=UserGroupLink)
 
 
-class BaseRBAC(PkMixin):
-    __table_args__ = {"extend_existing": True}
+class Role(PkMixin, table=True):
+    """角色"""
+
+    __tablename__ = "auth_role"
+
     key: str = Field(title=_("Identify"), max_length=40, unique=True, index=True, nullable=False)
     name: str = Field(default="", title=_("Name"), max_length=40)
     desc: str = Field(default="", title=_("Description"), max_length=400, amis_form_item="textarea")
 
 
-class Role(BaseRBAC, table=True):
-    """角色"""
+class CasbinRule(PkMixin, table=True):  # type: ignore
 
-    __tablename__ = "auth_role"
-    groups: List["Group"] = Relationship(back_populates="roles", link_model=GroupRoleLink)
-    permissions: List["Permission"] = Relationship(back_populates="roles", link_model=RolePermissionLink)
+    __tablename__ = "casbin_rule"
 
+    ptype: str = Field(title="Policy Type")
+    v0: str = Field(title="Subject")
+    v1: str = Field(title="Object")
+    v2: str = Field(None, title="Action")
+    v3: str = Field(None)
+    v4: str = Field(None)
+    v5: str = Field(None)
 
-class BaseGroup(BaseRBAC):
-    __tablename__ = "auth_group"
-    parent_id: Optional[int] = Field(
-        None,
-        title=_("Parent"),
-        sa_column_args=(
-            ForeignKey(
-                "auth_group.id",
-                ondelete="SET NULL",
-            ),
-        ),
-    )
+    def __str__(self) -> str:
+        arr = [self.ptype]
+        # pylint: disable=invalid-name
+        for v in (self.v0, self.v1, self.v2, self.v3, self.v4, self.v5):
+            if v is None:
+                break
+            arr.append(v)
+        return ", ".join(arr)
 
-
-class Group(BaseGroup, table=True):
-    """用户组"""
-
-    roles: List["Role"] = Relationship(back_populates="groups", link_model=GroupRoleLink)
-
-
-class Permission(BaseRBAC, table=True):
-    """权限"""
-
-    __tablename__ = "auth_permission"
-    roles: List["Role"] = Relationship(back_populates="permissions", link_model=RolePermissionLink)
+    def __repr__(self) -> str:
+        return f'<CasbinRule {self.id}: "{str(self)}">'

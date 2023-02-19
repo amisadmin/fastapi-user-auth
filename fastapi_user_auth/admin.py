@@ -1,8 +1,9 @@
 import contextlib
 from typing import Any, Callable, Dict, List, Type
 
+from casbin import Enforcer
 from fastapi import Depends, HTTPException
-from fastapi_amis_admin.admin import FormAdmin, ModelAdmin, PageSchemaAdmin
+from fastapi_amis_admin.admin import AdminApp, FormAdmin, ModelAdmin, PageSchemaAdmin
 from fastapi_amis_admin.amis.components import (
     Action,
     ActionType,
@@ -26,7 +27,7 @@ from starlette.responses import Response
 from starlette.routing import NoMatchFound
 
 from fastapi_user_auth.auth import Auth
-from fastapi_user_auth.auth.models import BaseUser, Group, Permission, Role, User
+from fastapi_user_auth.auth.models import BaseUser, CasbinRule, Role, User
 from fastapi_user_auth.auth.schemas import UserLoginOut
 
 
@@ -243,7 +244,7 @@ class UserAdmin(ModelAdmin):
     page_schema = PageSchema(label=_("User"), icon="fa fa-user")
     model: Type[BaseUser] = None
     exclude = ["password"]
-    link_model_fields = [User.roles, User.groups]
+    link_model_fields = [User.roles]
     search_fields = [User.username]
 
     async def on_create_pre(self, request: Request, obj, **kwargs) -> Dict[str, Any]:
@@ -262,18 +263,26 @@ class UserAdmin(ModelAdmin):
 class RoleAdmin(ModelAdmin):
     page_schema = PageSchema(label=_("Role"), icon="fa fa-group")
     model = Role
-    link_model_fields = [Role.permissions]
     readonly_fields = ["key"]
 
 
-class GroupAdmin(ModelAdmin):
-    page_schema = PageSchema(label=_("Group"), icon="fa fa-group")
-    model = Group
-    link_model_fields = [Group.roles]
-    readonly_fields = ["key"]
+class CasbinRuleAdmin(ModelAdmin):
+    page_schema = PageSchema(label="CasbinRule", icon="fa fa-group")
+    model = CasbinRule
+    list_filter = [CasbinRule.ptype, CasbinRule.v0, CasbinRule.v1, CasbinRule.v2, CasbinRule.v3, CasbinRule.v4, CasbinRule.v5]
 
+    enforcer: Enforcer = None
 
-class PermissionAdmin(ModelAdmin):
-    page_schema = PageSchema(label=_("Permission"), icon="fa fa-lock")
-    model = Permission
-    readonly_fields = ["key"]
+    def __init__(self, app: "AdminApp"):
+        assert self.enforcer, "enforcer is None"
+        super().__init__(app)
+
+        @self.site.fastapi.on_event("startup")
+        async def load_policy():
+            await self.enforcer.load_policy()
+
+    @classmethod
+    def bind(cls, app: AdminApp, enforcer: Enforcer = None) -> Enforcer:
+        cls.enforcer = enforcer or cls.enforcer
+        app.register_admin(cls)
+        return cls.enforcer

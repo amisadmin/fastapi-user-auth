@@ -77,28 +77,6 @@ def setup(logins: UserClient):
     def admin_roles_2(request: Request, auth_result: Union[bool, Response] = Depends(auth.requires("admin")())):
         return request.user
 
-    # auth group
-    @app.get("/auth/admin_groups")
-    @auth.requires(groups="admin")
-    async def admin_groups(request: Request):
-        return request.user
-
-    @app.get("/auth/vip_groups")
-    @auth.requires(groups=["vip"])
-    async def vip_groups(request: Request):
-        return request.user
-
-    @app.get("/auth/admin_or_vip_groups")
-    @auth.requires(groups=["admin", "vip"])
-    async def admin_or_vip_groups(request: Request):
-        return request.user
-
-    # auth permission
-    @app.get("/auth/permissions")
-    @auth.requires(permissions=["test"])
-    async def route(request: Request):
-        return request.user
-
 
 @pytest.mark.parametrize("logins", ["guest"], indirect=True)
 def test_router_token(logins: UserClient):
@@ -135,12 +113,6 @@ path_all = {
     # auth depend
     "/auth/admin_roles_depend_1",
     "/auth/admin_roles_depend_2",
-    # auth group
-    "/auth/admin_groups",
-    "/auth/vip_groups",
-    "/auth/admin_or_vip_groups",
-    # auth test
-    "/auth/permissions",
 }
 path_admin_auth = {
     "/auth/user",
@@ -153,8 +125,6 @@ path_admin_auth = {
     "/auth/admin_roles_depend_1",
     "/auth/admin_roles_depend_2",
     "/auth/admin_roles_async",
-    "/auth/admin_groups",
-    "/auth/admin_or_vip_groups",
 }
 
 path_vip_auth = {
@@ -165,8 +135,6 @@ path_vip_auth = {
     "/auth/user_4",
     "/auth/vip_roles",
     "/auth/admin_or_vip_roles",
-    "/auth/vip_groups",
-    "/auth/admin_or_vip_groups",
 }
 path_test_auth = {
     "/auth/user",
@@ -174,7 +142,6 @@ path_test_auth = {
     "/auth/user_2",
     "/auth/user_3",
     "/auth/user_4",
-    "/auth/permissions",
 }
 
 

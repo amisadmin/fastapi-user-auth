@@ -1,3 +1,5 @@
+from enum import Enum
+
 from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import BaseModel, SecretStr, validator
 from sqlmodel import Field
@@ -28,3 +30,10 @@ class UserRegIn(UsernameMixin, PasswordMixin, EmailMixin):
         if "password" in values and v != values["password"]:
             raise ValueError("passwords do not match!")
         return v
+
+
+# 默认保留的用户
+class SystemUserEnum(str, Enum):
+    ROOT = "root"
+    ADMIN = "admin"
+    GUEST = "guest"

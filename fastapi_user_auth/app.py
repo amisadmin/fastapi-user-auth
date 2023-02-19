@@ -1,13 +1,10 @@
 from typing import Type
 
-from fastapi_amis_admin.admin import AdminApp, ModelAdmin, PageSchemaAdmin
+from fastapi_amis_admin.admin import AdminApp, ModelAdmin
 from fastapi_amis_admin.amis.components import PageSchema
 from fastapi_amis_admin.crud.utils import schema_create_by_schema
 from fastapi_amis_admin.utils.translation import i18n as _
-from starlette.requests import Request
 
-from fastapi_user_auth.admin import GroupAdmin as DefaultGroupAdmin
-from fastapi_user_auth.admin import PermissionAdmin as DefaultPermissionAdmin
 from fastapi_user_auth.admin import RoleAdmin as DefaultRoleAdmin
 from fastapi_user_auth.admin import UserAdmin as DefaultUserAdmin
 from fastapi_user_auth.admin import UserInfoFormAdmin as DefaultUserInfoFormAdmin
@@ -25,8 +22,6 @@ class UserAuthApp(AdminApp, AuthRouter):
     UserInfoFormAdmin: Type[DefaultUserInfoFormAdmin] = DefaultUserInfoFormAdmin
     UserAdmin: Type[DefaultUserAdmin] = DefaultUserAdmin
     RoleAdmin: Type[ModelAdmin] = DefaultRoleAdmin
-    GroupAdmin: Type[ModelAdmin] = DefaultGroupAdmin
-    PermissionAdmin: Type[ModelAdmin] = DefaultPermissionAdmin
 
     def __init__(self, app: "AdminApp"):
         AdminApp.__init__(self, app)
@@ -56,9 +51,4 @@ class UserAuthApp(AdminApp, AuthRouter):
             self.UserInfoFormAdmin,
             self.UserAdmin,
             self.RoleAdmin,
-            self.GroupAdmin,
-            self.PermissionAdmin,
         )
-
-    async def has_page_permission(self, request: Request, obj: PageSchemaAdmin = None, action: str = None) -> bool:
-        return await super().has_page_permission(request) and await request.auth.requires(roles="admin", response=False)(request)

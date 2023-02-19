@@ -10,7 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.testclient import TestClient
 
 from fastapi_user_auth.auth.auth import Auth, AuthRouter
-from fastapi_user_auth.auth.models import Group, Permission, Role, User
+from fastapi_user_auth.auth.models import Role, User
 from tests.conftest import async_db, sync_db
 
 
@@ -41,47 +41,42 @@ async def fake_auth() -> Auth:
 
     # noinspection PyTypeChecker
     def create_fake_users(session: Session):
-        # init permission
-        admin_perm = Permission(key="admin", name="admin permission")
-        vip_perm = Permission(key="vip", name="vip permission")
-        test_perm = Permission(key="test", name="test permission")
-        session.add_all([admin_perm, vip_perm, test_perm])
-        session.flush([admin_perm, vip_perm, test_perm])
         # init role
-        admin_role = Role(key="admin", name="admin role", permissions=[admin_perm])
-        vip_role = Role(key="vip", name="vip role", permissions=[vip_perm])
-        test_role = Role(key="test", name="test role", permissions=[test_perm])
+        admin_role = Role(key="admin", name="admin role")
+        vip_role = Role(key="vip", name="vip role")
+        test_role = Role(key="test", name="test role")
         session.add_all([admin_role, vip_role, test_role])
         session.flush([admin_role, vip_role, test_role])
-        # init group
-        admin_group = Group(key="admin", name="admin group", roles=[admin_role])
-        vip_group = Group(key="vip", name="vip group", roles=[vip_role])
-        test_group = Group(key="test", name="test group", roles=[test_role])
-        session.add_all([admin_group, vip_group, test_group])
-        session.flush([admin_group, vip_group, test_group])
         # init user
         admin_user = User(
             username="admin",
             password=auth.pwd_context.hash("admin"),
             email="admin@amis.work",
             roles=[admin_role],
-            groups=[admin_group],
         )
         vip_user = User(
-            username="vip", password=auth.pwd_context.hash("vip"), email="vip@amis.work", roles=[vip_role], groups=[vip_group]
+            username="vip",
+            password=auth.pwd_context.hash("vip"),
+            email="vip@amis.work",
+            roles=[vip_role],
         )
         test_user = User(
             username="test",
             password=auth.pwd_context.hash("test"),
             email="test@amis.work",
             roles=[test_role],
-            groups=[test_group],
         )
         session.add_all([admin_user, vip_user, test_user])
         session.flush([admin_user, vip_user, test_user])
 
     await auth.db.async_run_sync(SQLModel.metadata.create_all, is_session=False)
     await auth.db.async_run_sync(create_fake_users)
+    # 添加Casbin规则
+    await auth.enforcer.add_role_for_user("admin", "admin")
+    await auth.enforcer.add_role_for_user("vip", "vip")
+    await auth.enforcer.add_role_for_user("test", "test")
+    await auth.enforcer.load_policy()
+
     await auth.db.async_commit()
     yield auth
     await auth.db.async_run_sync(SQLModel.metadata.drop_all, is_session=False)

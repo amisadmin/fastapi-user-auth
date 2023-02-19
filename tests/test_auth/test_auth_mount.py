@@ -48,6 +48,7 @@ path_admin_auth = {
 @pytest.mark.parametrize("path", list(path_admin_auth))
 def test_admin_auth(logins: UserClient, path):
     response = logins.client.get(path)
+    print(response.text, response.status_code)
     data = response.json()
     assert data["id"] == logins.user.id
     assert data["username"] == logins.user.username

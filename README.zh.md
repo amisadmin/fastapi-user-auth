@@ -4,10 +4,10 @@
 # 项目介绍
 
 <h2 align="center">
-  FastAPI-User-Auth
+  FastAPI-User-Auth-Pro
 </h2>
 <p align="center">
-    <em>FastAPI-User-Auth是一个简单而强大的FastAPI用户RBAC认证与授权库.</em><br/>
+    <em>FastAPI-User-Auth-Pro是一个基于Casbin简单而强大的FastAPI用户认证与授权库.</em><br/>
     <em>基于FastAPI-Amis-Admin并提供可自由拓展的可视化管理界面.</em>
 </p>
 <p align="center">

@@ -9,8 +9,10 @@ from fastapi_amis_admin.crud.utils import SqlalchemyDatabase
 from fastapi_amis_admin.utils.translation import i18n as _
 from starlette.requests import Request
 
+from fastapi_user_auth.admin import CasbinRuleAdmin
 from fastapi_user_auth.app import UserAuthApp as DefaultUserAuthApp
 from fastapi_user_auth.auth import Auth
+from fastapi_user_auth.auth.schemas import SystemUserEnum
 
 
 class AuthAdminSite(AdminSite):
@@ -21,6 +23,8 @@ class AuthAdminSite(AdminSite):
         super().__init__(settings, fastapi, engine)
         self.auth = auth or self.auth or Auth(db=self.db)
         self.register_admin(self.UserAuthApp)
+        CasbinRuleAdmin.enforcer = self.auth.enforcer
+        self.register_admin(CasbinRuleAdmin)
 
     async def get_page(self, request: Request) -> App:
         app = await super().get_page(request)
@@ -61,4 +65,7 @@ class AuthAdminSite(AdminSite):
         return app
 
     async def has_page_permission(self, request: Request, obj: PageSchemaAdmin = None, action: str = None) -> bool:
-        return await self.auth.requires(response=False)(request)
+        obj = obj or self
+        subject = await self.auth.get_current_user_id(request) or SystemUserEnum.GUEST
+        print("casbin", subject, obj.unique_id, action)
+        return self.auth.enforcer.enforce(subject, obj.unique_id, action)
