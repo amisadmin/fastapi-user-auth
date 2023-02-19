@@ -39,7 +39,7 @@ from starlette.websockets import WebSocket
 from .backends.base import BaseTokenStore
 from .backends.db import DbTokenStore
 from .models import BaseUser, CasbinRule, Role, User, UserRoleLink
-from .schemas import UserLoginOut
+from .schemas import BaseTokenData, UserLoginOut
 from .sqlachemy_adapter import Adapter
 
 UserModelT = TypeVar("UserModelT", bound=BaseUser)
@@ -95,25 +95,29 @@ class Auth(Generic[UserModelT]):
                 return user
         return None
 
-    async def get_current_user_id(self, request: Request) -> Optional[int]:
+    async def _get_token_info(self, request: Request) -> Optional[BaseTokenData]:
         user = request.scope.get("user", None)
         if user:  # 防止重复授权
-            return user.id
+            return user
         request.scope["auth"], request.scope["user"] = self, None
         token = self.backend.get_user_token(request)
         if not token:
             return None
         token_data = await self.backend.token_store.read_token(token)
         if token_data is not None:
-            return token_data.id
+            return token_data
         return None
+
+    async def get_current_user_identity(self, request: Request) -> str:
+        token_info = await self._get_token_info(request)
+        return token_info.username if token_info else ""
 
     async def get_current_user(self, request: Request) -> Optional[UserModelT]:
         if request.scope.get("auth"):  # 防止重复授权
             return request.scope.get("user")
-        user_id = await self.get_current_user_id(request)
-        if user_id:
-            request.scope["user"]: UserModelT = await self.db.async_get(self.user_model, user_id)
+        token_info = await self._get_token_info(request)
+        if token_info:
+            request.scope["user"]: UserModelT = await self.db.async_get(self.user_model, token_info.id)
         return request.user
 
     def requires(

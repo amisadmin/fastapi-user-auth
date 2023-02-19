@@ -29,6 +29,7 @@ class AuthAdminSite(AdminSite):
     async def get_page(self, request: Request) -> App:
         app = await super().get_page(request)
         user_auth_app = self.get_admin_or_create(self.UserAuthApp)
+        username = await self.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
         app.header = Flex(
             className="w-full",
             justify="flex-end",
@@ -37,7 +38,7 @@ class AuthAdminSite(AdminSite):
                 app.header,
                 {
                     "type": "dropdown-button",
-                    "label": f"{request.user.username}",
+                    "label": f"{username}",
                     "trigger": "hover",
                     "icon": "fa fa-user",
                     "buttons": [
@@ -66,6 +67,6 @@ class AuthAdminSite(AdminSite):
 
     async def has_page_permission(self, request: Request, obj: PageSchemaAdmin = None, action: str = None) -> bool:
         obj = obj or self
-        subject = await self.auth.get_current_user_id(request) or SystemUserEnum.GUEST
+        subject = await self.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
         print("casbin", subject, obj.unique_id, action)
         return self.auth.enforcer.enforce(subject, obj.unique_id, action)
