@@ -557,7 +557,7 @@ dependencies = [
 name = "uvloop"
 version = "0.17.0"
 requires_python = ">=3.7"
-summary = ""
+summary = "Fast implementation of asyncio event loop on top of libuv"
 
 [[package]]
 name = "virtualenv"
@@ -603,7 +603,7 @@ summary = "Backport of pathlib-compatible object wrapper for zip files"
 
 [metadata]
 lock_version = "4.1"
-content_hash = "sha256:6745b318a2279d83c1be47a1a34772565851f69f0349cd1860920df984b82d67"
+content_hash = "sha256:1288a875a346f22884b1010d2adf5ce036a5f5d839e5395edb82c3d86aee43ff"
 
 [metadata.files]
 "aiofiles 23.1.0" = [
