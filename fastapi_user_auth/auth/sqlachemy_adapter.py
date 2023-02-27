@@ -3,6 +3,7 @@ from typing import Type, Union
 from casbin import Model, persist
 from casbin.persist import Adapter as BaseAdapter
 from casbin.persist.adapters.update_adapter import UpdateAdapter
+from sqlalchemy import insert
 from sqlalchemy.sql.dml import Delete
 from sqlalchemy_database import AsyncDatabase, Database
 from sqlmodel import SQLModel, delete, or_, select
@@ -103,18 +104,22 @@ class Adapter(BaseAdapter, UpdateAdapter):
         return line
 
     async def _save_policy_line(self, ptype: str, rule: list[str]) -> None:
-        self.db.add(self.parse_rule(ptype, rule))
-        await self.db.async_commit()
+        obj = self.parse_rule(ptype, rule)
+        print("_save_policy_line", obj)
+        self.db.add(obj)
 
     async def save_policy(self, model: Model) -> bool:
         """saves all policy rules to the storage."""
         await self.db.async_execute(delete(self._db_class))  # delete all
+        values = []
         for sec in ["p", "g"]:
             if sec not in model.model.keys():  # pragma: no cover
                 continue
             for ptype, ast in model.model[sec].items():
                 for rule in ast.policy:
-                    self.db.add(self.parse_rule(ptype, rule))
+                    values.append(self.parse_rule(ptype, rule).dict())
+        if values:
+            await self.db.async_execute(insert(self._db_class).values(values))
         await self.db.async_commit()
         return True
 
@@ -122,13 +127,16 @@ class Adapter(BaseAdapter, UpdateAdapter):
     async def add_policy(self, sec: str, ptype: str, rule: list[str]) -> None:
         """adds a policy rule to the storage."""
         await self._save_policy_line(ptype, rule)
+        await self.db.async_commit()
 
     # pylint: disable=unused-argument
     async def add_policies(self, sec: str, ptype: str, rules: tuple[tuple[str]]) -> None:
         """adds a policy rules to the storage."""
-
+        print("add_policies", sec, ptype, rules)
         for rule in rules:
+            print("add_policies_rule", rule)
             await self._save_policy_line(ptype, list(rule))
+        await self.db.async_commit()
 
     # pylint: disable=unused-argument
     async def remove_policy(self, sec: str, ptype: str, rule: list[str]) -> bool:

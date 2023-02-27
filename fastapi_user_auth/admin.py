@@ -1,14 +1,18 @@
 import contextlib
-from typing import Any, Callable, Dict, List, Type
+from typing import Any, Callable, Dict, List, Type, Union
 
 from casbin import Enforcer
 from fastapi import Depends, HTTPException
+from fastapi_amis_admin import amis
 from fastapi_amis_admin.admin import AdminApp, FormAdmin, ModelAdmin, PageSchemaAdmin
+from fastapi_amis_admin.admin.admin import AdminGroup, ModelAction
+from fastapi_amis_admin.amis import SchemaNode
 from fastapi_amis_admin.amis.components import (
     Action,
     ActionType,
     ButtonToolbar,
     Form,
+    FormItem,
     Grid,
     Horizontal,
     Html,
@@ -18,8 +22,10 @@ from fastapi_amis_admin.amis.components import (
 from fastapi_amis_admin.amis.constants import DisplayModeEnum, LevelEnum
 from fastapi_amis_admin.crud.base import SchemaUpdateT
 from fastapi_amis_admin.crud.schema import BaseApiOut
+from fastapi_amis_admin.models import Field
 from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import BaseModel
+from pydantic.fields import ModelField
 from sqlalchemy import select
 from starlette import status
 from starlette.requests import Request
@@ -260,10 +266,137 @@ class UserAdmin(ModelAdmin):
         return data
 
 
+def get_app_page_options(group: AdminGroup) -> List[Dict[str, Any]]:
+    """获取全部页面权限,用于amis组件"""
+    options = []
+    for admin in group:  # 这里已经同步了数据库,所以只从这里配置权限就行了
+        admin: PageSchemaAdmin
+        if not admin.page_schema:
+            continue
+        item = {"label": admin.page_schema.label, "value": f"{admin.unique_id}#admin:page"}
+        if isinstance(admin, ModelAdmin):
+            item["children"] = [
+                {"label": "查看列表", "value": f"{admin.unique_id}#admin:list"},
+                {"label": "查看详情", "value": f"{admin.unique_id}#admin:read"},
+                {"label": "更新数据", "value": f"{admin.unique_id}#admin:update"},
+                {"label": "创建数据", "value": f"{admin.unique_id}#admin:create"},
+                {"label": "删除数据", "value": f"{admin.unique_id}#admin:delete"},
+            ]  # type: ignore
+        elif isinstance(admin, AdminGroup):
+            item["children"] = get_app_page_options(admin)
+        options.append(item)
+    return options
+
+
+class UpdateRoleCasbinRuleAction(ModelAction):
+    """更新角色Casbin规则"""
+
+    form_init = True
+    # 配置动作基本信息
+    # action = ActionType.Drawer(icon="fa fa-gavel", tooltip="权限配置", drawer=amis.Drawer(), level=LevelEnum.warning)
+    action = ActionType.Dialog(icon="fa fa-gavel", label="权限配置", tooltip="权限配置", dialog=amis.Dialog(), level=LevelEnum.warning)
+
+    # 创建动作表单数据模型
+    class schema(BaseModel):
+        rules: str = Field(
+            None,
+            title="权限列表",
+            amis_form_item=amis.InputTree(
+                multiple=True,
+                source="",
+                searchable=True,
+                showOutline=True,
+                autoCheckChildren=False,
+            ),
+        )
+
+    async def get_init_data(self, request: Request, **kwargs) -> BaseApiOut[Any]:
+        # 从数据库获取角色的权限列表
+        item_id = request.query_params.get("item_id")
+        print("item_id", item_id)
+        if not item_id:
+            return BaseApiOut(data=self.schema())
+        # role_key = select(Role.key).where(Role.id == item_id).scalar_subquery()
+        # stmt = select(CasbinRule).where(CasbinRule.ptype == "p", CasbinRule.v0 == role_key)
+        # rules = await self.admin.db.async_scalars(stmt)
+        # data = ",".join([f"{rule.v1}#{rule.v2}" for rule in rules])
+        role_key = await self.admin.db.async_scalar(select(Role.key).where(Role.id == item_id))
+        enforcer: Enforcer = self.site.auth.enforcer
+        rules = await enforcer.get_filtered_policy(0, role_key)
+        print("rules", rules)
+        rules = ",".join([f"{rule[1]}#{rule[2]}" for rule in rules])
+        return BaseApiOut(data=self.schema(rules=rules))
+
+    async def get_form_item(self, request: Request, modelfield: ModelField) -> Union[FormItem, SchemaNode]:
+        item = await super().get_form_item(request, modelfield)
+        if item.name == "rules":
+            item.source = f"{self.router_path}/get_pages_options"
+        return item
+
+    # 动作处理
+    async def handle(self, request: Request, item_id: List[str], data: schema, **kwargs):
+        # 从数据库获取用户选择的数据列表
+        items = await self.admin.fetch_items(*item_id)
+        print("items", items, data)
+        role_key = items[0].key
+        rules = data.rules.split(",")
+        # # 删除旧的权限
+        # stmt = delete(CasbinRule).where(CasbinRule.ptype == "p", CasbinRule.v0 == role_key)
+        # await self.admin.db.async_execute(stmt)
+        # # 添加新的权限
+        # values = [
+        #     {"ptype": "p", "v0": role_key, "v1": v1, "v2": v2}
+        #     for v1, v2 in [rule.split("#") for rule in rules]
+        # ]
+        # stmt = insert(CasbinRule).values(values)
+        # await self.admin.db.async_execute(stmt)
+        # 刷新权限
+        # await request.auth.enforcer.load_policy()
+        enforcer: Enforcer = self.site.auth.enforcer
+        # 删除旧的权限
+        ret = await enforcer.remove_filtered_policy(0, role_key)
+        print("ret", ret)
+        # 添加新的权限
+        ret = await enforcer.add_policies([(role_key, v1, v2) for v1, v2 in [rule.split("#") for rule in rules]])
+        print("ret", ret)
+        # 刷新权限
+        await enforcer.save_policy()
+        # 返回动作处理结果
+        return BaseApiOut(data="操作成功")
+
+    def register_router(self):
+        super().register_router()
+
+        # 获取全部页面权限
+        @self.router.get("/get_pages_options", response_model=BaseApiOut)
+        async def get_pages_options():
+            return BaseApiOut(
+                data=[
+                    {"label": self.site.page_schema.label, "value": f"{self.site.unique_id}#admin:page"},
+                    *get_app_page_options(self.site),
+                ]
+            )
+
+        return self
+
+
 class RoleAdmin(ModelAdmin):
     page_schema = PageSchema(label=_("Role"), icon="fa fa-group")
     model = Role
     readonly_fields = ["key"]
+
+    async def get_actions_on_item(self, request: Request) -> List[Action]:
+        actions = await super().get_actions_on_item(request)
+        action = await self.update_role_casbin_action.get_action(request)
+        actions.append(action.copy())
+        return actions
+
+    # 注册自定义路由
+    def register_router(self):
+        # 注册动作路由
+        super().register_router()
+        self.update_role_casbin_action = UpdateRoleCasbinRuleAction(self).register_router()
+        return self
 
 
 class CasbinRuleAdmin(ModelAdmin):

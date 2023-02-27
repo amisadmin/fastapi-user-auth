@@ -2,7 +2,6 @@ from typing import Type
 
 from fastapi import FastAPI
 from fastapi_amis_admin.admin import AdminSite, PageSchemaAdmin, Settings
-from fastapi_amis_admin.admin.admin import AdminGroup
 from fastapi_amis_admin.amis.components import ActionType, App, Dialog, Flex, Service
 from fastapi_amis_admin.amis.constants import SizeEnum
 from fastapi_amis_admin.amis.types import AmisAPI
@@ -69,8 +68,9 @@ class AuthAdminSite(AdminSite):
     async def has_page_permission(self, request: Request, obj: PageSchemaAdmin = None, action: str = None) -> bool:
         obj = obj or self
         subject = await self.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
-        print("casbin", subject, obj.unique_id, action)
-        if subject==SystemUserEnum.GUEST and isinstance(obj, AdminGroup) and action == "page":
-            # 对于已登录的用户, 管理分组暂时不验证权限. 因为菜单可能移动到其他分组, 会导致权限验证失败.
-            return True
-        return self.auth.enforcer.enforce(subject, obj.unique_id, action)
+        effect = self.auth.enforcer.enforce(subject, obj.unique_id, f"admin:{action}")
+        print("casbin", subject, obj.unique_id, action, effect)
+        # if subject==SystemUserEnum.GUEST and isinstance(obj, AdminGroup) and action == "page":
+        #     # 对于已登录的用户, 管理分组暂时不验证权限. 因为菜单可能移动到其他分组, 会导致权限验证失败.
+        #     return True
+        return effect
