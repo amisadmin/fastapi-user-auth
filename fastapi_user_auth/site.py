@@ -1,8 +1,15 @@
-from typing import Type
+from typing import Optional, Type
 
 from fastapi import FastAPI
 from fastapi_amis_admin.admin import AdminSite, PageSchemaAdmin, Settings
-from fastapi_amis_admin.amis.components import ActionType, App, Dialog, Flex, Service
+from fastapi_amis_admin.amis.components import (
+    ActionType,
+    App,
+    Dialog,
+    Flex,
+    PageSchema,
+    Service,
+)
 from fastapi_amis_admin.amis.constants import SizeEnum
 from fastapi_amis_admin.amis.types import AmisAPI
 from fastapi_amis_admin.crud.utils import SqlalchemyDatabase
@@ -25,6 +32,12 @@ class AuthAdminSite(AdminSite):
         self.register_admin(self.UserAuthApp)
         CasbinRuleAdmin.enforcer = self.auth.enforcer
         self.register_admin(CasbinRuleAdmin)
+
+    def get_page_schema(self) -> Optional[PageSchema]:
+        if super().get_page_schema():
+            self.page_schema.label = self.site.settings.site_title
+            self.page_schema.icon = self.site.settings.site_icon
+        return self.page_schema
 
     async def get_page(self, request: Request) -> App:
         app = await super().get_page(request)

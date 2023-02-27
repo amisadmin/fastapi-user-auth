@@ -323,7 +323,6 @@ class UpdateRoleCasbinRuleAction(ModelAction):
         role_key = await self.admin.db.async_scalar(select(Role.key).where(Role.id == item_id))
         enforcer: Enforcer = self.site.auth.enforcer
         rules = await enforcer.get_filtered_policy(0, role_key)
-        print("rules", rules)
         rules = ",".join([f"{rule[1]}#{rule[2]}" for rule in rules])
         return BaseApiOut(data=self.schema(rules=rules))
 
@@ -337,28 +336,15 @@ class UpdateRoleCasbinRuleAction(ModelAction):
     async def handle(self, request: Request, item_id: List[str], data: schema, **kwargs):
         # 从数据库获取用户选择的数据列表
         items = await self.admin.fetch_items(*item_id)
-        print("items", items, data)
         role_key = items[0].key
-        rules = data.rules.split(",")
-        # # 删除旧的权限
-        # stmt = delete(CasbinRule).where(CasbinRule.ptype == "p", CasbinRule.v0 == role_key)
-        # await self.admin.db.async_execute(stmt)
-        # # 添加新的权限
-        # values = [
-        #     {"ptype": "p", "v0": role_key, "v1": v1, "v2": v2}
-        #     for v1, v2 in [rule.split("#") for rule in rules]
-        # ]
-        # stmt = insert(CasbinRule).values(values)
-        # await self.admin.db.async_execute(stmt)
-        # 刷新权限
-        # await request.auth.enforcer.load_policy()
         enforcer: Enforcer = self.site.auth.enforcer
         # 删除旧的权限
         ret = await enforcer.remove_filtered_policy(0, role_key)
-        print("ret", ret)
+        print("remove_filtered_policy", ret)
         # 添加新的权限
-        ret = await enforcer.add_policies([(role_key, v1, v2) for v1, v2 in [rule.split("#") for rule in rules]])
-        print("ret", ret)
+        rules = data.rules.split(",")
+        ret = await enforcer.add_policies([(role_key, v1, v2) for v1, v2 in [rule.split("#") for rule in rules if rule]])
+        print("add_policies", ret)
         # 刷新权限
         await enforcer.save_policy()
         # 返回动作处理结果
@@ -411,11 +397,34 @@ class CasbinRuleAdmin(ModelAdmin):
         super().__init__(app)
 
         @self.site.fastapi.on_event("startup")
-        async def load_policy():
-            await self.enforcer.load_policy()
+        async def _load_policy():
+            await self.load_policy()
 
     @classmethod
     def bind(cls, app: AdminApp, enforcer: Enforcer = None) -> Enforcer:
         cls.enforcer = enforcer or cls.enforcer
         app.register_admin(cls)
         return cls.enforcer
+
+    async def get_actions_on_header_toolbar(self, request: Request) -> List[Action]:
+        actions = await super().get_actions_on_header_toolbar(request)
+        actions.append(
+            ActionType.Ajax(
+                label="刷新权限",
+                icon="fa fa-refresh",
+                level=LevelEnum.success,
+                api=f"GET:{self.router_path}/load_policy",
+            )
+        )
+        return actions
+
+    async def load_policy(self):
+        await self.enforcer.load_policy()
+
+    def register_router(self):
+        @self.router.get("/load_policy", response_model=BaseApiOut)
+        async def _load_policy():
+            await self.load_policy()
+            return BaseApiOut(data="刷新成功")
+
+        return super().register_router()
