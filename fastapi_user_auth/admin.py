@@ -266,7 +266,7 @@ class UserAdmin(ModelAdmin):
         return data
 
 
-def get_app_page_options(group: AdminGroup) -> List[Dict[str, Any]]:
+def get_admin_action_options(group: AdminGroup) -> List[Dict[str, Any]]:
     """获取全部页面权限,用于amis组件"""
     options = []
     for admin in group:  # 这里已经同步了数据库,所以只从这里配置权限就行了
@@ -283,7 +283,7 @@ def get_app_page_options(group: AdminGroup) -> List[Dict[str, Any]]:
                 {"label": "删除数据", "value": f"{admin.unique_id}#admin:delete"},
             ]  # type: ignore
         elif isinstance(admin, AdminGroup):
-            item["children"] = get_app_page_options(admin)
+            item["children"] = get_admin_action_options(admin)
         options.append(item)
     return options
 
@@ -329,7 +329,7 @@ class UpdateRoleCasbinRuleAction(ModelAction):
     async def get_form_item(self, request: Request, modelfield: ModelField) -> Union[FormItem, SchemaNode]:
         item = await super().get_form_item(request, modelfield)
         if item.name == "rules":
-            item.source = f"{self.router_path}/get_pages_options"
+            item.source = f"{self.router_path}/get_admin_action_options"
         return item
 
     # 动作处理
@@ -354,12 +354,12 @@ class UpdateRoleCasbinRuleAction(ModelAction):
         super().register_router()
 
         # 获取全部页面权限
-        @self.router.get("/get_pages_options", response_model=BaseApiOut)
-        async def get_pages_options():
+        @self.router.get("/get_admin_action_options", response_model=BaseApiOut)
+        async def _get_admin_action_options():
             return BaseApiOut(
                 data=[
                     {"label": self.site.page_schema.label, "value": f"{self.site.unique_id}#admin:page"},
-                    *get_app_page_options(self.site),
+                    *get_admin_action_options(self.site),
                 ]
             )
 
