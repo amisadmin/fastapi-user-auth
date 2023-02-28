@@ -38,7 +38,7 @@ from starlette.websockets import WebSocket
 
 from .backends.base import BaseTokenStore
 from .backends.db import DbTokenStore
-from .models import BaseUser, CasbinRule, Role, User, UserRoleLink
+from .models import BaseUser, CasbinRule, Role, User
 from .schemas import BaseTokenData, UserLoginOut
 from .sqlachemy_adapter import Adapter
 
@@ -109,8 +109,10 @@ class Auth(Generic[UserModelT]):
         return None
 
     async def get_current_user_identity(self, request: Request) -> str:
-        token_info = await self._get_token_info(request)
-        return token_info.username if token_info else ""
+        if "user_identity" not in request.scope:  # 防止重复授权
+            token_info = await self._get_token_info(request)
+            request.scope["user_identity"] = token_info.username if token_info else ""
+        return request.scope["user_identity"]
 
     async def get_current_user(self, request: Request) -> Optional[UserModelT]:
         if request.scope.get("auth"):  # 防止重复授权
@@ -234,15 +236,14 @@ class Auth(Generic[UserModelT]):
         # create admin user
         user = session.scalar(
             select(self.user_model)
-            .join(UserRoleLink, UserRoleLink.user_id == self.user_model.id)
-            .where(UserRoleLink.role_id == role.id)
+            .outerjoin(CasbinRule, CasbinRule.v0 == "u:" + self.user_model.username)
+            .where(CasbinRule.v1 == "r:" + role.key)
         )
         if not user:
+            session.add(CasbinRule(ptype="g", v0="u:" + role_key, v1="r:" + role_key))
             user = self.user_model(
                 username=role_key,
                 password=self.pwd_context.hash(role_key),
-                email=f"{role_key}@amis.work",  # type:ignore
-                roles=[role],
             )
             session.add(user)
             session.flush()

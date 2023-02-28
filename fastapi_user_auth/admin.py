@@ -27,6 +27,7 @@ from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import BaseModel
 from pydantic.fields import ModelField
 from sqlalchemy import select
+from sqlmodel.sql.expression import Select
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
@@ -34,7 +35,7 @@ from starlette.routing import NoMatchFound
 
 from fastapi_user_auth.auth import Auth
 from fastapi_user_auth.auth.models import BaseUser, CasbinRule, Role, User
-from fastapi_user_auth.auth.schemas import UserLoginOut
+from fastapi_user_auth.auth.schemas import SystemUserEnum, UserLoginOut
 
 
 def attach_page_head(page: Page) -> Page:
@@ -142,6 +143,8 @@ class UserRegFormAdmin(FormAdmin):
 
     async def handle(self, request: Request, data: SchemaUpdateT, **kwargs) -> BaseApiOut[BaseModel]:  # self.schema_submit_out
         auth: Auth = request.auth
+        if data.username.upper() in SystemUserEnum.__members__:
+            return BaseApiOut(status=-1, msg=_("Username has been registered!"), data=None)
         user = await auth.db.async_scalar(select(self.user_model).where(self.user_model.username == data.username))
         if user:
             return BaseApiOut(status=-1, msg=_("Username has been registered!"), data=None)
@@ -250,7 +253,6 @@ class UserAdmin(ModelAdmin):
     page_schema = PageSchema(label=_("User"), icon="fa fa-user")
     model: Type[BaseUser] = None
     exclude = ["password"]
-    link_model_fields = [User.roles]
     search_fields = [User.username]
 
     async def on_create_pre(self, request: Request, obj, **kwargs) -> Dict[str, Any]:
@@ -322,7 +324,7 @@ class UpdateRoleCasbinRuleAction(ModelAction):
         # data = ",".join([f"{rule.v1}#{rule.v2}" for rule in rules])
         role_key = await self.admin.db.async_scalar(select(Role.key).where(Role.id == item_id))
         enforcer: Enforcer = self.site.auth.enforcer
-        rules = await enforcer.get_filtered_policy(0, role_key)
+        rules = await enforcer.get_filtered_policy(0, "r:" + role_key)
         rules = ",".join([f"{rule[1]}#{rule[2]}" for rule in rules])
         return BaseApiOut(data=self.schema(rules=rules))
 
@@ -336,7 +338,7 @@ class UpdateRoleCasbinRuleAction(ModelAction):
     async def handle(self, request: Request, item_id: List[str], data: schema, **kwargs):
         # 从数据库获取用户选择的数据列表
         items = await self.admin.fetch_items(*item_id)
-        role_key = items[0].key
+        role_key = "r:" + items[0].key
         enforcer: Enforcer = self.site.auth.enforcer
         # 删除旧的权限
         ret = await enforcer.remove_filtered_policy(0, role_key)
@@ -383,6 +385,23 @@ class RoleAdmin(ModelAdmin):
         super().register_router()
         self.update_role_casbin_action = UpdateRoleCasbinRuleAction(self).register_router()
         return self
+
+
+class UserCasbinRuleAdmin(ModelAdmin):
+    page_schema = PageSchema(label="用户角色", icon="fa fa-group")
+    model = CasbinRule
+    list_display = [
+        User.username,
+        User.nickname,
+        User.is_active,
+        Role.key,
+        Role.name,
+    ]
+
+    async def get_select(self, request: Request) -> Select:
+        select = await super().get_select(request)
+        select = select.where(CasbinRule.ptype == "g")
+        return select.outerjoin(Role, "r:" + Role.key == CasbinRule.v1).outerjoin(User, "u:" + User.username == CasbinRule.v0)
 
 
 class CasbinRuleAdmin(ModelAdmin):

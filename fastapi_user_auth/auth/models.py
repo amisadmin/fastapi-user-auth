@@ -1,13 +1,11 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from fastapi_amis_admin.amis.components import ColumnImage, InputImage
 from fastapi_amis_admin.models.fields import Field
 from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import EmailStr, SecretStr
 from sqlalchemy import func
-from sqlalchemy.schema import ForeignKey
-from sqlmodel import Relationship
 
 try:
     from sqlmodelx import SQLModel
@@ -51,28 +49,6 @@ class EmailMixin(SQLModel):
     email: EmailStr = Field(None, title=_("Email"), index=True, nullable=True, amis_form_item="input-email")
 
 
-class UserRoleLink(SQLModel, table=True):  # todo: remove
-    __tablename__ = "auth_user_roles"
-    user_id: int = Field(
-        primary_key=True,
-        sa_column_args=(
-            ForeignKey(
-                "auth_user.id",
-                ondelete="CASCADE",
-            ),
-        ),
-    )
-    role_id: int = Field(
-        primary_key=True,
-        sa_column_args=(
-            ForeignKey(
-                "auth_role.id",
-                ondelete="CASCADE",
-            ),
-        ),
-    )
-
-
 class BaseUser(PkMixin, UsernameMixin, PasswordMixin, EmailMixin, CreateTimeMixin):
     __tablename__ = "auth_user"
     is_active: bool = Field(default=True, title=_("Is Active"))
@@ -101,7 +77,7 @@ class BaseUser(PkMixin, UsernameMixin, PasswordMixin, EmailMixin, CreateTimeMixi
 class User(BaseUser, table=True):
     """用户"""
 
-    roles: List["Role"] = Relationship(link_model=UserRoleLink)
+    pass
 
 
 class Role(PkMixin, table=True):
@@ -109,9 +85,9 @@ class Role(PkMixin, table=True):
 
     __tablename__ = "auth_role"
 
-    key: str = Field(title=_("Identify"), max_length=40, unique=True, index=True, nullable=False)
-    name: str = Field(default="", title=_("Name"), max_length=40)
-    desc: str = Field(default="", title=_("Description"), max_length=400, amis_form_item="textarea")
+    key: str = Field(title="角色标识", max_length=40, unique=True, index=True, nullable=False)
+    name: str = Field(default="", title="角色名称", max_length=40)
+    desc: str = Field(default="", title="角色描述", max_length=400, amis_form_item="textarea")
 
 
 class CasbinRule(PkMixin, table=True):  # type: ignore

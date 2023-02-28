@@ -7,6 +7,7 @@ from fastapi_amis_admin.utils.translation import i18n as _
 
 from fastapi_user_auth.admin import RoleAdmin as DefaultRoleAdmin
 from fastapi_user_auth.admin import UserAdmin as DefaultUserAdmin
+from fastapi_user_auth.admin import UserCasbinRuleAdmin
 from fastapi_user_auth.admin import UserInfoFormAdmin as DefaultUserInfoFormAdmin
 from fastapi_user_auth.admin import UserLoginFormAdmin as DefaultUserLoginFormAdmin
 from fastapi_user_auth.admin import UserRegFormAdmin as DefaultUserRegFormAdmin
@@ -51,4 +52,5 @@ class UserAuthApp(AdminApp, AuthRouter):
             self.UserInfoFormAdmin,
             self.UserAdmin,
             self.RoleAdmin,
+            UserCasbinRuleAdmin,
         )
