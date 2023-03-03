@@ -234,18 +234,17 @@ class Auth(Generic[UserModelT]):
             session.flush()
 
         # create admin user
-        user = session.scalar(
-            select(self.user_model)
-            .outerjoin(CasbinRule, CasbinRule.v0 == "u:" + self.user_model.username)
-            .where(CasbinRule.v1 == "r:" + role.key)
-        )
+        user = session.scalar(select(self.user_model).where(self.user_model.username == role_key))
         if not user:
-            session.add(CasbinRule(ptype="g", v0="u:" + role_key, v1="r:" + role_key))
             user = self.user_model(
                 username=role_key,
                 password=self.pwd_context.hash(role_key),
             )
             session.add(user)
+            session.flush()
+        rule = session.scalar(select(CasbinRule).where(CasbinRule.v0 == "u:" + role_key).where(CasbinRule.v1 == "r:" + role_key))
+        if not rule:
+            session.add(CasbinRule(ptype="g", v0="u:" + role_key, v1="r:" + role_key))
             session.flush()
         return user
 
