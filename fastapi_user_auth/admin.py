@@ -4,7 +4,13 @@ from typing import Any, Callable, Dict, List, Type, Union
 from casbin import Enforcer
 from fastapi import Depends, HTTPException
 from fastapi_amis_admin import amis
-from fastapi_amis_admin.admin import AdminApp, FormAdmin, ModelAdmin, PageSchemaAdmin
+from fastapi_amis_admin.admin import (
+    AdminAction,
+    AdminApp,
+    FormAdmin,
+    ModelAdmin,
+    PageSchemaAdmin,
+)
 from fastapi_amis_admin.admin.admin import AdminGroup, ModelAction
 from fastapi_amis_admin.amis import SchemaNode
 from fastapi_amis_admin.amis.components import (
@@ -277,13 +283,9 @@ def get_admin_action_options(group: AdminGroup) -> List[Dict[str, Any]]:
             continue
         item = {"label": admin.page_schema.label, "value": f"{admin.unique_id}#admin:page"}
         if isinstance(admin, ModelAdmin):
-            item["children"] = [
-                {"label": "查看列表", "value": f"{admin.unique_id}#admin:list"},
-                {"label": "查看详情", "value": f"{admin.unique_id}#admin:read"},
-                {"label": "更新数据", "value": f"{admin.unique_id}#admin:update"},
-                {"label": "创建数据", "value": f"{admin.unique_id}#admin:create"},
-                {"label": "删除数据", "value": f"{admin.unique_id}#admin:delete"},
-            ]  # type: ignore
+            item["children"] = [{"label": "查看列表", "value": f"{admin.unique_id}#admin:list"}]
+            for admin_action in admin.registered_admin_actions.values():
+                item["children"].append({"label": admin_action.label, "value": f"{admin.unique_id}#admin:{admin_action.name}"})
         elif isinstance(admin, AdminGroup):
             item["children"] = get_admin_action_options(admin)
         options.append(item)
@@ -372,19 +374,12 @@ class RoleAdmin(ModelAdmin):
     page_schema = PageSchema(label=_("Role"), icon="fa fa-group")
     model = Role
     readonly_fields = ["key"]
-
-    async def get_actions_on_item(self, request: Request) -> List[Action]:
-        actions = await super().get_actions_on_item(request)
-        action = await self.update_role_casbin_action.get_action(request)
-        actions.append(action.copy())
-        return actions
-
-    # 注册自定义路由
-    def register_router(self):
-        # 注册动作路由
-        super().register_router()
-        self.update_role_casbin_action = UpdateRoleCasbinRuleAction(self).register_router()
-        return self
+    admin_action_maker = [
+        lambda admin: UpdateRoleCasbinRuleAction(
+            admin=admin,
+            id="update_role_casbin",
+        )
+    ]
 
 
 class UserCasbinRuleAdmin(ModelAdmin):
@@ -408,7 +403,19 @@ class CasbinRuleAdmin(ModelAdmin):
     page_schema = PageSchema(label="CasbinRule", icon="fa fa-group")
     model = CasbinRule
     list_filter = [CasbinRule.ptype, CasbinRule.v0, CasbinRule.v1, CasbinRule.v2, CasbinRule.v3, CasbinRule.v4, CasbinRule.v5]
-
+    admin_action_maker = [
+        lambda admin: AdminAction(
+            admin=admin,
+            action=ActionType.Ajax(
+                id="refresh",
+                label="刷新权限",
+                icon="fa fa-refresh",
+                level=LevelEnum.success,
+                api=f"GET:{admin.router_path}/load_policy",
+            ),
+            flags=["toolbar"],
+        ),
+    ]
     enforcer: Enforcer = None
 
     def __init__(self, app: "AdminApp"):
@@ -424,18 +431,6 @@ class CasbinRuleAdmin(ModelAdmin):
         cls.enforcer = enforcer or cls.enforcer
         app.register_admin(cls)
         return cls.enforcer
-
-    async def get_actions_on_header_toolbar(self, request: Request) -> List[Action]:
-        actions = await super().get_actions_on_header_toolbar(request)
-        actions.append(
-            ActionType.Ajax(
-                label="刷新权限",
-                icon="fa fa-refresh",
-                level=LevelEnum.success,
-                api=f"GET:{self.router_path}/load_policy",
-            )
-        )
-        return actions
 
     async def load_policy(self):
         await self.enforcer.load_policy()
