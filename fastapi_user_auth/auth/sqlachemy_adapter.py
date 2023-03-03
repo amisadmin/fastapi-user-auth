@@ -103,11 +103,6 @@ class Adapter(BaseAdapter, UpdateAdapter):
             setattr(line, f"v{i}", v)
         return line
 
-    async def _save_policy_line(self, ptype: str, rule: list[str]) -> None:
-        obj = self.parse_rule(ptype, rule)
-        print("_save_policy_line", obj)
-        self.db.add(obj)
-
     async def save_policy(self, model: Model) -> bool:
         """saves all policy rules to the storage."""
         await self.db.async_execute(delete(self._db_class))  # delete all
@@ -126,16 +121,19 @@ class Adapter(BaseAdapter, UpdateAdapter):
     # pylint: disable=unused-argument
     async def add_policy(self, sec: str, ptype: str, rule: list[str]) -> None:
         """adds a policy rule to the storage."""
-        await self._save_policy_line(ptype, rule)
+        obj = self.parse_rule(ptype, rule)
+        self.db.add(obj)
         await self.db.async_commit()
 
     # pylint: disable=unused-argument
     async def add_policies(self, sec: str, ptype: str, rules: tuple[tuple[str]]) -> None:
         """adds a policy rules to the storage."""
-        print("add_policies", sec, ptype, rules)
+        values = []
         for rule in rules:
-            print("add_policies_rule", rule)
-            await self._save_policy_line(ptype, list(rule))
+            values.append(self.parse_rule(ptype, rule).dict())
+        if not values:
+            return
+        await self.db.async_execute(insert(self._db_class).values(values))
         await self.db.async_commit()
 
     # pylint: disable=unused-argument

@@ -81,9 +81,5 @@ class AuthAdminSite(AdminSite):
     async def has_page_permission(self, request: Request, obj: PageSchemaAdmin = None, action: str = None) -> bool:
         obj = obj or self
         subject = await self.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
-        effect = self.auth.enforcer.enforce("u:" + subject, obj.unique_id, f"admin:{action}")
-        print("casbin_enforcer_", subject, obj.unique_id, action, effect)
-        # if subject==SystemUserEnum.GUEST and isinstance(obj, AdminGroup) and action == "page":
-        #     # 对于已登录的用户, 管理分组暂时不验证权限. 因为菜单可能移动到其他分组, 会导致权限验证失败.
-        #     return True
+        effect = self.auth.enforcer.enforce("u:" + subject, obj.unique_id, "admin:" + action)
         return effect

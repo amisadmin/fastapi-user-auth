@@ -8,6 +8,7 @@ from typing import (
     Any,
     Callable,
     Generic,
+    List,
     Optional,
     Sequence,
     Tuple,
@@ -96,17 +97,12 @@ class Auth(Generic[UserModelT]):
         return None
 
     async def _get_token_info(self, request: Request) -> Optional[BaseTokenData]:
-        user = request.scope.get("user", None)
-        if user:  # 防止重复授权
-            return user
-        request.scope["auth"], request.scope["user"] = self, None
+        if "user_token_info" in request.scope:  # 防止重复授权
+            return request.scope["user_token_info"]
+        request.scope["auth"] = self  # 为了在token_store中使用
         token = self.backend.get_user_token(request)
-        if not token:
-            return None
-        token_data = await self.backend.token_store.read_token(token)
-        if token_data is not None:
-            return token_data
-        return None
+        request.scope["user_token_info"] = await self.backend.token_store.read_token(token) if token else None
+        return request.scope["user_token_info"]
 
     async def get_current_user_identity(self, request: Request) -> str:
         if "user_identity" not in request.scope:  # 防止重复授权
@@ -114,13 +110,19 @@ class Auth(Generic[UserModelT]):
             request.scope["user_identity"] = token_info.username if token_info else ""
         return request.scope["user_identity"]
 
+    async def has_role(self, request: Request, roles: List[str]) -> bool:
+        identity = "u:" + await self.get_current_user_identity(request)
+        for role in roles:
+            if await self.enforcer.has_role_for_user(identity, "r:" + role):
+                return True
+        return False
+
     async def get_current_user(self, request: Request) -> Optional[UserModelT]:
-        if request.scope.get("auth"):  # 防止重复授权
-            return request.scope.get("user")
+        if "user" in request.scope:  # 防止重复授权
+            return request.scope["user"]
         token_info = await self._get_token_info(request)
-        if token_info:
-            request.scope["user"]: UserModelT = await self.db.async_get(self.user_model, token_info.id)
-        return request.user
+        request.scope["user"]: UserModelT = await self.db.async_get(self.user_model, token_info.id) if token_info else None
+        return request.scope["user"]
 
     def requires(
         self,
@@ -140,7 +142,7 @@ class Auth(Generic[UserModelT]):
             for role in roles_:
                 if not role:
                     continue
-                if await self.enforcer.has_role_for_user(user.identity, role):  # todo  这里不需要用户登录
+                if await self.enforcer.has_role_for_user("u:" + user.username, "r:" + role):  # todo  这里不需要用户登录
                     return True
             return False
 

@@ -343,14 +343,12 @@ class UpdateRoleCasbinRuleAction(ModelAction):
         role_key = "r:" + items[0].key
         enforcer: Enforcer = self.site.auth.enforcer
         # 删除旧的权限
-        ret = await enforcer.remove_filtered_policy(0, role_key)
-        print("remove_filtered_policy", ret)
+        await enforcer.remove_filtered_policy(0, role_key)
         # 添加新的权限
         rules = data.rules.split(",")
-        ret = await enforcer.add_policies([(role_key, v1, v2) for v1, v2 in [rule.split("#") for rule in rules if rule]])
-        print("add_policies", ret)
+        await enforcer.add_policies([(role_key, v1, v2) for v1, v2 in [rule.split("#") for rule in rules if rule]])
         # 刷新权限
-        await enforcer.save_policy()
+        # await enforcer.save_policy()
         # 返回动作处理结果
         return BaseApiOut(data="操作成功")
 
