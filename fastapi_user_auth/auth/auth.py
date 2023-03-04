@@ -8,7 +8,6 @@ from typing import (
     Any,
     Callable,
     Generic,
-    List,
     Optional,
     Sequence,
     Tuple,
@@ -110,12 +109,20 @@ class Auth(Generic[UserModelT]):
             request.scope["user_identity"] = token_info.username if token_info else ""
         return request.scope["user_identity"]
 
-    async def has_role(self, request: Request, roles: List[str]) -> bool:
-        identity = "u:" + await self.get_current_user_identity(request)
+    async def has_role_for_user(self, identity: str, roles: Union[str, Sequence[str]]) -> bool:
+        identity = "u:" + identity
+        if isinstance(roles, str):
+            roles = [roles]
         for role in roles:
+            if not role:
+                continue
             if await self.enforcer.has_role_for_user(identity, "r:" + role):
                 return True
         return False
+
+    async def has_role(self, request: Request, roles: Union[str, Sequence[str]]) -> bool:
+        identity = "u:" + await self.get_current_user_identity(request)
+        return await self.has_role_for_user(identity, roles)
 
     async def get_current_user(self, request: Request) -> Optional[UserModelT]:
         if "user" in request.scope:  # 防止重复授权
@@ -139,12 +146,7 @@ class Auth(Generic[UserModelT]):
                 return False
             if roles_ == (None,):
                 return True
-            for role in roles_:
-                if not role:
-                    continue
-                if await self.enforcer.has_role_for_user("u:" + user.username, "r:" + role):  # todo  这里不需要用户登录
-                    return True
-            return False
+            return await self.has_role_for_user(user.username, roles_)
 
         async def depend(
             request: Request,
@@ -189,7 +191,6 @@ class Auth(Generic[UserModelT]):
                     websocket = kwargs.get("websocket", args[idx] if args else None)
                     assert isinstance(websocket, WebSocket)
                     user = await self.get_current_user(websocket)  # type: ignore
-                    print("user", user)
                     if not await has_requires(user):
                         await websocket.close()
                     else:
@@ -244,16 +245,14 @@ class Auth(Generic[UserModelT]):
             )
             session.add(user)
             session.flush()
-        rule = session.scalar(select(CasbinRule).where(CasbinRule.v0 == "u:" + role_key).where(CasbinRule.v1 == "r:" + role_key))
-        if not rule:
-            session.add(CasbinRule(ptype="g", v0="u:" + role_key, v1="r:" + role_key))
-            session.flush()
         return user
 
     async def create_role_user(self, role_key: str = "admin", commit: bool = True) -> User:
         user = await self.db.async_run_sync(self._create_role_user_sync, role_key)
         if commit:
             await self.db.async_commit()
+        # Update casbin role
+        await self.enforcer.add_role_for_user("u:" + role_key, "r:" + role_key)
         return user
 
 

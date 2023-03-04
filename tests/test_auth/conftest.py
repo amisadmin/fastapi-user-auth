@@ -3,14 +3,13 @@ from typing import Union
 
 import pytest
 from fastapi import FastAPI
-from sqlalchemy.orm import Session
 from sqlalchemy_database import AsyncDatabase, Database
 from sqlmodel import SQLModel
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.testclient import TestClient
 
 from fastapi_user_auth.auth.auth import Auth, AuthRouter
-from fastapi_user_auth.auth.models import Role, User
+from fastapi_user_auth.auth.models import User
 from tests.conftest import async_db, sync_db
 
 
@@ -39,45 +38,11 @@ def event_loop():
 async def fake_auth() -> Auth:
     auth = Auth(db=async_db)
 
-    # noinspection PyTypeChecker
-    def create_fake_users(session: Session):
-        # init role
-        admin_role = Role(key="admin", name="admin role")
-        vip_role = Role(key="vip", name="vip role")
-        test_role = Role(key="test", name="test role")
-        session.add_all([admin_role, vip_role, test_role])
-        session.flush([admin_role, vip_role, test_role])
-        # init user
-        admin_user = User(
-            username="admin",
-            password=auth.pwd_context.hash("admin"),
-            email="admin@amis.work",
-            roles=[admin_role],
-        )
-        vip_user = User(
-            username="vip",
-            password=auth.pwd_context.hash("vip"),
-            email="vip@amis.work",
-            roles=[vip_role],
-        )
-        test_user = User(
-            username="test",
-            password=auth.pwd_context.hash("test"),
-            email="test@amis.work",
-            roles=[test_role],
-        )
-        session.add_all([admin_user, vip_user, test_user])
-        session.flush([admin_user, vip_user, test_user])
-
     await auth.db.async_run_sync(SQLModel.metadata.create_all, is_session=False)
-    await auth.db.async_run_sync(create_fake_users)
-    # 添加Casbin规则
-    await auth.enforcer.add_role_for_user("admin", "admin")
-    await auth.enforcer.add_role_for_user("vip", "vip")
-    await auth.enforcer.add_role_for_user("test", "test")
-    await auth.enforcer.load_policy()
-
-    await auth.db.async_commit()
+    # 创建角色
+    await auth.create_role_user("admin")
+    await auth.create_role_user("vip")
+    await auth.create_role_user("test")
     yield auth
     await auth.db.async_run_sync(SQLModel.metadata.drop_all, is_session=False)
     await auth.db.async_close()

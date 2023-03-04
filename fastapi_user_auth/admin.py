@@ -298,7 +298,13 @@ class UpdateRoleCasbinRuleAction(ModelAction):
     form_init = True
     # 配置动作基本信息
     # action = ActionType.Drawer(icon="fa fa-gavel", tooltip="权限配置", drawer=amis.Drawer(), level=LevelEnum.warning)
-    action = ActionType.Dialog(icon="fa fa-gavel", label="权限配置", tooltip="权限配置", dialog=amis.Dialog(), level=LevelEnum.warning)
+    action = ActionType.Dialog(
+        icon="fa fa-gavel",
+        label="权限配置",
+        tooltip="权限配置",
+        dialog=amis.Dialog(),
+        level=LevelEnum.warning,
+    )
 
     # 创建动作表单数据模型
     class schema(BaseModel):
@@ -317,13 +323,8 @@ class UpdateRoleCasbinRuleAction(ModelAction):
     async def get_init_data(self, request: Request, **kwargs) -> BaseApiOut[Any]:
         # 从数据库获取角色的权限列表
         item_id = request.query_params.get("item_id")
-        print("item_id", item_id)
         if not item_id:
             return BaseApiOut(data=self.schema())
-        # role_key = select(Role.key).where(Role.id == item_id).scalar_subquery()
-        # stmt = select(CasbinRule).where(CasbinRule.ptype == "p", CasbinRule.v0 == role_key)
-        # rules = await self.admin.db.async_scalars(stmt)
-        # data = ",".join([f"{rule.v1}#{rule.v2}" for rule in rules])
         role_key = await self.admin.db.async_scalar(select(Role.key).where(Role.id == item_id))
         enforcer: Enforcer = self.site.auth.enforcer
         rules = await enforcer.get_filtered_policy(0, "r:" + role_key)
@@ -347,8 +348,6 @@ class UpdateRoleCasbinRuleAction(ModelAction):
         # 添加新的权限
         rules = data.rules.split(",")
         await enforcer.add_policies([(role_key, v1, v2) for v1, v2 in [rule.split("#") for rule in rules if rule]])
-        # 刷新权限
-        # await enforcer.save_policy()
         # 返回动作处理结果
         return BaseApiOut(data="操作成功")
 
