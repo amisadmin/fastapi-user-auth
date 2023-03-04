@@ -228,7 +228,7 @@ class Auth(Generic[UserModelT]):
 
         return decorator
 
-    def _create_role_user_sync(self, session: Session, role_key: str = "admin") -> User:
+    def _create_role_user_sync(self, session: Session, role_key: str = "root") -> User:
         # create admin role
         role = session.scalar(select(Role).where(Role.key == role_key))
         if not role:
@@ -247,7 +247,7 @@ class Auth(Generic[UserModelT]):
             session.flush()
         return user
 
-    async def create_role_user(self, role_key: str = "admin", commit: bool = True) -> User:
+    async def create_role_user(self, role_key: str = "root", commit: bool = True) -> User:
         user = await self.db.async_run_sync(self._create_role_user_sync, role_key)
         if commit:
             await self.db.async_commit()
