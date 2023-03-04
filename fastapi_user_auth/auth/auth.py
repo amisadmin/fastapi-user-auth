@@ -121,7 +121,7 @@ class Auth(Generic[UserModelT]):
         return False
 
     async def has_role(self, request: Request, roles: Union[str, Sequence[str]]) -> bool:
-        identity = "u:" + await self.get_current_user_identity(request)
+        identity = await self.get_current_user_identity(request)
         return await self.has_role_for_user(identity, roles)
 
     async def get_current_user(self, request: Request) -> Optional[UserModelT]:
