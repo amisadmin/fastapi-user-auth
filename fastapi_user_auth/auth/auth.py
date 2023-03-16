@@ -113,6 +113,8 @@ class Auth(Generic[UserModelT]):
         identity = "u:" + identity
         if isinstance(roles, str):
             roles = [roles]
+        if identity == "u:root" and "root" in roles:  # 默认root用户拥有root角色
+            return True
         for role in roles:
             if not role:
                 continue

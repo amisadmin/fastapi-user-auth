@@ -2,7 +2,7 @@ import contextlib
 from typing import Any, Callable, Dict, List, Type, Union
 
 from casbin import Enforcer
-from fastapi import Depends, HTTPException
+from fastapi import Body, Depends, HTTPException
 from fastapi_amis_admin import amis
 from fastapi_amis_admin.admin import (
     AdminAction,
@@ -23,16 +23,17 @@ from fastapi_amis_admin.amis.components import (
     Horizontal,
     Html,
     Page,
-    PageSchema,
+    PageSchema, TableCRUD, TableColumn,
 )
 from fastapi_amis_admin.amis.constants import DisplayModeEnum, LevelEnum
 from fastapi_amis_admin.crud.base import SchemaUpdateT
-from fastapi_amis_admin.crud.schema import BaseApiOut
+from fastapi_amis_admin.crud.schema import BaseApiOut, ItemListSchema
 from fastapi_amis_admin.models import Field
 from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import BaseModel
 from pydantic.fields import ModelField
 from sqlalchemy import select
+from sqlalchemy.engine import Result
 from sqlmodel.sql.expression import Select
 from starlette import status
 from starlette.requests import Request
@@ -268,10 +269,114 @@ class UserAdmin(ModelAdmin):
 
     async def on_update_pre(self, request: Request, obj, item_id: List[int], **kwargs) -> Dict[str, Any]:
         data = await super(UserAdmin, self).on_update_pre(request, obj, item_id, **kwargs)
-        password = data.get("password")
-        if password:
+        if data.get("password"):
             data["password"] = request.auth.pwd_context.hash(data["password"])  # 密码hash保存
         return data
+
+    async def get_list_table(self, request: Request) -> TableCRUD:
+        table = await super().get_list_table(request)
+        table.footable = True
+        return table
+
+    async def get_list_columns(self, request: Request) -> List[TableColumn]:
+        columns = await super().get_list_columns(request)
+        role_admin = self.app.get_admin_or_create(RoleAdmin)
+        columns.append(
+            amis.ColumnOperation(
+                width=160,
+                label=_("Role"),
+                breakpoint="*",
+                buttons=[
+                    amis.Service(
+                        schemaApi={
+                            "url": role_admin.router_path,
+                            "method": "post",
+                            "data": {},
+                            "cache": 300000,
+                            "responseData": {
+                                "body": [
+                                    {
+                                        "type": "picker",
+                                        "name": "roles",
+                                        "size": "full",
+                                        "source": {
+                                            "url": "${body.api.url}",
+                                            "method": "post",
+                                            "data": "${body.api.data}",
+                                        },
+                                        "multiple": True,
+                                        "labelField": "name",
+                                        "valueField": "key",
+                                        "modalMode": "dialog",
+                                        "pickerSchema": {
+                                            "type": "crud",
+                                            "&": "${body}"
+                                        },
+                                        "onEvent": {
+                                            "change": {
+                                                "actions": [
+                                                    {
+                                                        "args": {
+                                                            "options": {},
+                                                            "api": {
+                                                                "url": self.router_path + "/update_user_roles",
+                                                                "method": "post",
+                                                                "dataType": "json",
+                                                                "data": {
+                                                                    "data": "${body.api.data}"
+                                                                    # "&": "${body.api.__rendererData}"
+                                                                }
+                                                            }
+                                                        },
+                                                        "actionType": "ajax",
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                    }
+                                ]
+                            }
+                        }
+                    )
+                ],
+            )
+        )
+        return columns
+
+    async def on_list_after(self, request: Request, result: Result, data: ItemListSchema, **kwargs) -> ItemListSchema:
+        """在列表页渲染之后执行"""
+        data.items = self.parser.conv_row_to_dict(result.all())
+        for item in data.items:
+            if not item.get("username"):
+                continue
+            roles = await self.site.auth.enforcer.get_roles_for_user("u:" + item["username"])
+            roles = ','.join(roles).replace("r:", "")
+            item["roles"] = roles
+        data.items = [self.list_item(item) for item in data.items] if data.items else []
+        return data
+
+    def register_router(self):
+        @self.router.post("/update_user_roles")
+        async def update_user_roles(
+            data: dict = Body(..., embed=True),
+        ):
+            """更新用户角色"""
+
+            row = data.get("__rendererData", {})
+            username = row.get("username")
+            if not username:
+                return {"code": 1, "msg": "username is required"}
+            user_key = "u:" + username
+            enforcer: Enforcer = self.site.auth.enforcer
+            # 删除旧的角色
+            await enforcer.remove_filtered_grouping_policy(0, user_key)
+            # 添加新的角色
+            roles = data.get("roles")
+            if roles:
+                await enforcer.add_grouping_policies([(user_key, "r:" + role) for role in roles.split(",") if role])
+            return {"code": 0, "msg": "ok"}
+
+        return super().register_router()
 
 
 def get_admin_action_options(group: AdminGroup) -> List[Dict[str, Any]]:
@@ -349,7 +454,7 @@ class UpdateRoleCasbinRuleAction(ModelAction):
         rules = data.rules.split(",")
         await enforcer.add_policies([(role_key, v1, v2) for v1, v2 in [rule.split("#") for rule in rules if rule]])
         # 返回动作处理结果
-        return BaseApiOut(data="操作成功")
+        return BaseApiOut(data="success")
 
     def register_router(self):
         super().register_router()
