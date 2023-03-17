@@ -23,7 +23,9 @@ from fastapi_amis_admin.amis.components import (
     Horizontal,
     Html,
     Page,
-    PageSchema, TableCRUD, TableColumn,
+    PageSchema,
+    TableColumn,
+    TableCRUD,
 )
 from fastapi_amis_admin.amis.constants import DisplayModeEnum, LevelEnum
 from fastapi_amis_admin.crud.base import SchemaUpdateT
@@ -308,10 +310,7 @@ class UserAdmin(ModelAdmin):
                                         "labelField": "name",
                                         "valueField": "key",
                                         "modalMode": "dialog",
-                                        "pickerSchema": {
-                                            "type": "crud",
-                                            "&": "${body}"
-                                        },
+                                        "pickerSchema": {"type": "crud", "&": "${body}"},
                                         "onEvent": {
                                             "change": {
                                                 "actions": [
@@ -325,8 +324,8 @@ class UserAdmin(ModelAdmin):
                                                                 "data": {
                                                                     "data": "${body.api.data}"
                                                                     # "&": "${body.api.__rendererData}"
-                                                                }
-                                                            }
+                                                                },
+                                                            },
                                                         },
                                                         "actionType": "ajax",
                                                     }
@@ -335,7 +334,7 @@ class UserAdmin(ModelAdmin):
                                         },
                                     }
                                 ]
-                            }
+                            },
                         }
                     )
                 ],
@@ -350,7 +349,7 @@ class UserAdmin(ModelAdmin):
             if not item.get("username"):
                 continue
             roles = await self.site.auth.enforcer.get_roles_for_user("u:" + item["username"])
-            roles = ','.join(roles).replace("r:", "")
+            roles = ",".join(roles).replace("r:", "")
             item["roles"] = roles
         data.items = [self.list_item(item) for item in data.items] if data.items else []
         return data

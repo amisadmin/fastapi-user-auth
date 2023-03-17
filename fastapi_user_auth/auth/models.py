@@ -91,7 +91,6 @@ class Role(PkMixin, table=True):
 
 
 class CasbinRule(PkMixin, table=True):  # type: ignore
-
     __tablename__ = "casbin_rule"
 
     ptype: str = Field(title="Policy Type")
