@@ -344,14 +344,14 @@ class UserAdmin(ModelAdmin):
 
     async def on_list_after(self, request: Request, result: Result, data: ItemListSchema, **kwargs) -> ItemListSchema:
         """在列表页渲染之后执行"""
-        data.items = self.parser.conv_row_to_dict(result.all())
+        data.items = self.parser.conv_row_to_dict(result.all()) or []
         for item in data.items:
             if not item.get("username"):
                 continue
             roles = await self.site.auth.enforcer.get_roles_for_user("u:" + item["username"])
             roles = ",".join(roles).replace("r:", "")
             item["roles"] = roles
-        data.items = [self.list_item(item) for item in data.items] if data.items else []
+        data.items = [self.list_item(item) for item in data.items]
         return data
 
     def register_router(self):
