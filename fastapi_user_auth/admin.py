@@ -283,6 +283,8 @@ class UserAdmin(ModelAdmin):
     async def get_list_columns(self, request: Request) -> List[TableColumn]:
         columns = await super().get_list_columns(request)
         role_admin = self.app.get_admin_or_create(RoleAdmin)
+        if not role_admin:
+            return columns
         columns.append(
             amis.ColumnOperation(
                 width=160,
@@ -385,7 +387,7 @@ def get_admin_action_options(group: AdminGroup) -> List[Dict[str, Any]]:
         admin: PageSchemaAdmin
         if not admin.page_schema:
             continue
-        item = {"label": admin.page_schema.label, "value": f"{admin.unique_id}#admin:page"}
+        item = {"label": admin.page_schema.label, "value": f"{admin.unique_id}#admin:page", "sort": admin.page_schema.sort}
         if isinstance(admin, ModelAdmin):
             item["children"] = [{"label": "查看列表", "value": f"{admin.unique_id}#admin:list"}]
             for admin_action in admin.registered_admin_actions.values():
@@ -393,6 +395,8 @@ def get_admin_action_options(group: AdminGroup) -> List[Dict[str, Any]]:
         elif isinstance(admin, AdminGroup):
             item["children"] = get_admin_action_options(admin)
         options.append(item)
+    if options:
+        options.sort(key=lambda p: p["sort"] or 0, reverse=True)
     return options
 
 
@@ -450,8 +454,11 @@ class UpdateRoleCasbinRuleAction(ModelAction):
         # 删除旧的权限
         await enforcer.remove_filtered_policy(0, role_key)
         # 添加新的权限
-        rules = data.rules.split(",")
-        await enforcer.add_policies([(role_key, v1, v2) for v1, v2 in [rule.split("#") for rule in rules if rule]])
+        rules = [rule for rule in data.rules.split(",") if rule]  # 分割权限列表,去除空值
+        site_rule = f"{self.site.unique_id}#admin:page"
+        if rules and site_rule not in rules:  # 添加后台站点默认权限
+            rules.append(site_rule)
+        await enforcer.add_policies([(role_key, v1, v2) for v1, v2 in [rule.split("#") for rule in rules]])
         # 返回动作处理结果
         return BaseApiOut(data="success")
 
@@ -461,12 +468,7 @@ class UpdateRoleCasbinRuleAction(ModelAction):
         # 获取全部页面权限
         @self.router.get("/get_admin_action_options", response_model=BaseApiOut)
         async def _get_admin_action_options():
-            return BaseApiOut(
-                data=[
-                    {"label": self.site.page_schema.label, "value": f"{self.site.unique_id}#admin:page"},
-                    *get_admin_action_options(self.site),
-                ]
-            )
+            return BaseApiOut(data=get_admin_action_options(self.site))
 
         return self
 
