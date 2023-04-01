@@ -122,7 +122,7 @@ class Auth(Generic[UserModelT]):
                 return True
         return False
 
-    async def has_role(self, request: Request, roles: Union[str, Sequence[str]]) -> bool:
+    async def has_role(self, request: Request, *, roles: Union[str, Sequence[str]]) -> bool:
         identity = await self.get_current_user_identity(request)
         return await self.has_role_for_user(identity, roles)
 
@@ -254,6 +254,7 @@ class Auth(Generic[UserModelT]):
         if commit:
             await self.db.async_commit()
         # Update casbin role
+        await self.enforcer.delete_role_for_user("u:" + role_key, "r:" + role_key)
         await self.enforcer.add_role_for_user("u:" + role_key, "r:" + role_key)
         return user
 
@@ -318,7 +319,7 @@ class AuthRouter(RouterMixin):
             token_value = request.auth.backend.get_user_token(request=request)
             with contextlib.suppress(Exception):
                 await self.auth.backend.token_store.destroy_token(token=token_value)
-            response = RedirectResponse(url="/")
+            response = RedirectResponse(url=self.site.settings.site_path)
             response.delete_cookie("Authorization")
             return response
 
