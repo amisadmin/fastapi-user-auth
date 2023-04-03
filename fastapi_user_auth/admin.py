@@ -8,10 +8,11 @@ from fastapi_amis_admin.admin import (
     AdminAction,
     AdminApp,
     FormAdmin,
+    ModelAction,
     ModelAdmin,
     PageSchemaAdmin,
 )
-from fastapi_amis_admin.admin.admin import AdminGroup, ModelAction
+from fastapi_amis_admin.admin.admin import AdminGroup, BaseActionAdmin
 from fastapi_amis_admin.amis import SchemaNode
 from fastapi_amis_admin.amis.components import (
     Action,
@@ -388,8 +389,11 @@ def get_admin_action_options(group: AdminGroup) -> List[Dict[str, Any]]:
         if not admin.page_schema:
             continue
         item = {"label": admin.page_schema.label, "value": f"{admin.unique_id}#admin:page", "sort": admin.page_schema.sort}
-        if isinstance(admin, ModelAdmin):
-            item["children"] = [{"label": "查看列表", "value": f"{admin.unique_id}#admin:list"}]
+        if isinstance(admin, BaseActionAdmin):
+            if isinstance(admin, ModelAdmin):
+                item["children"] = [{"label": "查看列表", "value": f"{admin.unique_id}#admin:list"}]
+            elif isinstance(admin, FormAdmin) and "submit" not in admin.registered_admin_actions:
+                item["children"] = [{"label": "提交", "value": f"{admin.unique_id}#admin:submit"}]
             for admin_action in admin.registered_admin_actions.values():
                 item["children"].append({"label": admin_action.label, "value": f"{admin.unique_id}#admin:{admin_action.name}"})
         elif isinstance(admin, AdminGroup):
