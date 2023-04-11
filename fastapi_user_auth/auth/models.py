@@ -29,6 +29,10 @@ class UpdateTimeMixin(SQLModel):
     )
 
 
+class DeleteTimeMixin(SQLModel):
+    delete_time: Optional[datetime] = Field(None, title=_("Delete Time"))
+
+
 class UsernameMixin(SQLModel):
     username: str = Field(title=_("Username"), max_length=32, unique=True, index=True, nullable=False)
 
@@ -49,7 +53,7 @@ class EmailMixin(SQLModel):
     email: EmailStr = Field(None, title=_("Email"), index=True, nullable=True, amis_form_item="input-email")
 
 
-class BaseUser(PkMixin, UsernameMixin, PasswordMixin, EmailMixin, CreateTimeMixin):
+class BaseUser(PkMixin, UsernameMixin, PasswordMixin, EmailMixin, CreateTimeMixin, DeleteTimeMixin):
     __tablename__ = "auth_user"
     is_active: bool = Field(default=True, title=_("Is Active"))
     nickname: str = Field(None, title=_("Nickname"), max_length=40)
@@ -63,7 +67,7 @@ class BaseUser(PkMixin, UsernameMixin, PasswordMixin, EmailMixin, CreateTimeMixi
 
     @property
     def is_authenticated(self) -> bool:
-        return self.is_active
+        return not self.delete_time and self.is_active
 
     @property
     def display_name(self) -> str:

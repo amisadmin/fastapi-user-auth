@@ -87,7 +87,13 @@ class Auth(Generic[UserModelT]):
         )
 
     async def authenticate_user(self, username: str, password: Union[str, SecretStr]) -> Optional[UserModelT]:
-        user = await self.db.async_scalar(select(self.user_model).where(self.user_model.username == username))
+        user = await self.db.async_scalar(
+            select(self.user_model).where(
+                self.user_model.username == username,
+                self.user_model.is_active == True,  # noqa E712
+                self.user_model.delete_time == None,  # noqa E711
+            )
+        )
         if user:
             pwd = password.get_secret_value() if isinstance(password, SecretStr) else password
             pwd2 = user.password.get_secret_value() if isinstance(user.password, SecretStr) else user.password

@@ -1,4 +1,5 @@
 import contextlib
+from datetime import datetime
 from typing import Any, Callable, Dict, List, Type, Union
 
 from casbin import Enforcer
@@ -29,7 +30,7 @@ from fastapi_amis_admin.amis.components import (
     TableCRUD,
 )
 from fastapi_amis_admin.amis.constants import DisplayModeEnum, LevelEnum
-from fastapi_amis_admin.crud.base import SchemaUpdateT
+from fastapi_amis_admin.crud.base import SchemaModelT, SchemaUpdateT
 from fastapi_amis_admin.crud.schema import BaseApiOut, ItemListSchema
 from fastapi_amis_admin.models import Field
 from fastapi_amis_admin.utils.translation import i18n as _
@@ -265,6 +266,13 @@ class UserAdmin(ModelAdmin):
     exclude = ["password"]
     search_fields = [User.username]
 
+    async def get_select(self, request: Request) -> Select:
+        sel = await super().get_select(request)
+        return sel.where(self.model.delete_time == None)  # noqa E711
+
+    def delete_item(self, obj: SchemaModelT) -> None:
+        obj.delete_time = datetime.now()
+
     async def on_create_pre(self, request: Request, obj, **kwargs) -> Dict[str, Any]:
         data = await super(UserAdmin, self).on_create_pre(request, obj, **kwargs)
         data["password"] = request.auth.pwd_context.hash(data["password"])  # 密码hash保存
@@ -390,10 +398,11 @@ def get_admin_action_options(group: AdminGroup) -> List[Dict[str, Any]]:
             continue
         item = {"label": admin.page_schema.label, "value": f"{admin.unique_id}#admin:page", "sort": admin.page_schema.sort}
         if isinstance(admin, BaseActionAdmin):
+            item["children"] = []
             if isinstance(admin, ModelAdmin):
-                item["children"] = [{"label": "查看列表", "value": f"{admin.unique_id}#admin:list"}]
+                item["children"].append({"label": "查看列表", "value": f"{admin.unique_id}#admin:list"})
             elif isinstance(admin, FormAdmin) and "submit" not in admin.registered_admin_actions:
-                item["children"] = [{"label": "提交", "value": f"{admin.unique_id}#admin:submit"}]
+                item["children"].append({"label": "提交", "value": f"{admin.unique_id}#admin:submit"})
             for admin_action in admin.registered_admin_actions.values():
                 item["children"].append({"label": admin_action.label, "value": f"{admin.unique_id}#admin:{admin_action.name}"})
         elif isinstance(admin, AdminGroup):
