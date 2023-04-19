@@ -1,52 +1,51 @@
 import contextlib
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Type, Union
+from typing import Any, Callable, Dict, List, Type
 
 from casbin import Enforcer
 from fastapi import Body, Depends, HTTPException
-from fastapi_amis_admin import amis
 from fastapi_amis_admin.admin import (
     AdminAction,
     AdminApp,
     FormAdmin,
-    ModelAction,
     ModelAdmin,
     PageSchemaAdmin,
 )
-from fastapi_amis_admin.admin.admin import AdminGroup, BaseActionAdmin
-from fastapi_amis_admin.amis import SchemaNode
 from fastapi_amis_admin.amis.components import (
     Action,
     ActionType,
     ButtonToolbar,
     Form,
-    FormItem,
     Grid,
     Horizontal,
     Html,
     Page,
     PageSchema,
-    TableColumn,
     TableCRUD,
 )
 from fastapi_amis_admin.amis.constants import DisplayModeEnum, LevelEnum
 from fastapi_amis_admin.crud.base import SchemaModelT, SchemaUpdateT
-from fastapi_amis_admin.crud.schema import BaseApiOut, ItemListSchema
-from fastapi_amis_admin.models import Field
+from fastapi_amis_admin.crud.schema import BaseApiOut
 from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import BaseModel
-from pydantic.fields import ModelField
-from sqlalchemy import select
-from sqlalchemy.engine import Result
+from sqlalchemy import func, select
 from sqlmodel.sql.expression import Select
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import NoMatchFound
 
+from fastapi_user_auth.actions import CasbinUpdateRoleAction, CasbinUpdateRoleRuleAction
 from fastapi_user_auth.auth import Auth
-from fastapi_user_auth.auth.models import BaseUser, CasbinRule, Role, User
+from fastapi_user_auth.auth.models import (
+    BaseUser,
+    CasbinRule,
+    CasbinSubjectRolesQuery,
+    Role,
+    User,
+)
 from fastapi_user_auth.auth.schemas import SystemUserEnum, UserLoginOut
+from fastapi_user_auth.utils import casbin_update_subject_roles
 
 
 def attach_page_head(page: Page) -> Page:
@@ -265,9 +264,27 @@ class UserAdmin(ModelAdmin):
     model: Type[BaseUser] = None
     exclude = ["password"]
     search_fields = [User.username]
+    admin_action_maker = [
+        lambda admin: CasbinUpdateRoleAction(
+            admin, name="update_subject_roles", label="更新用户角色", icon="fa fa-user", flags="column"
+        ),
+    ]
+    fields = [
+        CasbinSubjectRolesQuery.c.role_keys.label("role_keys"),
+    ]
+    list_display = [
+        User.id,
+        User.username,
+        User.nickname,
+        User.email,
+        User.is_active,
+        CasbinSubjectRolesQuery.c.role_names.label("权限角色"),
+        User.create_time,
+    ]
 
     async def get_select(self, request: Request) -> Select:
         sel = await super().get_select(request)
+        sel = sel.outerjoin(CasbinSubjectRolesQuery, CasbinSubjectRolesQuery.c.subject == func.concat("u:", User.username))
         return sel.where(self.model.delete_time == None)  # noqa E711
 
     def delete_item(self, obj: SchemaModelT) -> None:
@@ -289,201 +306,21 @@ class UserAdmin(ModelAdmin):
         table.footable = True
         return table
 
-    async def get_list_columns(self, request: Request) -> List[TableColumn]:
-        columns = await super().get_list_columns(request)
-        role_admin = self.app.get_admin_or_create(RoleAdmin)
-        if not role_admin:
-            return columns
-        columns.append(
-            amis.ColumnOperation(
-                width=160,
-                label=_("Role"),
-                breakpoint="*",
-                buttons=[
-                    amis.Service(
-                        schemaApi={
-                            "url": role_admin.router_path,
-                            "method": "post",
-                            "data": {},
-                            "cache": 300000,
-                            "responseData": {
-                                "body": [
-                                    {
-                                        "type": "picker",
-                                        "name": "roles",
-                                        "size": "full",
-                                        "source": {
-                                            "url": "${body.api.url}",
-                                            "method": "post",
-                                            "data": "${body.api.data}",
-                                        },
-                                        "multiple": True,
-                                        "labelField": "name",
-                                        "valueField": "key",
-                                        "modalMode": "dialog",
-                                        "pickerSchema": {"type": "crud", "&": "${body}"},
-                                        "onEvent": {
-                                            "change": {
-                                                "actions": [
-                                                    {
-                                                        "args": {
-                                                            "options": {},
-                                                            "api": {
-                                                                "url": self.router_path + "/update_user_roles",
-                                                                "method": "post",
-                                                                "dataType": "json",
-                                                                "data": {
-                                                                    "data": "${body.api.data}"
-                                                                    # "&": "${body.api.__rendererData}"
-                                                                },
-                                                            },
-                                                        },
-                                                        "actionType": "ajax",
-                                                    }
-                                                ]
-                                            }
-                                        },
-                                    }
-                                ]
-                            },
-                        }
-                    )
-                ],
-            )
-        )
-        return columns
-
-    async def on_list_after(self, request: Request, result: Result, data: ItemListSchema, **kwargs) -> ItemListSchema:
-        """在列表页渲染之后执行"""
-        data.items = self.parser.conv_row_to_dict(result.all()) or []
-        for item in data.items:
-            if not item.get("username"):
-                continue
-            roles = await self.site.auth.enforcer.get_roles_for_user("u:" + item["username"])
-            roles = ",".join(roles).replace("r:", "")
-            item["roles"] = roles
-        data.items = [self.list_item(item) for item in data.items]
-        return data
-
     def register_router(self):
-        @self.router.post("/update_user_roles")
-        async def update_user_roles(
+        @self.router.post("/update_subject_roles")
+        async def update_subject_roles(
             data: dict = Body(..., embed=True),
         ):
             """更新用户角色"""
-
             row = data.get("__rendererData", {})
-            username = row.get("username")
-            if not username:
+            if "username" not in row:
                 return {"code": 1, "msg": "username is required"}
-            user_key = "u:" + username
+            subject = "u:" + row["username"]
             enforcer: Enforcer = self.site.auth.enforcer
-            # 删除旧的角色
-            await enforcer.remove_filtered_grouping_policy(0, user_key)
-            # 添加新的角色
-            roles = data.get("roles")
-            if roles:
-                await enforcer.add_grouping_policies([(user_key, "r:" + role) for role in roles.split(",") if role])
+            await casbin_update_subject_roles(enforcer, subject, data.get("role_keys"))
             return {"code": 0, "msg": "ok"}
 
         return super().register_router()
-
-
-def get_admin_action_options(group: AdminGroup) -> List[Dict[str, Any]]:
-    """获取全部页面权限,用于amis组件"""
-    options = []
-    for admin in group:  # 这里已经同步了数据库,所以只从这里配置权限就行了
-        admin: PageSchemaAdmin
-        if not admin.page_schema:
-            continue
-        item = {"label": admin.page_schema.label, "value": f"{admin.unique_id}#admin:page", "sort": admin.page_schema.sort}
-        if isinstance(admin, BaseActionAdmin):
-            item["children"] = []
-            if isinstance(admin, ModelAdmin):
-                item["children"].append({"label": "查看列表", "value": f"{admin.unique_id}#admin:list"})
-            elif isinstance(admin, FormAdmin) and "submit" not in admin.registered_admin_actions:
-                item["children"].append({"label": "提交", "value": f"{admin.unique_id}#admin:submit"})
-            for admin_action in admin.registered_admin_actions.values():
-                item["children"].append({"label": admin_action.label, "value": f"{admin.unique_id}#admin:{admin_action.name}"})
-        elif isinstance(admin, AdminGroup):
-            item["children"] = get_admin_action_options(admin)
-        options.append(item)
-    if options:
-        options.sort(key=lambda p: p["sort"] or 0, reverse=True)
-    return options
-
-
-class UpdateRoleCasbinRuleAction(ModelAction):
-    """更新角色Casbin规则"""
-
-    form_init = True
-    # 配置动作基本信息
-    # action = ActionType.Drawer(icon="fa fa-gavel", tooltip="权限配置", drawer=amis.Drawer(), level=LevelEnum.warning)
-    action = ActionType.Dialog(
-        icon="fa fa-gavel",
-        label="权限配置",
-        tooltip="权限配置",
-        dialog=amis.Dialog(),
-        level=LevelEnum.warning,
-    )
-
-    # 创建动作表单数据模型
-    class schema(BaseModel):
-        rules: str = Field(
-            None,
-            title="权限列表",
-            amis_form_item=amis.InputTree(
-                multiple=True,
-                source="",
-                searchable=True,
-                showOutline=True,
-                autoCheckChildren=False,
-            ),
-        )
-
-    async def get_init_data(self, request: Request, **kwargs) -> BaseApiOut[Any]:
-        # 从数据库获取角色的权限列表
-        item_id = request.query_params.get("item_id")
-        if not item_id:
-            return BaseApiOut(data=self.schema())
-        role_key = await self.admin.db.async_scalar(select(Role.key).where(Role.id == item_id))
-        enforcer: Enforcer = self.site.auth.enforcer
-        rules = await enforcer.get_filtered_policy(0, "r:" + role_key)
-        rules = ",".join([f"{rule[1]}#{rule[2]}" for rule in rules])
-        return BaseApiOut(data=self.schema(rules=rules))
-
-    async def get_form_item(self, request: Request, modelfield: ModelField) -> Union[FormItem, SchemaNode]:
-        item = await super().get_form_item(request, modelfield)
-        if item.name == "rules":
-            item.source = f"{self.router_path}/get_admin_action_options"
-        return item
-
-    # 动作处理
-    async def handle(self, request: Request, item_id: List[str], data: schema, **kwargs):
-        # 从数据库获取用户选择的数据列表
-        items = await self.admin.fetch_items(*item_id)
-        role_key = "r:" + items[0].key
-        enforcer: Enforcer = self.site.auth.enforcer
-        # 删除旧的权限
-        await enforcer.remove_filtered_policy(0, role_key)
-        # 添加新的权限
-        rules = [rule for rule in data.rules.split(",") if rule]  # 分割权限列表,去除空值
-        site_rule = f"{self.site.unique_id}#admin:page"
-        if rules and site_rule not in rules:  # 添加后台站点默认权限
-            rules.append(site_rule)
-        await enforcer.add_policies([(role_key, v1, v2) for v1, v2 in [rule.split("#") for rule in rules]])
-        # 返回动作处理结果
-        return BaseApiOut(data="success")
-
-    def register_router(self):
-        super().register_router()
-
-        # 获取全部页面权限
-        @self.router.get("/get_admin_action_options", response_model=BaseApiOut)
-        async def _get_admin_action_options():
-            return BaseApiOut(data=get_admin_action_options(self.site))
-
-        return self
 
 
 class RoleAdmin(ModelAdmin):
@@ -491,11 +328,50 @@ class RoleAdmin(ModelAdmin):
     model = Role
     readonly_fields = ["key"]
     admin_action_maker = [
-        lambda admin: UpdateRoleCasbinRuleAction(
+        lambda admin: CasbinUpdateRoleRuleAction(
             admin=admin,
-            id="update_role_casbin",
-        )
+            name="update_role_casbin",
+        ),
+        lambda admin: CasbinUpdateRoleAction(
+            admin, name="update_subject_roles", label="更新子角色", icon="fa fa-user", flags="column"
+        ),
     ]
+    fields = [
+        CasbinSubjectRolesQuery.c.role_keys.label("role_keys"),
+    ]
+    list_display = [
+        Role.id,
+        Role.key,
+        Role.name,
+        Role.desc,
+        CasbinSubjectRolesQuery.c.role_names.label("子角色"),
+    ]
+
+    async def get_select(self, request: Request) -> Select:
+        sel = await super().get_select(request)
+        sel = sel.outerjoin(CasbinSubjectRolesQuery, CasbinSubjectRolesQuery.c.subject == func.concat("r:", Role.key))
+        return sel
+
+    async def get_list_table(self, request: Request) -> TableCRUD:
+        table = await super().get_list_table(request)
+        table.footable = True
+        return table
+
+    def register_router(self):
+        @self.router.post("/update_subject_roles")
+        async def update_subject_roles(
+            data: dict = Body(..., embed=True),
+        ):
+            """更新用户角色"""
+            row = data.get("__rendererData", {})
+            if "key" not in row:
+                return {"code": 1, "msg": "key is required"}
+            subject = "r:" + row["key"]
+            enforcer: Enforcer = self.site.auth.enforcer
+            await casbin_update_subject_roles(enforcer, subject, data.get("role_keys"))
+            return {"code": 0, "msg": "ok"}
+
+        return super().register_router()
 
 
 class UserCasbinRuleAdmin(ModelAdmin):

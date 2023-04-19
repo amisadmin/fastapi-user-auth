@@ -5,7 +5,7 @@ from fastapi_amis_admin.amis.components import ColumnImage, InputImage
 from fastapi_amis_admin.models.fields import Field
 from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import EmailStr, SecretStr
-from sqlalchemy import func
+from sqlalchemy import func, select
 
 try:
     from sqlmodelx import SQLModel
@@ -116,3 +116,25 @@ class CasbinRule(PkMixin, table=True):  # type: ignore
 
     def __repr__(self) -> str:
         return f'<CasbinRule {self.id}: "{str(self)}">'
+
+
+"""
+SELECT v0, GROUP_CONCAT(t.name) as roles, GROUP_CONCAT(t.key) as role_keys
+FROM (select v0, auth_role.name, auth_role.key
+      from casbin_rule
+               left join auth_role on casbin_rule.v1 = concat('r:', auth_role.key)
+      where casbin_rule.ptype = 'g') as t
+GROUP BY v0;
+"""
+# casbin主体拥有的角色列表,使用','分隔.
+CasbinSubjectRolesQuery = (
+    select(
+        CasbinRule.v0.label("subject"),
+        func.group_concat(Role.name).label("role_names"),
+        func.group_concat(Role.key).label("role_keys"),
+    )
+    .where(CasbinRule.ptype == "g")
+    .outerjoin(Role, CasbinRule.v1 == func.concat("r:", Role.key))
+    .group_by(CasbinRule.v0)
+    .subquery()
+)
