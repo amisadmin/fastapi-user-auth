@@ -1,4 +1,4 @@
-from typing import Type, Union
+from typing import List, Optional, Tuple, Type, Union
 
 from casbin import Model, persist
 from casbin.persist import Adapter as BaseAdapter
@@ -19,13 +19,13 @@ class Filter:  # pylint: disable=too-few-public-methods
     Filter class for SQLModel-based Casbin adapter.
     """
 
-    ptype: list[str] = []
-    v0: list[str] = []
-    v1: list[str] = []
-    v2: list[str] = []
-    v3: list[str] = []
-    v4: list[str] = []
-    v5: list[str] = []
+    ptype: List[str] = []
+    v0: List[str] = []
+    v1: List[str] = []
+    v2: List[str] = []
+    v3: List[str] = []
+    v4: List[str] = []
+    v5: List[str] = []
 
 
 class Adapter(BaseAdapter, UpdateAdapter):
@@ -38,7 +38,7 @@ class Adapter(BaseAdapter, UpdateAdapter):
     def __init__(
         self,
         db: Union[AsyncDatabase, Database],
-        db_class: Type[SQLModel] | None = None,
+        db_class: Optional[Type[SQLModel]] = None,
         filtered: bool = False,
     ):
         self.db = db
@@ -97,7 +97,7 @@ class Adapter(BaseAdapter, UpdateAdapter):
                 querydb = querydb.filter(getattr(self._db_class, attr).in_(getattr(filter_, attr)))
         return querydb.order_by(self._db_class.id)
 
-    def parse_rule(self, ptype: str, rule: list[str]) -> SQLModel:
+    def parse_rule(self, ptype: str, rule: List[str]) -> SQLModel:
         line = self._db_class(ptype=ptype)
         for i, v in enumerate(rule):  # pylint: disable=invalid-name
             setattr(line, f"v{i}", v)
@@ -119,14 +119,14 @@ class Adapter(BaseAdapter, UpdateAdapter):
         return True
 
     # pylint: disable=unused-argument
-    async def add_policy(self, sec: str, ptype: str, rule: list[str]) -> None:
+    async def add_policy(self, sec: str, ptype: str, rule: List[str]) -> None:
         """adds a policy rule to the storage."""
         obj = self.parse_rule(ptype, rule)
         self.db.add(obj)
         await self.db.async_commit()
 
     # pylint: disable=unused-argument
-    async def add_policies(self, sec: str, ptype: str, rules: tuple[tuple[str]]) -> None:
+    async def add_policies(self, sec: str, ptype: str, rules: Tuple[Tuple[str]]) -> None:
         """adds a policy rules to the storage."""
         values = []
         for rule in rules:
@@ -137,7 +137,7 @@ class Adapter(BaseAdapter, UpdateAdapter):
         await self.db.async_commit()
 
     # pylint: disable=unused-argument
-    async def remove_policy(self, sec: str, ptype: str, rule: list[str]) -> bool:
+    async def remove_policy(self, sec: str, ptype: str, rule: List[str]) -> bool:
         """removes a policy rule from the storage."""
 
         query: Delete = delete(self._db_class)
@@ -148,7 +148,7 @@ class Adapter(BaseAdapter, UpdateAdapter):
         await self.db.async_commit()
         return res > 0  # pragma: no cover
 
-    async def remove_policies(self, sec: str, ptype: str, rules: tuple[tuple[str]]) -> None:
+    async def remove_policies(self, sec: str, ptype: str, rules: Tuple[Tuple[str]]) -> None:
         """remove policy rules from the storage."""
 
         if not rules:  # pragma: no cover
@@ -163,7 +163,7 @@ class Adapter(BaseAdapter, UpdateAdapter):
         await self.db.async_commit()
 
     # pylint: disable=unused-argument
-    async def remove_filtered_policy(self, sec: str, ptype: str, field_index: int, *field_values: tuple[str]) -> bool:
+    async def remove_filtered_policy(self, sec: str, ptype: str, field_index: int, *field_values: Tuple[str]) -> bool:
         """removes policy rules that match the filter from the storage.
         This is part of the Auto-Save feature.
         """
@@ -183,7 +183,7 @@ class Adapter(BaseAdapter, UpdateAdapter):
         await self.db.async_commit()
         return res > 0
 
-    async def update_policy(self, sec: str, ptype: str, old_rule: list[str], new_rule: list[str]) -> None:
+    async def update_policy(self, sec: str, ptype: str, old_rule: List[str], new_rule: List[str]) -> None:
         """
         Update the old_rule with the new_rule in the database (storage).
         :param sec: section type
@@ -218,8 +218,8 @@ class Adapter(BaseAdapter, UpdateAdapter):
         self,
         sec: str,
         ptype: str,
-        old_rules: list[list[str]],
-        new_rules: list[list[str]],
+        old_rules: List[List[str]],
+        new_rules: List[List[str]],
     ) -> None:
         """
         Update the old_rules with the new_rules in the database (storage).
