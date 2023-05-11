@@ -24,7 +24,7 @@ class CasbinUpdateRoleAction(AdminAction):
         role_admin = self.admin.app.get_admin_or_create(RoleAdmin)
         if not role_admin:
             return None
-        return amis.Service(
+        return amis.Service(  # type: ignore
             label="权限角色",
             schemaApi={
                 "url": role_admin.router_path,
@@ -80,7 +80,7 @@ class CasbinUpdateRoleRuleAction(ModelAction):
 
     form_init = True
     # 配置动作基本信息
-    # action = ActionType.Drawer(icon="fa fa-gavel", tooltip="权限配置", drawer=amis.Drawer(), level=LevelEnum.warning)
+    # action = ActionType.Drawer(icon="fa fa-gavel", label="权限配置", tooltip="权限配置", drawer=amis.Drawer(), level=LevelEnum.warning)
     action = ActionType.Dialog(
         icon="fa fa-gavel",
         label="权限配置",
@@ -100,6 +100,7 @@ class CasbinUpdateRoleRuleAction(ModelAction):
                 searchable=True,
                 showOutline=True,
                 autoCheckChildren=False,
+                heightAuto=True,
             ),
         )
 
