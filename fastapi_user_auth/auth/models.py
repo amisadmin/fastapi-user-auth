@@ -1,59 +1,22 @@
-from datetime import datetime
-from typing import Optional
-
 from fastapi_amis_admin.amis.components import ColumnImage, InputImage
+from fastapi_amis_admin.crud.parser import LabelField
 from fastapi_amis_admin.models.fields import Field
 from fastapi_amis_admin.utils.translation import i18n as _
-from pydantic import EmailStr, SecretStr
-from sqlalchemy import func, select
+from sqlalchemy import ForeignKey, func, select
 
-try:
-    from sqlmodelx import SQLModel
-except ImportError:
-    from sqlmodel import SQLModel
-
-
-class PkMixin(SQLModel):
-    id: int = Field(default=None, primary_key=True, nullable=False)
-
-
-class CreateTimeMixin(SQLModel):
-    create_time: datetime = Field(default_factory=datetime.now, title=_("Create Time"))
+from fastapi_user_auth.mixins.models import (  # noqa F401
+    CreateTimeMixin,
+    CUDTimeMixin,
+    DeleteTimeMixin,
+    EmailMixin,
+    PasswordMixin,
+    PkMixin,
+    UpdateTimeMixin,
+    UsernameMixin,
+)
 
 
-class UpdateTimeMixin(SQLModel):
-    update_time: Optional[datetime] = Field(
-        default_factory=datetime.now,
-        title=_("Update Time"),
-        sa_column_kwargs={"onupdate": func.now(), "server_default": func.now()},
-    )
-
-
-class DeleteTimeMixin(SQLModel):
-    delete_time: Optional[datetime] = Field(None, title=_("Delete Time"))
-
-
-class UsernameMixin(SQLModel):
-    username: str = Field(title=_("Username"), max_length=32, unique=True, index=True, nullable=False)
-
-
-class PasswordStr(SecretStr, str):
-    pass
-
-
-class PasswordMixin(SQLModel):
-    password: PasswordStr = Field(title=_("Password"), max_length=128, nullable=False, amis_form_item="input-password")
-
-
-class EmailMixin(SQLModel):
-    """If you need to define the email field as unique, you can achieve it by adding the following parameters in the subclass:
-    __table_args__ = (UniqueConstraint("email", name="email"),)
-    """
-
-    email: EmailStr = Field(None, title=_("Email"), index=True, nullable=True, amis_form_item="input-email")
-
-
-class BaseUser(PkMixin, UsernameMixin, PasswordMixin, EmailMixin, CreateTimeMixin, DeleteTimeMixin):
+class BaseUser(PkMixin, CUDTimeMixin, UsernameMixin, PasswordMixin, EmailMixin):
     __tablename__ = "auth_user"
     is_active: bool = Field(default=True, title=_("Is Active"))
     nickname: str = Field(None, title=_("Nickname"), max_length=40)
@@ -84,7 +47,7 @@ class User(BaseUser, table=True):
     pass
 
 
-class Role(PkMixin, table=True):
+class Role(PkMixin, CUDTimeMixin, table=True):
     """角色"""
 
     __tablename__ = "auth_role"
@@ -138,3 +101,24 @@ CasbinSubjectRolesQuery = (
     .group_by(CasbinRule.v0)
     .subquery()
 )
+
+UserRoleNameLabel = LabelField(
+    CasbinSubjectRolesQuery.c.role_names.label("role_names"),
+    field=Field("", title="权限角色"),
+)
+
+
+class LoginHistory(PkMixin, CreateTimeMixin, table=True):
+    """用户登录记录"""
+
+    __tablename__ = "auth_login_history"
+
+    user_id: int = Field(None, title="用户ID", sa_column_args=(ForeignKey("auth_user.id", ondelete="CASCADE"),))
+    login_name: str = Field("", title="登录名", max_length=20)
+    ip: str = Field("", title="登录IP", max_length=20)
+    ip_info: str = Field("", title="IP信息", max_length=255)
+    client: str = Field("", title="客户端", max_length=20)
+    user_agent: str = Field("", title="浏览器", max_length=400)
+    login_type: str = Field("", title="登录类型", max_length=20)
+    login_status: str = Field("登录成功", title="登录状态", max_length=20, description="登录成功,密码错误,账号被锁定等")
+    forwarded_for: str = Field("", title="转发IP", max_length=60)

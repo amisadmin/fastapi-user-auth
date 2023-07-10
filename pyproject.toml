@@ -38,7 +38,7 @@ classifiers = [
 ]
 dependencies = [
     "pydantic>=1.9",
-    "fastapi-amis-admin>=0.5.5,<0.6.0",
+    "fastapi-amis-admin>=0.6.0,<0.7.0",
     "email-validator",
     "passlib>=1.7.4",
     "bcrypt>=4.0.0",
@@ -88,6 +88,30 @@ filter_files = true
 [tool.black]
 line-length = 130
 include = '\.pyi?$'
+
+[tool.ruff]
+select = [
+    "E", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "F", # pyflakes
+    "I", # isort
+    "C", # flake8-comprehensions
+    "B", # flake8-bugbear
+]
+ignore = [
+    "E501", # line too long
+    "B008", # do not perform function calls in argument defaults
+    "C901", # too complex
+    "E711", # comparison to None should be 'if cond is None:';sqlalchemy is not support.
+    "E712", # comparison to True should be 'if cond is True:' or 'if cond:'
+]
+# Same as Black.
+line-length = 130
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]
+
+
 [tool.pdm.scripts]
 lint = "pre-commit run --all-files"
 test = "pytest"

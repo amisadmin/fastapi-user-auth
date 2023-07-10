@@ -71,7 +71,7 @@ class AuthAdminSite(AdminSite):
                                 ),
                             ),
                         ),
-                        ActionType.Url(label=_("Sign out"), url=f"{user_auth_app.router_path}/logout"),
+                        ActionType.Url(label=_("Sign out"), url=f"{user_auth_app.router_path}/logout", blank=False),
                     ],
                 },
             ],

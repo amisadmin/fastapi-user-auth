@@ -10,14 +10,22 @@ from fastapi_amis_admin.crud.schema import BaseApiOut
 from fastapi_amis_admin.models import Field
 from pydantic import BaseModel
 from pydantic.fields import ModelField
-from sqlalchemy import select
 from starlette.requests import Request
 
-from fastapi_user_auth.auth.models import Role
-from fastapi_user_auth.utils import get_admin_action_options
+from fastapi_user_auth.auth.crud import (
+    casbin_get_permissions_by_role_id,
+    casbin_get_permissions_by_user_id,
+)
+from fastapi_user_auth.auth.models import Role, User
+from fastapi_user_auth.utils import (
+    casbin_update_subject_permissions,
+    get_admin_action_options,
+)
 
 
-class CasbinUpdateRoleAction(AdminAction):
+class CasbinUpdateSubjectRolesAction(AdminAction):
+    """更新用户拥有的角色或者更新角色拥有的子角色"""
+
     async def get_action(self, request: Request, **kwargs) -> Action:
         from fastapi_user_auth.admin import RoleAdmin  # 防止循环导入
 
@@ -75,23 +83,31 @@ class CasbinUpdateRoleAction(AdminAction):
         )
 
 
-class CasbinUpdateRoleRuleAction(ModelAction):
-    """更新角色Casbin规则"""
+class CasbinViewSubjectPermissionsAction(ModelAction):
+    """查看主体Casbin权限,暂时不支持单个主体的权限可视化配置"""
 
+    _implicit: bool = True
     form_init = True
     # 配置动作基本信息
-    # action = ActionType.Drawer(icon="fa fa-gavel", label="权限配置", tooltip="权限配置", drawer=amis.Drawer(), level=LevelEnum.warning)
+    # action = ActionType.Drawer(
+    #     name="view_subject_permissions",
+    #     icon="fa fa-check",
+    #     tooltip="查看权限",
+    #     drawer=amis.Drawer(),
+    #     level=LevelEnum.warning
+    # )
+
     action = ActionType.Dialog(
-        icon="fa fa-gavel",
-        label="权限配置",
-        tooltip="权限配置",
+        name="view_subject_permissions",
+        icon="fa fa-check",
+        tooltip="查看权限",
         dialog=amis.Dialog(),
         level=LevelEnum.warning,
     )
 
     # 创建动作表单数据模型
     class schema(BaseModel):
-        rules: str = Field(
+        permissions: str = Field(
             None,
             title="权限列表",
             amis_form_item=amis.InputTree(
@@ -102,41 +118,31 @@ class CasbinUpdateRoleRuleAction(ModelAction):
                 autoCheckChildren=False,
                 heightAuto=True,
             ),
+            # amis_form_item=amis.Transfer(
+            #     selectMode="tree", # chained
+            #     searchResultMode="tree",
+            #     sortable=True,
+            #     source="",
+            #     searchable=True,
+            #     resultListModeFollowSelect=True,
+            #     resultSearchable=True,
+            # ),
         )
 
-    async def get_init_data(self, request: Request, **kwargs) -> BaseApiOut[Any]:
-        # 从数据库获取角色的权限列表
-        item_id = request.query_params.get("item_id")
-        if not item_id:
-            return BaseApiOut(data=self.schema())
-        role_key = await self.admin.db.async_scalar(select(Role.key).where(Role.id == item_id))
-        enforcer: Enforcer = self.site.auth.enforcer
-        rules = await enforcer.get_filtered_policy(0, "r:" + role_key)
-        rules = ",".join([f"{rule[1]}#{rule[2]}" for rule in rules])
-        return BaseApiOut(data=self.schema(rules=rules))
+    def __init__(self, admin, **kwargs):
+        super().__init__(admin, **kwargs)
+        if self.admin.model.__table__.name == Role.__tablename__:
+            self._subject = "r"
+        elif self.admin.model.__table__.name == User.__tablename__:
+            self._subject = "u"
+        else:
+            raise Exception("暂不支持的模型")
 
     async def get_form_item(self, request: Request, modelfield: ModelField) -> Union[FormItem, SchemaNode]:
         item = await super().get_form_item(request, modelfield)
-        if item.name == "rules":
+        if item.name == "permissions":  # 为角色树形选择器数据指定API源
             item.source = f"{self.router_path}/get_admin_action_options"
         return item
-
-    # 动作处理
-    async def handle(self, request: Request, item_id: List[str], data: schema, **kwargs):
-        # 从数据库获取用户选择的数据列表
-        items = await self.admin.fetch_items(*item_id)
-        role_key = "r:" + items[0].key
-        enforcer: Enforcer = self.site.auth.enforcer
-        # 删除旧的权限
-        await enforcer.remove_filtered_policy(0, role_key)
-        # 添加新的权限
-        rules = [rule for rule in data.rules.split(",") if rule]  # 分割权限列表,去除空值
-        site_rule = f"{self.site.unique_id}#admin:page"
-        if rules and site_rule not in rules:  # 添加后台站点默认权限
-            rules.append(site_rule)
-        await enforcer.add_policies([(role_key, v1, v2) for v1, v2 in [rule.split("#") for rule in rules]])
-        # 返回动作处理结果
-        return BaseApiOut(data="success")
 
     def register_router(self):
         super().register_router()
@@ -147,3 +153,57 @@ class CasbinUpdateRoleRuleAction(ModelAction):
             return BaseApiOut(data=get_admin_action_options(self.site))
 
         return self
+
+    async def get_subject_by_id(self, item_id: str) -> str:
+        # 从数据库获取用户选择的数据列表
+        items = await self.admin.fetch_items(item_id)
+        if self._subject == "r":  # 角色管理
+            return "r:" + items[0].key
+        elif self._subject == "u":  # 用户管理
+            return "u:" + items[0].username
+        else:  # 其他管理
+            return ""
+
+    async def get_init_data(self, request: Request, **kwargs) -> BaseApiOut[Any]:
+        # 从数据库获取角色的权限列表
+        item_id = request.query_params.get("item_id")
+        if not item_id:
+            return BaseApiOut(data=self.schema())
+        if self._subject == "r":  # 角色管理
+            permissions = await casbin_get_permissions_by_role_id(self.site.auth, item_id, implicit=self._implicit)
+        elif self._subject == "u":  # 用户管理
+            permissions = await casbin_get_permissions_by_user_id(self.site.auth, item_id, implicit=self._implicit)
+        else:  # 其他管理
+            permissions = []
+        return BaseApiOut(data=self.schema(permissions=",".join(permissions)))
+
+    async def handle(self, request: Request, item_id: List[str], data: BaseModel, **kwargs):
+        return BaseApiOut(status=1, msg="请通过的【设置权限】更新设置!")
+
+
+class CasbinUpdateSubjectPermissionsAction(CasbinViewSubjectPermissionsAction):
+    """更新角色Casbin权限"""
+
+    _implicit: bool = False
+    action = ActionType.Dialog(
+        name="update_subject_permissions",
+        icon="fa fa-gavel",
+        tooltip="设置权限",
+        dialog=amis.Dialog(),
+        level=LevelEnum.warning,
+    )
+
+    async def handle(self, request: Request, item_id: List[str], data: BaseModel, **kwargs):
+        """更新角色Casbin权限"""
+        subject = await self.get_subject_by_id(item_id[0])
+        if not subject:
+            return BaseApiOut(status=0, msg="暂不支持的模型")
+        # 权限列表
+        permissions = [rule for rule in data.permissions.split(",") if rule]  # 分割权限列表,去除空值
+        site_rule = f"{self.site.unique_id}#admin:page"
+        if permissions and site_rule not in permissions:  # 添加后台站点默认权限
+            permissions.append(site_rule)
+        enforcer: Enforcer = self.site.auth.enforcer
+        await casbin_update_subject_permissions(enforcer, subject, permissions)  # 更新角色权限
+        # 返回动作处理结果
+        return BaseApiOut(data="success")

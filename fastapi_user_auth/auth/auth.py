@@ -22,8 +22,8 @@ from fastapi.security import OAuth2PasswordBearer
 from fastapi.security.utils import get_authorization_scheme_param
 from fastapi_amis_admin.crud.base import RouterMixin
 from fastapi_amis_admin.crud.schema import BaseApiOut
-from fastapi_amis_admin.crud.utils import schema_create_by_schema
 from fastapi_amis_admin.utils.functools import cached_property
+from fastapi_amis_admin.utils.pydantic import create_model_by_model
 from fastapi_amis_admin.utils.translation import i18n as _
 from passlib.context import CryptContext
 from pydantic import BaseModel, SecretStr
@@ -36,9 +36,10 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 from starlette.websockets import WebSocket
 
+from ..utils import casbin_update_subject_roles
 from .backends.base import BaseTokenStore
 from .backends.db import DbTokenStore
-from .models import BaseUser, CasbinRule, Role, User
+from .models import BaseUser, CasbinRule, LoginHistory, Role, User
 from .schemas import BaseTokenData, UserLoginOut
 from .sqlachemy_adapter import Adapter
 
@@ -260,9 +261,38 @@ class Auth(Generic[UserModelT]):
         if commit:
             await self.db.async_commit()
         # Update casbin role
-        await self.enforcer.delete_role_for_user("u:" + role_key, "r:" + role_key)
-        await self.enforcer.add_role_for_user("u:" + role_key, "r:" + role_key)
+        await casbin_update_subject_roles(self.enforcer, "u:" + role_key, role_key)
         return user
+
+    async def request_login(self, request: Request, response: Response, username: str, password: str) -> BaseApiOut[UserLoginOut]:
+        if request.scope.get("user"):
+            return BaseApiOut(code=1, msg=_("User logged in!"), data=UserLoginOut.parse_obj(request.user))
+        user = await request.auth.authenticate_user(username=username, password=password)
+        # 保存登录记录
+        ip = request.client.host  # 获取真实ip
+        # 获取代理ip
+        ips = [request.headers.get(key, "").strip() for key in ["x-forwarded-for", "x-real-ip", "x-client-ip", "remote-host"]]
+        forwarded_for = ",".join([i for i in set(ips) if i and i != ip])
+        history = LoginHistory(
+            user_id=user.id if user else None,
+            login_name=username,
+            ip=request.client.host,
+            user_agent=request.headers.get("user-agent"),
+            login_status="登录成功",
+            forwarded_for=forwarded_for,
+        )
+        self.db.add(history)
+        if not user:
+            history.login_status = "密码错误"
+            return BaseApiOut(status=-1, msg=_("Incorrect username or password!"))
+        if not user.is_active:
+            history.login_status = "用户未激活"
+            return BaseApiOut(status=-2, msg=_("Inactive user status!"))
+        request.scope["user"] = user
+        token_info = UserLoginOut.parse_obj(request.user)
+        token_info.access_token = await request.auth.backend.token_store.write_token(request.user.dict())
+        response.set_cookie("Authorization", f"bearer {token_info.access_token}")
+        return BaseApiOut(code=0, data=token_info)
 
 
 class AuthRouter(RouterMixin):
@@ -276,7 +306,7 @@ class AuthRouter(RouterMixin):
         assert self.auth, "auth is None"
         RouterMixin.__init__(self)
         self.router.dependencies.insert(0, Depends(self.auth.backend.authenticate))
-        self.schema_user_info = self.schema_user_info or schema_create_by_schema(
+        self.schema_user_info = self.schema_user_info or create_model_by_model(
             self.auth.user_model, "UserInfo", exclude={"password"}
         )
 
@@ -297,14 +327,15 @@ class AuthRouter(RouterMixin):
             response_model=BaseApiOut,
         )
         # oauth2
-        self.router.dependencies.append(Depends(self.OAuth2(tokenUrl=f"{self.router_path}/gettoken", auto_error=False)))
-        self.router.add_api_route(
-            "/gettoken",
-            self.route_gettoken,
-            methods=["POST"],
-            description="OAuth2 Token",
-            response_model=BaseApiOut[self.schema_user_login_out],
-        )
+        if self.route_gettoken:
+            self.router.dependencies.append(Depends(self.OAuth2(tokenUrl=f"{self.router_path}/gettoken", auto_error=False)))
+            self.router.add_api_route(
+                "/gettoken",
+                self.route_gettoken,
+                methods=["POST"],
+                description="OAuth2 Token",
+                response_model=BaseApiOut[self.schema_user_login_out],
+            )
 
     @cached_property
     def router_path(self) -> str:
@@ -334,14 +365,7 @@ class AuthRouter(RouterMixin):
     @property
     def route_gettoken(self):
         async def oauth_token(request: Request, response: Response, username: str = Form(...), password: str = Form(...)):
-            if request.scope.get("user") is None:
-                request.scope["user"] = await request.auth.authenticate_user(username=username, password=password)
-            if request.scope.get("user") is None:
-                return BaseApiOut(status=-1, msg=_("Incorrect username or password!"))
-            token_info = self.schema_user_login_out.parse_obj(request.user)
-            token_info.access_token = await request.auth.backend.token_store.write_token(request.user.dict())
-            response.set_cookie("Authorization", f"bearer {token_info.access_token}")
-            return BaseApiOut(data=token_info)
+            return await self.auth.request_login(request, response, username, password)
 
         return oauth_token
 

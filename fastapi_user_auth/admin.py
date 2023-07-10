@@ -1,16 +1,9 @@
 import contextlib
-from datetime import datetime
 from typing import Any, Callable, Dict, List, Type
 
 from casbin import Enforcer
 from fastapi import Body, Depends, HTTPException
-from fastapi_amis_admin.admin import (
-    AdminAction,
-    AdminApp,
-    FormAdmin,
-    ModelAdmin,
-    PageSchemaAdmin,
-)
+from fastapi_amis_admin.admin import AdminAction, AdminApp, FormAdmin, PageSchemaAdmin
 from fastapi_amis_admin.amis.components import (
     Action,
     ActionType,
@@ -21,10 +14,9 @@ from fastapi_amis_admin.amis.components import (
     Html,
     Page,
     PageSchema,
-    TableCRUD,
 )
 from fastapi_amis_admin.amis.constants import DisplayModeEnum, LevelEnum
-from fastapi_amis_admin.crud.base import SchemaModelT, SchemaUpdateT
+from fastapi_amis_admin.crud.base import SchemaUpdateT
 from fastapi_amis_admin.crud.schema import BaseApiOut
 from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import BaseModel
@@ -35,17 +27,32 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import NoMatchFound
 
-from fastapi_user_auth.actions import CasbinUpdateRoleAction, CasbinUpdateRoleRuleAction
+from fastapi_user_auth.actions import (
+    CasbinUpdateSubjectPermissionsAction,
+    CasbinUpdateSubjectRolesAction,
+    CasbinViewSubjectPermissionsAction,
+)
 from fastapi_user_auth.auth import Auth
 from fastapi_user_auth.auth.models import (
     BaseUser,
     CasbinRule,
     CasbinSubjectRolesQuery,
+    LoginHistory,
     Role,
     User,
+    UserRoleNameLabel,
 )
 from fastapi_user_auth.auth.schemas import SystemUserEnum, UserLoginOut
-from fastapi_user_auth.utils import casbin_update_subject_roles
+from fastapi_user_auth.mixins.admin import (
+    AutoTimeModelAdmin,
+    FootableModelAdmin,
+    ReadOnlyModelAdmin,
+    SoftDeleteModelAdmin,
+)
+from fastapi_user_auth.utils import (
+    casbin_update_subject_permissions,
+    get_admin_action_options,
+)
 
 
 def attach_page_head(page: Page) -> Page:
@@ -71,26 +78,10 @@ class UserLoginFormAdmin(FormAdmin):
     page_schema = None
     page_route_kwargs = {"name": "login"}
 
-    async def handle(self, request: Request, data: SchemaUpdateT, **kwargs) -> BaseApiOut[BaseModel]:  # self.schema_submit_out
-        if request.user:
-            return BaseApiOut(code=1, msg=_("User logged in!"), data=self.schema_submit_out.parse_obj(request.user))
-        user = await request.auth.authenticate_user(username=data.username, password=data.password)  # type:ignore
-        if not user:
-            return BaseApiOut(status=-1, msg=_("Incorrect username or password!"))
-        if not user.is_active:
-            return BaseApiOut(status=-2, msg=_("Inactive user status!"))
-
-        token_info = self.schema_submit_out.parse_obj(user)
-        auth: Auth = request.auth
-        token_info.access_token = await auth.backend.token_store.write_token(user.dict())
-        return BaseApiOut(code=0, data=token_info)
-
     @property
     def route_submit(self):
-        async def route(response: Response, result: BaseApiOut = Depends(super().route_submit)):
-            if result.status == 0 and result.code == 0:  # 登录成功,设置用户信息
-                response.set_cookie("Authorization", f"bearer {result.data.access_token}")
-            return result
+        async def route(request: Request, response: Response, data: self.schema):  # type: ignore
+            return await request.auth.request_login(request, response, data.username, data.password)
 
         return route
 
@@ -259,14 +250,24 @@ class UserInfoFormAdmin(FormAdmin):
         return await self.site.auth.requires(response=False)(request)
 
 
-class UserAdmin(ModelAdmin):
+class UserAdmin(SoftDeleteModelAdmin, FootableModelAdmin):
     page_schema = PageSchema(label=_("User"), icon="fa fa-user")
     model: Type[BaseUser] = None
     exclude = ["password"]
-    search_fields = [User.username]
+    search_fields = [User.username, UserRoleNameLabel]
     admin_action_maker = [
-        lambda admin: CasbinUpdateRoleAction(
-            admin, name="update_subject_roles", label="更新用户角色", icon="fa fa-user", flags="column"
+        lambda admin: CasbinViewSubjectPermissionsAction(
+            admin=admin,
+            name="view_subject_permissions",
+            tooltip="查看用户权限",
+        ),
+        lambda admin: CasbinUpdateSubjectPermissionsAction(
+            admin=admin,
+            name="update_subject_permissions",
+            tooltip="设置用户权限",
+        ),
+        lambda admin: CasbinUpdateSubjectRolesAction(
+            admin=admin, name="update_subject_roles", label="更新用户角色", icon="fa fa-user", flags="column"
         ),
     ]
     fields = [
@@ -278,17 +279,14 @@ class UserAdmin(ModelAdmin):
         User.nickname,
         User.email,
         User.is_active,
-        CasbinSubjectRolesQuery.c.role_names.label("权限角色"),
+        UserRoleNameLabel,
         User.create_time,
     ]
 
     async def get_select(self, request: Request) -> Select:
         sel = await super().get_select(request)
         sel = sel.outerjoin(CasbinSubjectRolesQuery, CasbinSubjectRolesQuery.c.subject == func.concat("u:", User.username))
-        return sel.where(self.model.delete_time == None)  # noqa E711
-
-    def delete_item(self, obj: SchemaModelT) -> None:
-        obj.delete_time = datetime.now()
+        return sel
 
     async def on_create_pre(self, request: Request, obj, **kwargs) -> Dict[str, Any]:
         data = await super(UserAdmin, self).on_create_pre(request, obj, **kwargs)
@@ -301,14 +299,9 @@ class UserAdmin(ModelAdmin):
             data["password"] = request.auth.pwd_context.hash(data["password"])  # 密码hash保存
         return data
 
-    async def get_list_table(self, request: Request) -> TableCRUD:
-        table = await super().get_list_table(request)
-        table.footable = True
-        return table
-
     def register_router(self):
-        @self.router.post("/update_subject_roles")
-        async def update_subject_roles(
+        @self.router.post("/update_subject_permissions")
+        async def update_subject_permissions(
             data: dict = Body(..., embed=True),
         ):
             """更新用户角色"""
@@ -317,23 +310,30 @@ class UserAdmin(ModelAdmin):
                 return {"code": 1, "msg": "username is required"}
             subject = "u:" + row["username"]
             enforcer: Enforcer = self.site.auth.enforcer
-            await casbin_update_subject_roles(enforcer, subject, data.get("role_keys"))
+            await casbin_update_subject_permissions(enforcer, subject, data.get("role_keys"))
             return {"code": 0, "msg": "ok"}
 
         return super().register_router()
 
 
-class RoleAdmin(ModelAdmin):
+class RoleAdmin(AutoTimeModelAdmin, FootableModelAdmin):
     page_schema = PageSchema(label=_("Role"), icon="fa fa-group")
     model = Role
-    readonly_fields = ["key"]
+    search_fields = [Role.name, UserRoleNameLabel]
+    update_exclude = AutoTimeModelAdmin.update_exclude | {"key"}
     admin_action_maker = [
-        lambda admin: CasbinUpdateRoleRuleAction(
+        lambda admin: CasbinViewSubjectPermissionsAction(
             admin=admin,
-            name="update_role_casbin",
+            name="view_subject_permissions",
+            tooltip="查看角色权限",
         ),
-        lambda admin: CasbinUpdateRoleAction(
-            admin, name="update_subject_roles", label="更新子角色", icon="fa fa-user", flags="column"
+        lambda admin: CasbinUpdateSubjectPermissionsAction(
+            admin=admin,
+            name="update_subject_permissions",
+            tooltip="设置角色权限",
+        ),
+        lambda admin: CasbinUpdateSubjectRolesAction(
+            admin=admin, name="update_subject_roles", label="设置子角色", icon="fa fa-user", flags="column"
         ),
     ]
     fields = [
@@ -343,8 +343,8 @@ class RoleAdmin(ModelAdmin):
         Role.id,
         Role.key,
         Role.name,
+        UserRoleNameLabel,
         Role.desc,
-        CasbinSubjectRolesQuery.c.role_names.label("子角色"),
     ]
 
     async def get_select(self, request: Request) -> Select:
@@ -352,14 +352,9 @@ class RoleAdmin(ModelAdmin):
         sel = sel.outerjoin(CasbinSubjectRolesQuery, CasbinSubjectRolesQuery.c.subject == func.concat("r:", Role.key))
         return sel
 
-    async def get_list_table(self, request: Request) -> TableCRUD:
-        table = await super().get_list_table(request)
-        table.footable = True
-        return table
-
     def register_router(self):
-        @self.router.post("/update_subject_roles")
-        async def update_subject_roles(
+        @self.router.post("/update_subject_permissions")
+        async def update_subject_permissions(
             data: dict = Body(..., embed=True),
         ):
             """更新用户角色"""
@@ -368,30 +363,13 @@ class RoleAdmin(ModelAdmin):
                 return {"code": 1, "msg": "key is required"}
             subject = "r:" + row["key"]
             enforcer: Enforcer = self.site.auth.enforcer
-            await casbin_update_subject_roles(enforcer, subject, data.get("role_keys"))
+            await casbin_update_subject_permissions(enforcer, subject, data.get("role_keys"))
             return {"code": 0, "msg": "ok"}
 
         return super().register_router()
 
 
-class UserCasbinRuleAdmin(ModelAdmin):
-    page_schema = PageSchema(label="用户角色", icon="fa fa-group")
-    model = CasbinRule
-    list_display = [
-        User.username,
-        User.nickname,
-        User.is_active,
-        Role.key,
-        Role.name,
-    ]
-
-    async def get_select(self, request: Request) -> Select:
-        select = await super().get_select(request)
-        select = select.where(CasbinRule.ptype == "g")
-        return select.outerjoin(Role, "r:" + Role.key == CasbinRule.v1).outerjoin(User, "u:" + User.username == CasbinRule.v0)
-
-
-class CasbinRuleAdmin(ModelAdmin):
+class CasbinRuleAdmin(ReadOnlyModelAdmin):
     page_schema = PageSchema(label="CasbinRule", icon="fa fa-group")
     model = CasbinRule
     list_filter = [CasbinRule.ptype, CasbinRule.v0, CasbinRule.v1, CasbinRule.v2, CasbinRule.v3, CasbinRule.v4, CasbinRule.v5]
@@ -431,6 +409,29 @@ class CasbinRuleAdmin(ModelAdmin):
         @self.router.get("/load_policy", response_model=BaseApiOut)
         async def _load_policy():
             await self.load_policy()
+            get_admin_action_options.cache_clear()  # 清除系统菜单缓存
             return BaseApiOut(data="刷新成功")
 
         return super().register_router()
+
+
+class LoginHistoryAdmin(ReadOnlyModelAdmin):
+    page_schema = PageSchema(label="登录历史", icon="fa fa-history")
+    model = LoginHistory
+    search_fields = [LoginHistory.login_name, LoginHistory.ip, LoginHistory.login_status, LoginHistory.user_agent]
+    list_display = [
+        User.nickname,
+        LoginHistory.login_name,
+        LoginHistory.ip,
+        LoginHistory.login_status,
+        LoginHistory.create_time,
+        LoginHistory.user_agent,
+        LoginHistory.forwarded_for,
+        LoginHistory.ip_info,
+    ]
+    ordering = [LoginHistory.create_time.desc()]
+
+    async def get_select(self, request: Request) -> Select:
+        sel = await super().get_select(request)
+        sel = sel.outerjoin(User, User.id == LoginHistory.user_id)
+        return sel

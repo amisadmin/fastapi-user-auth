@@ -1,14 +1,14 @@
 # Chinese (Simplified, China) translations for PROJECT.
-# Copyright (C) 2022 ORGANIZATION
+# Copyright (C) 2023 ORGANIZATION
 # This file is distributed under the same license as the PROJECT project.
-# FIRST AUTHOR <EMAIL@ADDRESS>, 2022.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2023.
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2022-09-29 16:02+0800\n"
-"PO-Revision-Date: 2022-05-21 23:36+0800\n"
+"POT-Creation-Date: 2023-07-11 15:22+0800\n"
+"PO-Revision-Date: 2023-07-11 15:23+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_Hans_CN\n"
 "Language-Team: zh_Hans_CN <LL@li.org>\n"
@@ -16,137 +16,111 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.10.1\n"
+"Generated-By: Babel 2.12.1\n"
 
-#: admin.py:32
+#: admin.py:59
 msgid ""
 "Amis is a low-code front-end framework that reduces page development "
 "effort and greatly improves efficiency"
 msgstr "Amis是一个低代码前端框架，可以减少页面开发工作量，极大提升效率"
 
-#: admin.py:46
+#: admin.py:73
 msgid "User Login"
 msgstr "用户登录"
 
-#: admin.py:58
+#: admin.py:83
 msgid "User logged in!"
 msgstr "用户已登录!"
 
-#: admin.py:61 auth/auth.py:295
+#: admin.py:86 auth/auth.py:341
 msgid "Incorrect username or password!"
 msgstr "用户名或密码不正确!"
 
-#: admin.py:63
+#: admin.py:88
 msgid "Inactive user status!"
 msgstr "用户未激活!"
 
-#: admin.py:87 admin.py:179 admin.py:192
+#: admin.py:112 admin.py:202 admin.py:215
 msgid "Sign up"
 msgstr "注册"
 
-#: admin.py:92 admin.py:97 admin.py:190
+#: admin.py:115 admin.py:120 admin.py:213
 msgid "Sign in"
 msgstr "登录"
 
-#: admin.py:130
+#: admin.py:153
 msgid "User Register"
 msgstr "用户注册"
 
-#: admin.py:144
+#: admin.py:164 admin.py:167
 msgid "Username has been registered!"
 msgstr "用户名已注册!"
 
-#: admin.py:147
+#: admin.py:170
 msgid "Email has been registered!"
 msgstr "邮箱已注册!"
 
-#: admin.py:162
+#: admin.py:185
 msgid "Registered successfully!"
 msgstr "注册成功!"
 
-#: admin.py:212 auth/auth.py:247 site.py:43 site.py:45
+#: admin.py:234 auth/auth.py:287 site.py:59 site.py:61
 msgid "User Profile"
 msgstr "用户信息"
 
-#: admin.py:244
+#: admin.py:270
 msgid "User"
 msgstr "用户管理"
 
-#: admin.py:265
+#: admin.py:336
 msgid "Role"
 msgstr "角色管理"
 
-#: admin.py:273
-msgid "Group"
-msgstr "用户组管理"
-
-#: admin.py:281
-msgid "Permission"
-msgstr "权限管理"
-
-#: app.py:20
+#: app.py:18
 msgid "User Authentication"
 msgstr "用户授权"
 
-#: auth/auth.py:252 site.py:58
+#: auth/auth.py:295 site.py:74
 msgid "Sign out"
 msgstr "退出登录"
 
-#: auth/models.py:24
-msgid "Create Time"
-msgstr "创建时间"
-
-#: auth/models.py:30
-msgid "Update Time"
-msgstr "更新时间"
-
-#: auth/models.py:36
-msgid "Username"
-msgstr "用户名"
-
-#: auth/models.py:44
-msgid "Password"
-msgstr "密码"
-
-#: auth/models.py:48
-msgid "Email"
-msgstr "邮箱"
-
-#: auth/models.py:78
+#: auth/models.py:21
 msgid "Is Active"
 msgstr "是否激活"
 
-#: auth/models.py:79
+#: auth/models.py:22
 msgid "Nickname"
 msgstr "昵称"
 
-#: auth/models.py:82
+#: auth/models.py:25
 msgid "Avatar"
 msgstr "头像"
 
-#: auth/models.py:198
-msgid "Identify"
-msgstr "标识"
-
-#: auth/models.py:199
-msgid "Name"
-msgstr "名称"
-
-#: auth/models.py:200
-msgid "Description"
-msgstr "描述"
-
-#: auth/models.py:213
-msgid "Parent"
-msgstr "父级"
-
-#: auth/schemas.py:24
+#: auth/schemas.py:26
 msgid "Confirm Password"
 msgstr "确认密码"
 
-#~ msgid "Point"
-#~ msgstr "点数"
+#: mixins/models.py:20
+msgid "Create Time"
+msgstr "创建时间"
 
-#~ msgid "Tel"
-#~ msgstr "手机号"
+#: mixins/models.py:26
+msgid "Update Time"
+msgstr "更新时间"
+
+#: mixins/models.py:32
+msgid "Delete Time"
+msgstr "删除时间"
+
+#: mixins/models.py:42
+msgid "Username"
+msgstr "用户名"
+
+#: mixins/models.py:50
+msgid "Password"
+msgstr "密码"
+
+#: mixins/models.py:58
+msgid "Email"
+msgstr "邮箱"
 
