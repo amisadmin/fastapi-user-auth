@@ -15,10 +15,13 @@ from starlette.requests import Request
 from fastapi_user_auth.auth.crud import (
     casbin_get_permissions_by_role_id,
     casbin_get_permissions_by_user_id,
+    casbin_get_subject_permissions,
 )
 from fastapi_user_auth.auth.models import Role, User
+from fastapi_user_auth.auth.schemas import SystemUserEnum
 from fastapi_user_auth.utils import (
     casbin_update_subject_permissions,
+    filter_options,
     get_admin_action_options,
 )
 
@@ -149,8 +152,16 @@ class CasbinViewSubjectPermissionsAction(ModelAction):
 
         # 获取全部页面权限
         @self.router.get("/get_admin_action_options", response_model=BaseApiOut)
-        async def _get_admin_action_options():
-            return BaseApiOut(data=get_admin_action_options(self.site))
+        async def _get_admin_action_options(request: Request):
+            # 获取全部页面权限
+            options = get_admin_action_options(self.site)
+            # 获取当前登录用户的权限
+            user = await self.site.auth.get_current_user(request)
+            if user.username != SystemUserEnum.ROOT:  # Root用户拥有全部权限
+                permissions = await casbin_get_subject_permissions(self.site.auth.enforcer, "u:" + user.username, implicit=True)
+                # 过滤掉没有权限的页面
+                options = filter_options(options, filter_func=lambda item: item["value"] in permissions)
+            return BaseApiOut(data=options)
 
         return self
 

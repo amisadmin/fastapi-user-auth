@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List
 
 from casbin import Enforcer
 from fastapi_amis_admin.admin import FormAdmin, ModelAdmin, PageSchemaAdmin
@@ -7,7 +7,9 @@ from fastapi_amis_admin.admin.admin import AdminGroup, BaseActionAdmin
 
 
 @lru_cache()
-def get_admin_action_options(group: AdminGroup) -> List[Dict[str, Any]]:
+def get_admin_action_options(
+    group: AdminGroup,
+) -> List[Dict[str, Any]]:
     """获取全部页面权限,用于amis组件"""
     options = []
     for admin in group:  # 这里已经同步了数据库,所以只从这里配置权限就行了
@@ -29,6 +31,19 @@ def get_admin_action_options(group: AdminGroup) -> List[Dict[str, Any]]:
     if options:
         options.sort(key=lambda p: p["sort"] or 0, reverse=True)
     return options
+
+
+def filter_options(options: List[Dict[str, Any]], filter_func: Callable[[Dict[str, Any]], bool]) -> List[Dict[str, Any]]:
+    """过滤选项,包含子选项.如果选项的children为空,则删除该选项"""
+    result = []
+    for option in options:
+        if filter_func(option):
+            result.append(option)
+        if option.get("children"):
+            option["children"] = filter_options(option["children"], filter_func)
+            if option["children"]:
+                result.append(option)
+    return result
 
 
 async def casbin_update_subject_roles(enforcer: Enforcer, subject: str, role_keys: str = None):
