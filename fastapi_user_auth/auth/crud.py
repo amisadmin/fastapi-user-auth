@@ -1,27 +1,12 @@
-from typing import Iterable, List, Union
+from typing import List, Union
 
-from casbin import Enforcer
 from sqlalchemy import select
 from sqlalchemy.sql.selectable import ScalarSelect
 from sqlalchemy_database import AsyncDatabase, Database
 
 from fastapi_user_auth.auth import Auth
 from fastapi_user_auth.auth.models import CasbinRule, Role, User
-
-
-# 将casbin规则转化为字符串
-def casbin_permission_to_str(permission: Iterable[str]) -> str:
-    """将casbin规则转化为字符串"""
-    return "#".join([str(v) for v in permission if v])
-
-
-async def casbin_get_subject_permissions(enforcer: Enforcer, subject: str, implicit: bool = False) -> List[str]:
-    """根据指定subject主体获取casbin规则"""
-    if implicit:
-        permissions = await enforcer.get_implicit_permissions_for_user(subject)
-    else:
-        permissions = await enforcer.get_permissions_for_user(subject)
-    return [casbin_permission_to_str(permission[1:]) for permission in permissions]
+from fastapi_user_auth.utils import casbin_get_subject_permissions, casbin_permission_encode
 
 
 async def casbin_get_subject_permissions_by_db(
@@ -29,7 +14,7 @@ async def casbin_get_subject_permissions_by_db(
 ) -> List[str]:
     """根据指定subject主体获取casbin规则"""
     permissions = await db.async_scalars(select(CasbinRule).where(CasbinRule.ptype == "p", CasbinRule.v0 == subject))
-    return [casbin_permission_to_str([rule.v1, rule.v2, rule.v3, rule.v4, rule.v5]) for rule in permissions]
+    return [casbin_permission_encode(rule.v1, rule.v2, rule.v3, rule.v4, rule.v5) for rule in permissions]
 
 
 async def casbin_get_permissions_by_role_id(auth: Auth, role_id: str, implicit: bool = False) -> List[str]:

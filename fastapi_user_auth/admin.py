@@ -28,9 +28,10 @@ from starlette.responses import Response
 from starlette.routing import NoMatchFound
 
 from fastapi_user_auth.actions import (
-    CasbinUpdateSubjectPermissionsAction,
+    CasbinUpdateSubFieldPermAction,
     CasbinUpdateSubjectRolesAction,
-    CasbinViewSubjectPermissionsAction,
+    CasbinUpdateSubPermsAction,
+    CasbinViewSubPermAction,
 )
 from fastapi_user_auth.auth import Auth
 from fastapi_user_auth.auth.models import (
@@ -256,12 +257,12 @@ class UserAdmin(SoftDeleteModelAdmin, FootableModelAdmin):
     exclude = ["password"]
     search_fields = [User.username, UserRoleNameLabel]
     admin_action_maker = [
-        lambda admin: CasbinViewSubjectPermissionsAction(
+        lambda admin: CasbinViewSubPermAction(
             admin=admin,
             name="view_subject_permissions",
             tooltip="查看用户权限",
         ),
-        lambda admin: CasbinUpdateSubjectPermissionsAction(
+        lambda admin: CasbinUpdateSubPermsAction(
             admin=admin,
             name="update_subject_permissions",
             tooltip="设置用户权限",
@@ -322,15 +323,20 @@ class RoleAdmin(AutoTimeModelAdmin, FootableModelAdmin):
     search_fields = [Role.name, UserRoleNameLabel]
     update_exclude = AutoTimeModelAdmin.update_exclude | {"key"}
     admin_action_maker = [
-        lambda admin: CasbinViewSubjectPermissionsAction(
+        lambda admin: CasbinViewSubPermAction(
             admin=admin,
             name="view_subject_permissions",
             tooltip="查看角色权限",
         ),
-        lambda admin: CasbinUpdateSubjectPermissionsAction(
+        lambda admin: CasbinUpdateSubPermsAction(
             admin=admin,
             name="update_subject_permissions",
             tooltip="设置角色权限",
+        ),
+        lambda admin: CasbinUpdateSubFieldPermAction(
+            admin=admin,
+            name="update_subject_field_permissions",
+            tooltip="设置角色字段权限",
         ),
         lambda admin: CasbinUpdateSubjectRolesAction(
             admin=admin, name="update_subject_roles", label="设置子角色", icon="fa fa-user", flags="column"
