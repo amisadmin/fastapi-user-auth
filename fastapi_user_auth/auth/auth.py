@@ -82,7 +82,6 @@ class Auth(Generic[UserModelT]):
         self.db = db or self.db
         self.backend = self.backend or AuthBackend(self, token_store or DbTokenStore(self.db))
         self.pwd_context = pwd_context
-        # todo 使用sqlalchemy_database支持同步引擎.
         self.enforcer = enforcer or Enforcer(
             model=str(Path(__file__).parent / "model.conf"), adapter=Adapter(db=self.db, db_class=CasbinRule)
         )

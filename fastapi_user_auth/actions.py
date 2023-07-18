@@ -25,7 +25,9 @@ from fastapi_user_auth.utils import (
 
 
 class CasbinUpdateSubjectRolesAction(AdminAction):
-    """更新用户拥有的角色或者更新角色拥有的子角色"""
+    """更新用户拥有的角色或者更新角色拥有的子角色
+    #todo 修改为ModelAction模型动作.独立接口
+    """
 
     async def get_action(self, request: Request, **kwargs) -> Action:
         from fastapi_user_auth.admin import RoleAdmin  # 防止循环导入

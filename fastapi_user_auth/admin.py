@@ -51,7 +51,8 @@ from fastapi_user_auth.mixins.admin import (
     SoftDeleteModelAdmin,
 )
 from fastapi_user_auth.utils import (
-    casbin_update_subject_permissions,
+    casbin_update_site_grouping,
+    casbin_update_subject_roles,
     get_admin_action_options,
 )
 
@@ -301,8 +302,8 @@ class UserAdmin(SoftDeleteModelAdmin, FootableModelAdmin):
         return data
 
     def register_router(self):
-        @self.router.post("/update_subject_permissions")
-        async def update_subject_permissions(
+        @self.router.post("/update_subject_roles")
+        async def update_subject_roles(
             data: dict = Body(..., embed=True),
         ):
             """更新用户角色"""
@@ -311,7 +312,7 @@ class UserAdmin(SoftDeleteModelAdmin, FootableModelAdmin):
                 return {"code": 1, "msg": "username is required"}
             subject = "u:" + row["username"]
             enforcer: Enforcer = self.site.auth.enforcer
-            await casbin_update_subject_permissions(enforcer, subject, data.get("role_keys"))
+            await casbin_update_subject_roles(enforcer, subject, data.get("role_keys"))
             return {"code": 0, "msg": "ok"}
 
         return super().register_router()
@@ -359,8 +360,8 @@ class RoleAdmin(AutoTimeModelAdmin, FootableModelAdmin):
         return sel
 
     def register_router(self):
-        @self.router.post("/update_subject_permissions")
-        async def update_subject_permissions(
+        @self.router.post("/update_subject_roles")
+        async def update_subject_roles(
             data: dict = Body(..., embed=True),
         ):
             """更新用户角色"""
@@ -369,7 +370,7 @@ class RoleAdmin(AutoTimeModelAdmin, FootableModelAdmin):
                 return {"code": 1, "msg": "key is required"}
             subject = "r:" + row["key"]
             enforcer: Enforcer = self.site.auth.enforcer
-            await casbin_update_subject_permissions(enforcer, subject, data.get("role_keys"))
+            await casbin_update_subject_roles(enforcer, subject, data.get("role_keys"))
             return {"code": 0, "msg": "ok"}
 
         return super().register_router()
@@ -410,6 +411,8 @@ class CasbinRuleAdmin(ReadOnlyModelAdmin):
 
     async def load_policy(self):
         await self.enforcer.load_policy()
+        # 更新站点资源分组
+        await casbin_update_site_grouping(self.enforcer, self.site)
 
     def register_router(self):
         @self.router.get("/load_policy", response_model=BaseApiOut)
