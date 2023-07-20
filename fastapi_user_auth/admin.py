@@ -2,7 +2,7 @@ import contextlib
 from typing import Any, Callable, Dict, List, Type
 
 from casbin import Enforcer
-from fastapi import Body, Depends, HTTPException
+from fastapi import Depends, HTTPException
 from fastapi_amis_admin.admin import AdminAction, AdminApp, FormAdmin, PageSchemaAdmin
 from fastapi_amis_admin.amis.components import (
     Action,
@@ -28,9 +28,8 @@ from starlette.responses import Response
 from starlette.routing import NoMatchFound
 
 from fastapi_user_auth.actions import (
-    CasbinUpdateSubFieldPermAction,
-    CasbinUpdateSubjectRolesAction,
     CasbinUpdateSubPermsAction,
+    CasbinUpdateSubRolesAction,
     CasbinViewSubPermAction,
 )
 from fastapi_user_auth.auth import Auth
@@ -52,7 +51,6 @@ from fastapi_user_auth.mixins.admin import (
 )
 from fastapi_user_auth.utils import (
     casbin_update_site_grouping,
-    casbin_update_subject_roles,
     get_admin_action_options,
 )
 
@@ -256,25 +254,25 @@ class UserAdmin(SoftDeleteModelAdmin, FootableModelAdmin):
     page_schema = PageSchema(label=_("User"), icon="fa fa-user")
     model: Type[BaseUser] = None
     exclude = ["password"]
+    ordering = [User.id.desc()]
     search_fields = [User.username, UserRoleNameLabel]
+    display_item_action_as_column = True
     admin_action_maker = [
         lambda admin: CasbinViewSubPermAction(
             admin=admin,
             name="view_subject_permissions",
-            tooltip="查看用户权限",
+            tooltip="查看用户页面权限",
         ),
         lambda admin: CasbinUpdateSubPermsAction(
             admin=admin,
             name="update_subject_permissions",
-            tooltip="设置用户权限",
+            tooltip="设置用户页面权限",
         ),
-        lambda admin: CasbinUpdateSubjectRolesAction(
-            admin=admin, name="update_subject_roles", label="更新用户角色", icon="fa fa-user", flags="column"
+        lambda admin: CasbinUpdateSubRolesAction(
+            admin=admin, name="update_subject_roles", label="更新用户角色", icon="fa fa-user", flags="item"
         ),
     ]
-    fields = [
-        CasbinSubjectRolesQuery.c.role_keys.label("role_keys"),
-    ]
+
     list_display = [
         User.id,
         User.username,
@@ -301,28 +299,14 @@ class UserAdmin(SoftDeleteModelAdmin, FootableModelAdmin):
             data["password"] = request.auth.pwd_context.hash(data["password"])  # 密码hash保存
         return data
 
-    def register_router(self):
-        @self.router.post("/update_subject_roles")
-        async def update_subject_roles(
-            data: dict = Body(..., embed=True),
-        ):
-            """更新用户角色"""
-            row = data.get("__rendererData", {})
-            if "username" not in row:
-                return {"code": 1, "msg": "username is required"}
-            subject = "u:" + row["username"]
-            enforcer: Enforcer = self.site.auth.enforcer
-            await casbin_update_subject_roles(enforcer, subject, data.get("role_keys"))
-            return {"code": 0, "msg": "ok"}
-
-        return super().register_router()
-
 
 class RoleAdmin(AutoTimeModelAdmin, FootableModelAdmin):
     page_schema = PageSchema(label=_("Role"), icon="fa fa-group")
     model = Role
+    ordering = [Role.id.desc()]
     search_fields = [Role.name, UserRoleNameLabel]
     update_exclude = AutoTimeModelAdmin.update_exclude | {"key"}
+    display_item_action_as_column = True
     admin_action_maker = [
         lambda admin: CasbinViewSubPermAction(
             admin=admin,
@@ -332,20 +316,18 @@ class RoleAdmin(AutoTimeModelAdmin, FootableModelAdmin):
         lambda admin: CasbinUpdateSubPermsAction(
             admin=admin,
             name="update_subject_permissions",
-            tooltip="设置角色权限",
+            tooltip="设置角色页面权限",
         ),
-        lambda admin: CasbinUpdateSubFieldPermAction(
-            admin=admin,
-            name="update_subject_field_permissions",
-            tooltip="设置角色字段权限",
-        ),
-        lambda admin: CasbinUpdateSubjectRolesAction(
-            admin=admin, name="update_subject_roles", label="设置子角色", icon="fa fa-user", flags="column"
+        # lambda admin: CasbinUpdateSubFieldPermAction(
+        #     admin=admin,
+        #     name="update_subject_field_permissions",
+        #     tooltip="设置角色字段权限",
+        # ),
+        lambda admin: CasbinUpdateSubRolesAction(
+            admin=admin, name="update_subject_roles", label="设置子角色", icon="fa fa-user", flags="item"
         ),
     ]
-    fields = [
-        CasbinSubjectRolesQuery.c.role_keys.label("role_keys"),
-    ]
+
     list_display = [
         Role.id,
         Role.key,
@@ -358,22 +340,6 @@ class RoleAdmin(AutoTimeModelAdmin, FootableModelAdmin):
         sel = await super().get_select(request)
         sel = sel.outerjoin(CasbinSubjectRolesQuery, CasbinSubjectRolesQuery.c.subject == func.concat("r:", Role.key))
         return sel
-
-    def register_router(self):
-        @self.router.post("/update_subject_roles")
-        async def update_subject_roles(
-            data: dict = Body(..., embed=True),
-        ):
-            """更新用户角色"""
-            row = data.get("__rendererData", {})
-            if "key" not in row:
-                return {"code": 1, "msg": "key is required"}
-            subject = "r:" + row["key"]
-            enforcer: Enforcer = self.site.auth.enforcer
-            await casbin_update_subject_roles(enforcer, subject, data.get("role_keys"))
-            return {"code": 0, "msg": "ok"}
-
-        return super().register_router()
 
 
 class CasbinRuleAdmin(ReadOnlyModelAdmin):

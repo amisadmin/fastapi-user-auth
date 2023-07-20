@@ -137,29 +137,27 @@ async def get_admin_action_options_by_subject(
     options = get_admin_action_options(group)
     # 获取当前登录用户的权限
     if subject != "u:" + SystemUserEnum.ROOT:  # Root用户拥有全部权限
-        permissions = await casbin_get_subject_permissions(enforcer, subject=subject, implicit=True)
         # 过滤掉没有权限的页面
-        options = filter_options(options, filter_func=lambda item: item["value"] in permissions)
+        options = filter_options(options, filter_func=lambda item: casbin_permission_enforce(enforcer, subject, item["value"]))
     return options
+
+
+# 执行casbin字符串规则
+def casbin_permission_enforce(enforcer: Enforcer, subject: str, permission: str) -> bool:
+    values = casbin_permission_decode(permission)
+    return enforcer.enforce(subject, *values)
 
 
 # 将casbin规则转化为字符串
 def casbin_permission_encode(*field_values: str) -> str:
     """将casbin规则转化为字符串,从v1开始"""
-    values = list(field_values)
-    if len(values) < 5:
-        values.extend([""] * (5 - len(values)))
-    return "#".join(values)
+    return "#".join(val for val in field_values if val is not None)
 
 
 # 将字符串转化为casbin规则
 def casbin_permission_decode(permission: str) -> List[str]:
     """将字符串转化为casbin规则"""
-    field_values = permission.split("#")
-    # 如果长度少于5,则补充为5个
-    if len(field_values) < 5:
-        field_values.extend([""] * (5 - len(field_values)))
-    return field_values
+    return permission.strip("#").split("#")
 
 
 async def casbin_get_subject_permissions(enforcer: Enforcer, subject: str, implicit: bool = False) -> List[str]:
@@ -173,17 +171,8 @@ async def casbin_get_subject_permissions(enforcer: Enforcer, subject: str, impli
 
 async def casbin_update_subject_roles(enforcer: Enforcer, subject: str, role_keys: str = None):
     """更新casbin主体权限角色"""
-    new_roles = {(subject, "r:" + role) for role in role_keys.split(",") if role}
-    # 1. 对比旧的角色,只操作差异部分
-    # roles = await enforcer.get_filtered_named_grouping_policy(0,subject)
-    # old_roles = {tuple(role) for role in roles}
-    # remove_roles = old_roles - new_roles
-    # add_roles = new_roles - old_roles
-    # if remove_roles:  # 删除旧的资源角色
-    #     await enforcer.remove_named_grouping_policies("g", remove_roles)
-    # if add_roles:  # 添加新的资源角色
-    #     await enforcer.add_named_grouping_policies("g", add_roles)
-    # 2.删除全部旧的角色,添加全部新的角色
+    # todo 避免角色链循环
+    new_roles = {(subject, f"r:{role}") for role in role_keys.split(",") if role and f"r:{role}" != subject}
     await enforcer.delete_roles_for_user(subject)
     if new_roles:
         await enforcer.add_grouping_policies(new_roles)
