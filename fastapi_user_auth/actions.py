@@ -273,6 +273,7 @@ class CasbinUpdateSubFieldPermAction(CasbinBaseSubPermAction):
                                 "rowLabel": "字段名称",
                                 "multiple": False,
                                 "singleSelectMode": "row",
+                                "yCheckAll": True,
                                 "source": f"{self.site.settings.site_path}/auth/admin_action_fields_options?"
                                 f"permission=$permission&item_id=$item_id&subject={self._subject}",
                                 # "id": "u:matrix-fields"
