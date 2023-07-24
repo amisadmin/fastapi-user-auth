@@ -4,7 +4,7 @@ from casbin import Enforcer
 from fastapi_amis_admin import amis
 from fastapi_amis_admin.admin import FormAdmin, ModelAction, PageSchemaAdmin
 from fastapi_amis_admin.amis import SchemaNode
-from fastapi_amis_admin.amis.components import ActionType, FormItem, Page
+from fastapi_amis_admin.amis.components import ActionType, FormItem
 from fastapi_amis_admin.amis.constants import LevelEnum
 from fastapi_amis_admin.crud.schema import BaseApiOut
 from fastapi_amis_admin.models import Field
@@ -20,6 +20,7 @@ from fastapi_user_auth.auth.models import Role, User
 from fastapi_user_auth.mixins.admin import AuthModelAdmin
 from fastapi_user_auth.utils import (
     casbin_permission_encode,
+    casbin_update_subject_field_permissions,
     casbin_update_subject_permissions,
     casbin_update_subject_roles,
     get_admin_action_options_by_subject,
@@ -36,6 +37,8 @@ def get_admin_permission_fields_rows(
     if isinstance(admin, AuthModelAdmin):  # 模型管理
         if action == "list":  # 列表展示模型
             fields = admin.list_permission_fields
+        elif action == "filter":  # 列表筛选模型
+            fields = admin.filter_permission_fields
         elif action == "create":  # 创建模型
             fields = admin.create_permission_fields
         elif action == "update":  # 更新模型
@@ -48,20 +51,9 @@ def get_admin_permission_fields_rows(
             rows.append(
                 {
                     "label": label,
-                    "rol": f"page:{action}:{name}",
+                    "rol": f"{admin.unique_id}#page:{action}#field:{name}",
                 }
             )
-        # 列表筛选模型
-        if action == "list":
-            fields = admin.filter_permission_fields
-            for name, label in fields.items():
-                rows.append(
-                    {
-                        "label": label,
-                        "rol": f"page:filter:{name}",
-                    }
-                )
-
     elif isinstance(admin, FormAdmin):  # todo 表单管理
         pass
     return rows
@@ -253,15 +245,34 @@ class CasbinUpdateSubFieldPermAction(CasbinBaseSubPermAction):
         name="update_subject_field_permissions",
         icon="fa fa-gavel",
         tooltip="设置字段权限",
-        dialog=amis.Dialog(actions=[]),
+        dialog=amis.Dialog(),
         level=LevelEnum.warning,
     )
+
+    # 创建动作表单数据模型
+    class schema(CasbinBaseSubPermAction.schema):
+        field_matrix: list = Field(
+            None,
+            title="字段权限配置",
+            amis_form_item=amis.MatrixCheckboxes(
+                rowLabel="字段名称",
+                multiple=False,
+                singleSelectMode="row",
+                yCheckAll=True,
+                source="",
+            ),
+        )
 
     async def get_form_item(self, request: Request, modelfield: ModelField) -> Union[FormItem, SchemaNode]:
         item = await super().get_form_item(request, modelfield)
         if item.name == "permissions":  # 为角色树形选择器数据指定API源
             item.multiple = False
             item.source = f"{self.router_path}/get_admin_action_options?item_id=$id"  # 获取对方权限列表
+        elif item.name == "field_matrix":
+            item.source = (
+                f"{self.site.settings.site_path}/auth/admin_action_fields_options?"
+                f"permission=$permissions&item_id=$id&subject={self._subject}"
+            )
         return item
 
     def register_router(self):
@@ -277,61 +288,15 @@ class CasbinUpdateSubFieldPermAction(CasbinBaseSubPermAction):
 
         return self
 
-    async def get_page(self, request: Request) -> Page:
-        page = await super().get_page(request)
-        form = await self.get_form(request)
-
-        tree: amis.InputTree = form.body[0]
-        # https://aisuda.bce.baidu.com/amis/zh-CN/docs/concepts/event-action#%E5%8A%A8%E4%BD%9C%E9%97%B4%E6%95%B0%E6%8D%AE%E4
-        # %BC%A0%E9%80%92
-        tree = tree.update_from_kwargs(
-            onEvent={
-                "change": {
-                    "actions": [
-                        {
-                            "actionType": "reload",
-                            "componentId": "u:matrix-form",
-                            "args": {"permission": "$value", "item_id": "$id"},
-                        }
-                    ]
-                }
-            },
-        )
-        page.body = [
-            {
-                "type": "grid",
-                "columns": [
-                    tree,
-                    amis.Form(
-                        title="字段权限",
-                        debug=True,
-                        name="matrix-form",
-                        id="u:matrix-form",
-                        api=amis.AmisAPI(
-                            method="POST", url=f"{self.router_path}{self.form_path}" + "?item_id=${IF(ids, ids, id)}"
-                        ),
-                        body=[
-                            {
-                                "type": "matrix-checkboxes",
-                                "name": "matrix",
-                                "label": "字段权限配置",
-                                "rowLabel": "字段名称",
-                                "multiple": False,
-                                "singleSelectMode": "row",
-                                "yCheckAll": True,
-                                "source": f"{self.site.settings.site_path}/auth/admin_action_fields_options?"
-                                f"permission=$permission&item_id=$item_id&subject={self._subject}",
-                                # "id": "u:matrix-fields"
-                            }
-                        ],
-                    ),
-                ],
-            }
-        ]
-        return page
+    async def get_form(self, request: Request) -> amis.Form:
+        form = await super().get_form(request)
+        form.body = amis.Grid(columns=form.body)
+        return form
 
     async def handle(self, request: Request, item_id: List[str], data: BaseModel, **kwargs):
         print("handle", item_id, data)
+        subject = await self.get_subject_by_id(item_id[0])
+        await casbin_update_subject_field_permissions(self.site.auth.enforcer, subject=subject, field_matrix=data.field_matrix)
         return BaseApiOut(data="success")
 
 

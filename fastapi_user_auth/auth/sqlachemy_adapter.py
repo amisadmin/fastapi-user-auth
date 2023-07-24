@@ -1,3 +1,4 @@
+from operator import and_
 from typing import List, Optional, Tuple, Type, Union
 
 from casbin import Model, persist
@@ -143,6 +144,8 @@ class Adapter(BaseAdapter, UpdateAdapter):
         query: Delete = delete(self._db_class)
         query = query.filter(self._db_class.ptype == ptype)
         for i, v in enumerate(rule):  # pylint: disable=invalid-name
+            if not v:
+                continue
             query = query.filter(getattr(self._db_class, f"v{i}") == v)
         res = (await self.db.async_execute(query)).rowcount  # type: ignore
         await self.db.async_commit()
@@ -156,9 +159,10 @@ class Adapter(BaseAdapter, UpdateAdapter):
 
         query: Delete = delete(self._db_class)
         query = query.filter(self._db_class.ptype == ptype)
-        _rules = zip(*rules)
-        for i, rule in enumerate(_rules):
-            query = query.filter(or_(getattr(self._db_class, f"v{i}") == v for v in rule))
+        _rules = []
+        for i, rule in enumerate(zip(*rules)):
+            _rules.append(and_(getattr(self._db_class, f"v{i}") == v for v in rule if v))
+        query = query.filter(or_(*_rules))
         await self.db.async_execute(query)
         await self.db.async_commit()
 

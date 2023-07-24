@@ -22,20 +22,27 @@ def get_admin_action_options(
             continue
         item = {
             "label": admin.page_schema.label,
-            "value": casbin_permission_encode(admin.unique_id, "admin:page"),
+            "value": casbin_permission_encode(admin.unique_id, "admin:page", "page"),
             "sort": admin.page_schema.sort,
         }
         if isinstance(admin, BaseActionAdmin):
             item["children"] = []
             if isinstance(admin, ModelAdmin):
-                item["children"].append({"label": "查看列表", "value": casbin_permission_encode(admin.unique_id, "admin:list")})
+                item["children"].append(
+                    {"label": "查看列表", "value": casbin_permission_encode(admin.unique_id, "admin:list", "page")}
+                )
+                item["children"].append(
+                    {"label": "筛选列表", "value": casbin_permission_encode(admin.unique_id, "admin:filter", "page")}
+                )
             elif isinstance(admin, FormAdmin) and "submit" not in admin.registered_admin_actions:
-                item["children"].append({"label": "提交", "value": casbin_permission_encode(admin.unique_id, "admin:submit")})
+                item["children"].append(
+                    {"label": "提交", "value": casbin_permission_encode(admin.unique_id, "admin:submit", "page")}
+                )
             for admin_action in admin.registered_admin_actions.values():
                 item["children"].append(
                     {
                         "label": admin_action.label,
-                        "value": casbin_permission_encode(admin.unique_id, f"admin:{admin_action.name}"),
+                        "value": casbin_permission_encode(admin.unique_id, f"admin:{admin_action.name}", "page"),
                     }
                 )
         elif isinstance(admin, AdminGroup):
@@ -105,11 +112,11 @@ def casbin_permission_decode(permission: str) -> List[str]:
 
 async def casbin_get_subject_permissions(enforcer: Enforcer, subject: str, implicit: bool = False) -> List[str]:
     """根据指定subject主体获取casbin规则"""
-    # todo flag.不要获取字段权限
+    # todo flag.不要获取字段权限; 可能要排除deny权限
     if implicit:
         permissions = await enforcer.get_implicit_permissions_for_user(subject)
     else:
-        permissions = await enforcer.get_permissions_for_user(subject)
+        permissions = await enforcer.get_filtered_policy(0, subject, "", "", "page")
     return [casbin_permission_encode(*permission[1:]) for permission in permissions]
 
 
@@ -142,6 +149,29 @@ async def casbin_update_subject_permissions(enforcer: Enforcer, subject: str, pe
     if add_rules:
         await enforcer.add_policies(add_rules)
     return permissions
+
+
+async def casbin_update_subject_field_permissions(enforcer: Enforcer, *, subject: str, field_matrix: List[Dict[str, Any]]):
+    """更新casbin字段权限"""
+    # todo flag.不要获取字段权限
+    # [[{'label': '默认', 'rol': 'page:list:uid', 'col': 'default', 'checked': True}]]
+    if not field_matrix:
+        return
+    remove_, allow_, deny_ = field_matrix
+    # 删除旧的权限
+    remove_[0]["rol"]  # bfc1eec773c2b331#admin:list#page
+    v1, v2, v3 = casbin_permission_decode(remove_[0]["rol"])
+    await enforcer.remove_filtered_policy(0, subject, v1, v2)
+    allow_rules = {(subject, *casbin_permission_decode(item["rol"]), "allow") for item in allow_ if item["checked"]}
+    deny_rules = {(subject, *casbin_permission_decode(item["rol"]), "deny") for item in deny_ if item["checked"]}
+    print("rules", allow_rules, deny_rules)
+    add_rules = allow_rules | deny_rules
+    # if remove_rules:
+    #     # 删除旧的权限
+    #     await enforcer.remove_policies(remove_rules)
+    if add_rules:
+        await enforcer.add_policies(add_rules)
+    return None
 
 
 # 获取全部admin上下级关系

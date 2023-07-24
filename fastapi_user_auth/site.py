@@ -82,5 +82,5 @@ class AuthAdminSite(AdminSite):
         obj = obj or self
         subject = await self.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
         # todo admin: 改为 page:
-        effect = self.auth.enforcer.enforce("u:" + subject, obj.unique_id, "admin:" + action)
+        effect = self.auth.enforcer.enforce("u:" + subject, obj.unique_id, "admin:" + action, "page")
         return effect

@@ -130,7 +130,7 @@ class AuthModelAdmin(admin.ModelAdmin):
         # ("u:admin", "123456", "admin:page:list", "page")  # page 页面
         # ("u:admin", "123456", "admin:page:list:page", "field")  # page 字段
         # ("u:admin", "123456", "admin:page:list", "field:page")# page 字段
-        effect = self.auth.enforcer.enforce("u:" + subject, self.unique_id, "page:" + action + ":" + field)
+        effect = self.auth.enforcer.enforce("u:" + subject, self.unique_id, "page:" + action, "field:" + field)
         return effect
 
     async def get_exclude_fields(self, request: Request, action: str = None) -> Set[str]:
