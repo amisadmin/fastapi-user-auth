@@ -10,21 +10,6 @@ from pydantic import BaseModel
 from fastapi_user_auth.auth.schemas import SystemUserEnum
 
 
-def encode_admin_action(action: str) -> str:
-    """将admin_action转换为casbin权限动作,以符合预期的匹配规则
-    例如: 1.主体拥有admin:page:list权限,将同时拥有admin:page权限
-    2.主体拥有admin:page:list:filter:name权限,将同时拥有admin:page:list:filter,admin:page:list,admin:page权限
-    """
-    perfix = "admin:"
-    if action in {"page"}:  # admin:page
-        return perfix + action
-    perfix += "page:"
-    if action in {"list", "update", "bulk_update", "create", "bulk_create", "read", "submit"}:
-        return perfix + action  # admin:page:list;admin:page:submit
-    perfix += "action:"
-    return perfix + action  # admin:page:action:action_name
-
-
 @lru_cache()
 def get_admin_action_options(
     group: AdminGroup,
@@ -35,7 +20,6 @@ def get_admin_action_options(
         admin: PageSchemaAdmin
         if not admin.page_schema:
             continue
-
         item = {
             "label": admin.page_schema.label,
             "value": casbin_permission_encode(admin.unique_id, "admin:page"),
@@ -74,57 +58,16 @@ def filter_options(options: List[Dict[str, Any]], filter_func: Callable[[Dict[st
     return result
 
 
-def admin_schema_fields_rows(
-    admin: PageSchemaAdmin,
-    schema: Type[BaseModel],
-    action: str,
-) -> List[Dict[str, Any]]:
-    """解析schema字段,用于amis组件"""
-    rows = []
+def get_schema_fields_name_label(schema: Type[BaseModel], label_prefix: str = "") -> Dict[str, str]:
+    """获取schema字段名和标签"""
     if not schema:
-        return rows
+        return {}
+    fields = {}
     for field in model_fields(schema).values():
+        name = field.alias or field.name
         label = field.field_info.title or field.name
-        alias = field.alias or field.name
-        label_prefix = {
-            "list": "列表展示",
-            "filter": "列表筛选",
-            "update": "更新",
-            "bulk_update": "批量更新",
-            "create": "新增",
-            "bulk_create": "批量新增",
-            "read": "查看",
-        }.get(action, "")
-        label = f"{label_prefix}-{label}" if label_prefix else label
-        rows.append(
-            {
-                "label": label,
-                "rol": f"{action}:{alias}",
-            }
-        )
-    return rows
-
-
-def get_admin_action_fields_rows(
-    admin: PageSchemaAdmin,
-    action: str,
-) -> List[Dict[str, Any]]:
-    """获取指定页面权限的字段权限,用于amis组件"""
-    rows = []
-    if isinstance(admin, ModelAdmin):  # 模型管理
-        if action in {"list"}:
-            rows.extend(admin_schema_fields_rows(admin, admin.schema_list, "list"))  # 列表展示模型
-            rows.extend(admin_schema_fields_rows(admin, admin.schema_filter, "filter"))  # 列表筛选模型
-        elif action in {"update", "bulk_update"}:
-            rows = admin_schema_fields_rows(admin, admin.schema_update, action)  # 更新模型
-        elif action in {"create", "bulk_create"}:
-            rows = admin_schema_fields_rows(admin, admin.schema_create, action)  # 创建模型
-        elif action in {"read"}:
-            rows = admin_schema_fields_rows(admin, admin.schema_read, action)  # 详情模型
-    elif isinstance(admin, FormAdmin):  # 表单管理
-        if action in {"submit"}:  # 表单提交模型
-            rows = admin_schema_fields_rows(admin, admin.schema, action)
-    return rows
+        fields[name] = label_prefix + label
+    return fields
 
 
 async def get_admin_action_options_by_subject(
@@ -162,6 +105,7 @@ def casbin_permission_decode(permission: str) -> List[str]:
 
 async def casbin_get_subject_permissions(enforcer: Enforcer, subject: str, implicit: bool = False) -> List[str]:
     """根据指定subject主体获取casbin规则"""
+    # todo flag.不要获取字段权限
     if implicit:
         permissions = await enforcer.get_implicit_permissions_for_user(subject)
     else:
@@ -180,6 +124,8 @@ async def casbin_update_subject_roles(enforcer: Enforcer, subject: str, role_key
 
 async def casbin_update_subject_permissions(enforcer: Enforcer, subject: str, permissions: List[str]) -> List[str]:
     """根据指定subject主体更新casbin规则,会删除旧的规则,添加新的规则"""
+    # todo flag.不要获取字段权限
+    # old_rules = await enforcer.get_filtered_policy(0, user,'','','page')
     old_rules = await enforcer.get_permissions_for_user(subject)
     old_rules = {tuple(i) for i in old_rules}
     # 添加新的权限

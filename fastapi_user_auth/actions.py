@@ -1,8 +1,8 @@
-from typing import Any, List, Union
+from typing import Any, Dict, List, Union
 
 from casbin import Enforcer
 from fastapi_amis_admin import amis
-from fastapi_amis_admin.admin import ModelAction
+from fastapi_amis_admin.admin import FormAdmin, ModelAction, PageSchemaAdmin
 from fastapi_amis_admin.amis import SchemaNode
 from fastapi_amis_admin.amis.components import ActionType, FormItem, Page
 from fastapi_amis_admin.amis.constants import LevelEnum
@@ -17,12 +17,54 @@ from fastapi_user_auth.auth.crud import (
     casbin_get_permissions_by_user_id,
 )
 from fastapi_user_auth.auth.models import Role, User
+from fastapi_user_auth.mixins.admin import AuthModelAdmin
 from fastapi_user_auth.utils import (
     casbin_permission_encode,
     casbin_update_subject_permissions,
     casbin_update_subject_roles,
     get_admin_action_options_by_subject,
 )
+
+
+def get_admin_permission_fields_rows(
+    admin: PageSchemaAdmin,
+    action: str,
+) -> List[Dict[str, Any]]:
+    """获取指定页面权限的字段权限,用于amis组件"""
+    rows = []
+    fields = {}
+    if isinstance(admin, AuthModelAdmin):  # 模型管理
+        if action == "list":  # 列表展示模型
+            fields = admin.list_permission_fields
+        elif action == "create":  # 创建模型
+            fields = admin.create_permission_fields
+        elif action == "update":  # 更新模型
+            fields = admin.update_permission_fields
+        elif action == "read":  # 详情模型
+            fields = admin.read_permission_fields
+        else:
+            pass
+        for name, label in fields.items():
+            rows.append(
+                {
+                    "label": label,
+                    "rol": f"page:{action}:{name}",
+                }
+            )
+        # 列表筛选模型
+        if action == "list":
+            fields = admin.filter_permission_fields
+            for name, label in fields.items():
+                rows.append(
+                    {
+                        "label": label,
+                        "rol": f"page:filter:{name}",
+                    }
+                )
+
+    elif isinstance(admin, FormAdmin):  # todo 表单管理
+        pass
+    return rows
 
 
 class CasbinBaseSubAction(ModelAction):
@@ -265,6 +307,9 @@ class CasbinUpdateSubFieldPermAction(CasbinBaseSubPermAction):
                         debug=True,
                         name="matrix-form",
                         id="u:matrix-form",
+                        api=amis.AmisAPI(
+                            method="POST", url=f"{self.router_path}{self.form_path}" + "?item_id=${IF(ids, ids, id)}"
+                        ),
                         body=[
                             {
                                 "type": "matrix-checkboxes",
@@ -284,6 +329,10 @@ class CasbinUpdateSubFieldPermAction(CasbinBaseSubPermAction):
             }
         ]
         return page
+
+    async def handle(self, request: Request, item_id: List[str], data: BaseModel, **kwargs):
+        print("handle", item_id, data)
+        return BaseApiOut(data="success")
 
 
 class CasbinUpdateSubPermsAction(CasbinViewSubPermAction):

@@ -8,6 +8,7 @@ from fastapi_amis_admin.utils.pydantic import create_model_by_model
 from fastapi_amis_admin.utils.translation import i18n as _
 from starlette.requests import Request
 
+from fastapi_user_auth.actions import get_admin_permission_fields_rows
 from fastapi_user_auth.admin import LoginHistoryAdmin
 from fastapi_user_auth.admin import RoleAdmin as DefaultRoleAdmin
 from fastapi_user_auth.admin import UserAdmin as DefaultUserAdmin
@@ -15,7 +16,7 @@ from fastapi_user_auth.admin import UserInfoFormAdmin as DefaultUserInfoFormAdmi
 from fastapi_user_auth.admin import UserLoginFormAdmin as DefaultUserLoginFormAdmin
 from fastapi_user_auth.admin import UserRegFormAdmin as DefaultUserRegFormAdmin
 from fastapi_user_auth.auth import AuthRouter
-from fastapi_user_auth.utils import casbin_permission_decode, get_admin_action_fields_rows, get_admin_action_options_by_subject
+from fastapi_user_auth.utils import casbin_permission_decode, get_admin_action_options_by_subject
 
 
 class UserAuthApp(AdminApp, AuthRouter):
@@ -100,7 +101,7 @@ class UserAuthApp(AdminApp, AuthRouter):
             if not admin:
                 return out
             action = action.replace("admin:", "")
-            out.data["rows"] = get_admin_action_fields_rows(admin, action)
+            out.data["rows"] = get_admin_permission_fields_rows(admin, action)
             return out
 
         return router

@@ -28,6 +28,7 @@ from starlette.responses import Response
 from starlette.routing import NoMatchFound
 
 from fastapi_user_auth.actions import (
+    CasbinUpdateSubFieldPermAction,
     CasbinUpdateSubPermsAction,
     CasbinUpdateSubRolesAction,
     CasbinViewSubPermAction,
@@ -44,6 +45,7 @@ from fastapi_user_auth.auth.models import (
 )
 from fastapi_user_auth.auth.schemas import SystemUserEnum, UserLoginOut
 from fastapi_user_auth.mixins.admin import (
+    AuthModelAdmin,
     AutoTimeModelAdmin,
     FootableModelAdmin,
     ReadOnlyModelAdmin,
@@ -250,7 +252,7 @@ class UserInfoFormAdmin(FormAdmin):
         return await self.site.auth.requires(response=False)(request)
 
 
-class UserAdmin(SoftDeleteModelAdmin, FootableModelAdmin):
+class UserAdmin(AuthModelAdmin, SoftDeleteModelAdmin, FootableModelAdmin):
     page_schema = PageSchema(label=_("User"), icon="fa fa-user")
     model: Type[BaseUser] = None
     exclude = ["password"]
@@ -270,6 +272,11 @@ class UserAdmin(SoftDeleteModelAdmin, FootableModelAdmin):
         ),
         lambda admin: CasbinUpdateSubRolesAction(
             admin=admin, name="update_subject_roles", label="更新用户角色", icon="fa fa-user", flags="item"
+        ),
+        lambda admin: CasbinUpdateSubFieldPermAction(
+            admin=admin,
+            name="update_subject_field_permissions",
+            tooltip="设置用户字段权限",
         ),
     ]
 
@@ -318,11 +325,11 @@ class RoleAdmin(AutoTimeModelAdmin, FootableModelAdmin):
             name="update_subject_permissions",
             tooltip="设置角色页面权限",
         ),
-        # lambda admin: CasbinUpdateSubFieldPermAction(
-        #     admin=admin,
-        #     name="update_subject_field_permissions",
-        #     tooltip="设置角色字段权限",
-        # ),
+        lambda admin: CasbinUpdateSubFieldPermAction(
+            admin=admin,
+            name="update_subject_field_permissions",
+            tooltip="设置角色字段权限",
+        ),
         lambda admin: CasbinUpdateSubRolesAction(
             admin=admin, name="update_subject_roles", label="设置子角色", icon="fa fa-user", flags="item"
         ),
