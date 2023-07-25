@@ -264,7 +264,7 @@ class UserAdmin(AuthModelAdmin, SoftDeleteModelAdmin, FootableModelAdmin):
             admin=admin,
             name="view_subject_permissions",
             tooltip="查看用户页面权限",
-        ),
+        ),  # todo 可以被CasbinUpdateSubFieldPermAction替代
         lambda admin: CasbinUpdateSubPermsAction(
             admin=admin,
             name="update_subject_permissions",

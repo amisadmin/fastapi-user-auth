@@ -1,4 +1,3 @@
-from operator import and_
 from typing import List, Optional, Tuple, Type, Union
 
 from casbin import Model, persist
@@ -7,7 +6,7 @@ from casbin.persist.adapters.update_adapter import UpdateAdapter
 from sqlalchemy import insert
 from sqlalchemy.sql.dml import Delete
 from sqlalchemy_database import AsyncDatabase, Database
-from sqlmodel import SQLModel, delete, or_, select
+from sqlmodel import SQLModel, and_, delete, or_, select
 from sqlmodel.sql.expression import SelectOfScalar
 
 
@@ -153,15 +152,16 @@ class Adapter(BaseAdapter, UpdateAdapter):
 
     async def remove_policies(self, sec: str, ptype: str, rules: Tuple[Tuple[str]]) -> None:
         """remove policy rules from the storage."""
-
         if not rules:  # pragma: no cover
             return
-
+        if len(rules) == 1:
+            await self.remove_policy(sec, ptype, rules[0])
+            return
         query: Delete = delete(self._db_class)
         query = query.filter(self._db_class.ptype == ptype)
         _rules = []
-        for i, rule in enumerate(zip(*rules)):
-            _rules.append(and_(getattr(self._db_class, f"v{i}") == v for v in rule if v))
+        for rule in rules:
+            _rules.append(and_(*(getattr(self._db_class, f"v{i+1}") == v for i, v in enumerate(rule) if v)))
         query = query.filter(or_(*_rules))
         await self.db.async_execute(query)
         await self.db.async_commit()

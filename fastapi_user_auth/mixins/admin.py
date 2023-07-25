@@ -124,12 +124,7 @@ class AuthModelAdmin(admin.ModelAdmin):
 
     async def has_field_permission(self, request: Request, field: str, action: str = None) -> bool:
         """判断用户是否有字段权限"""
-        print("has_field_permission", self.unique_id, field, action)
-        return True
         subject = await self.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
-        # ("u:admin", "123456", "admin:page:list", "page")  # page 页面
-        # ("u:admin", "123456", "admin:page:list:page", "field")  # page 字段
-        # ("u:admin", "123456", "admin:page:list", "field:page")# page 字段
         effect = self.auth.enforcer.enforce("u:" + subject, self.unique_id, "page:" + action, "field:" + field)
         return effect
 

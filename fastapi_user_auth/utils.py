@@ -1,3 +1,4 @@
+from copy import copy
 from functools import lru_cache
 from typing import Any, Callable, Dict, List, Tuple, Type
 
@@ -10,7 +11,7 @@ from pydantic import BaseModel
 from fastapi_user_auth.auth.schemas import SystemUserEnum
 
 
-@lru_cache()
+@lru_cache()  # todo 缓存可能被修改
 def get_admin_action_options(
     group: AdminGroup,
 ) -> List[Dict[str, Any]]:
@@ -59,6 +60,7 @@ def filter_options(options: List[Dict[str, Any]], filter_func: Callable[[Dict[st
     for option in options:
         if not filter_func(option):
             continue
+        option = copy(option)  # 防止children被修改
         if option.get("children"):
             option["children"] = filter_options(option["children"], filter_func)
         result.append(option)
@@ -115,6 +117,7 @@ async def casbin_get_subject_permissions(enforcer: Enforcer, subject: str, impli
     # todo flag.不要获取字段权限; 可能要排除deny权限
     if implicit:
         permissions = await enforcer.get_implicit_permissions_for_user(subject)
+        permissions = [perm for perm in permissions if perm[-2] == "page"]  # 只获取page权限
     else:
         permissions = await enforcer.get_filtered_policy(0, subject, "", "", "page")
     return [casbin_permission_encode(*permission[1:]) for permission in permissions]
@@ -131,40 +134,66 @@ async def casbin_update_subject_roles(enforcer: Enforcer, subject: str, role_key
 
 async def casbin_update_subject_permissions(enforcer: Enforcer, subject: str, permissions: List[str]) -> List[str]:
     """根据指定subject主体更新casbin规则,会删除旧的规则,添加新的规则"""
-    # todo flag.不要获取字段权限
-    # old_rules = await enforcer.get_filtered_policy(0, user,'','','page')
-    old_rules = await enforcer.get_permissions_for_user(subject)
+    old_rules = await enforcer.get_filtered_policy(0, subject, "", "", "page")
     old_rules = {tuple(i) for i in old_rules}
+    # old_rules = await enforcer.get_permissions_for_user(subject)
     # 添加新的权限
     new_rules = set()
     for permission in permissions:
         perm = casbin_permission_decode(permission)
-        new_rules.add((subject, *perm))
-
+        new_rules.add((subject, *perm, "allow"))
     remove_rules = old_rules - new_rules
     add_rules = new_rules - old_rules
     if remove_rules:
         # 删除旧的权限
-        await enforcer.remove_policies(remove_rules)
+        # 注意casbin缓存的是list,不能是tuple,否则无法删除.
+        # 可能存在不存在的rule,导致批量删除失败. 例如站点页面
+        # todo 这个api有bug, 更换其他api
+        await enforcer.remove_policies([list(rule) for rule in remove_rules])
     if add_rules:
         await enforcer.add_policies(add_rules)
     return permissions
 
 
-async def casbin_update_subject_field_permissions(enforcer: Enforcer, *, subject: str, field_matrix: List[Dict[str, Any]]):
+def casbin_get_subject_field_matrix(
+    enforcer: Enforcer,
+    *,
+    subject: str,
+    rows: List[Dict[str, Any]],
+):
+    default_, allow_, deny_ = [], [], []
+    for row in rows:
+        v1, v2, v3 = casbin_permission_decode(row["rol"])
+        eff = enforcer.enforce(subject, v1, v2, v3)
+        checked = {"checked": True, **row}
+        unchecked = {"checked": False, **row}
+        if eff:
+            allow_.append(checked)
+            deny_.append(unchecked)
+        else:
+            allow_.append(unchecked)
+            deny_.append(checked)
+    return [default_, allow_, deny_]
+
+
+async def casbin_update_subject_field_permissions(
+    enforcer: Enforcer,
+    *,
+    subject: str,
+    permission: str,
+    field_matrix: List[Dict[str, Any]],
+):
     """更新casbin字段权限"""
-    # todo flag.不要获取字段权限
     # [[{'label': '默认', 'rol': 'page:list:uid', 'col': 'default', 'checked': True}]]
     if not field_matrix:
         return
     remove_, allow_, deny_ = field_matrix
     # 删除旧的权限
-    remove_[0]["rol"]  # bfc1eec773c2b331#admin:list#page
-    v1, v2, v3 = casbin_permission_decode(remove_[0]["rol"])
-    await enforcer.remove_filtered_policy(0, subject, v1, v2)
+    # bfc1eec773c2b331#admin:list#page
+    v1, v2, v3 = casbin_permission_decode(permission)
+    await enforcer.remove_filtered_policy(0, subject, v1, v2.replace("admin:", "page:"), "", "")
     allow_rules = {(subject, *casbin_permission_decode(item["rol"]), "allow") for item in allow_ if item["checked"]}
     deny_rules = {(subject, *casbin_permission_decode(item["rol"]), "deny") for item in deny_ if item["checked"]}
-    print("rules", allow_rules, deny_rules)
     add_rules = allow_rules | deny_rules
     # if remove_rules:
     #     # 删除旧的权限
