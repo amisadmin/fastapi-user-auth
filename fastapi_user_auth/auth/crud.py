@@ -1,6 +1,6 @@
 from typing import List, Union
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.sql.selectable import ScalarSelect
 from sqlalchemy_database import AsyncDatabase, Database
 
@@ -27,3 +27,21 @@ async def casbin_get_permissions_by_user_id(auth: Auth, user_id: str, implicit: 
     """根据用户id获取casbin规则,是否包含隐式权限"""
     username = await auth.db.async_scalar(select(User.username).where(User.id == user_id))
     return await casbin_get_subject_permissions(auth.enforcer, "u:" + username, implicit=implicit)
+
+
+async def casbin_delete_duplicate_rule(auth: Auth):
+    """删除重复的casbin规则,只保留一条"""
+    stmt = text(
+        f"""DELETE FROM {CasbinRule.__tablename__}
+            WHERE id NOT IN (
+                SELECT id
+                FROM (
+                    SELECT MIN(id) AS id
+                    FROM {CasbinRule.__tablename__}
+                    GROUP BY ptype, v0, v1, v2, v3, v4, v5
+                ) AS unique_rule_id
+            );
+        """
+    )
+    await auth.db.async_execute(stmt)
+    await auth.db.async_commit()
