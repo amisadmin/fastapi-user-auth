@@ -81,6 +81,7 @@ class AuthAdminSite(AdminSite):
     async def has_page_permission(self, request: Request, obj: PageSchemaAdmin = None, action: str = None) -> bool:
         obj = obj or self
         subject = await self.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
-        # todo admin: 改为 page:
-        effect = self.auth.enforcer.enforce("u:" + subject, obj.unique_id, "admin:" + action, "page")
+        if action != "page":
+            action = "page:" + action
+        effect = self.auth.enforcer.enforce("u:" + subject, obj.unique_id, action, "page")
         return effect

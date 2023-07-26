@@ -115,7 +115,7 @@ class Auth(Generic[UserModelT]):
             request.scope["user_identity"] = token_info.username if token_info else ""
         return request.scope["user_identity"]
 
-    async def has_role_for_user(self, identity: str, roles: Union[str, Sequence[str]]) -> bool:
+    async def has_role_for_user(self, identity: str, roles: Union[str, Sequence[str]], is_any: bool = True) -> bool:
         identity = "u:" + identity
         if isinstance(roles, str):
             roles = [roles]
@@ -124,13 +124,17 @@ class Auth(Generic[UserModelT]):
         for role in roles:
             if not role:
                 continue
-            if await self.enforcer.has_role_for_user(identity, "r:" + role):
+            ret = await self.enforcer.has_role_for_user(identity, "r:" + role)
+            if is_any and ret:
                 return True
-        return False
+            elif not is_any and not ret:
+                return False
+        return not is_any
 
     async def has_role(self, request: Request, *, roles: Union[str, Sequence[str]]) -> bool:
+        """判断当前用户是否拥有指定角色,拥有任意一个角色即返回True"""
         identity = await self.get_current_user_identity(request)
-        return await self.has_role_for_user(identity, roles)
+        return await self.has_role_for_user(identity, roles, is_any=True)
 
     async def get_current_user(self, request: Request) -> Optional[UserModelT]:
         if "user" in request.scope:  # 防止重复授权
@@ -149,7 +153,7 @@ class Auth(Generic[UserModelT]):
         # todo 优化
         roles_ = (roles,) if not roles or isinstance(roles, str) else tuple(roles)
 
-        async def has_requires(user: UserModelT) -> bool:  # todo 优化
+        async def has_requires(user: UserModelT) -> bool:
             if not user:
                 return False
             if roles_ == (None,):
@@ -260,7 +264,7 @@ class Auth(Generic[UserModelT]):
         if commit:
             await self.db.async_commit()
         # Update casbin role
-        await casbin_update_subject_roles(self.enforcer, "u:" + role_key, role_key)
+        await casbin_update_subject_roles(self.enforcer, "u:" + role_key, ["r:" + role_key])
         return user
 
     async def request_login(self, request: Request, response: Response, username: str, password: str) -> BaseApiOut[UserLoginOut]:

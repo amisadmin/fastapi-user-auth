@@ -31,7 +31,6 @@ from fastapi_user_auth.actions import (
     CasbinUpdateSubFieldPermAction,
     CasbinUpdateSubPermsAction,
     CasbinUpdateSubRolesAction,
-    CasbinViewSubPermAction,
 )
 from fastapi_user_auth.auth import Auth
 from fastapi_user_auth.auth.models import (
@@ -260,26 +259,20 @@ class UserAdmin(AuthModelAdmin, SoftDeleteModelAdmin, FootableModelAdmin):
     search_fields = [User.username, UserRoleNameLabel]
     display_item_action_as_column = True
     admin_action_maker = [
-        lambda admin: CasbinViewSubPermAction(
-            admin=admin,
-            name="view_subject_permissions",
-            tooltip="查看用户页面权限",
-        ),  # todo 可以被CasbinUpdateSubFieldPermAction替代
         lambda admin: CasbinUpdateSubPermsAction(
             admin=admin,
             name="update_subject_permissions",
-            tooltip="设置用户页面权限",
-        ),
-        lambda admin: CasbinUpdateSubRolesAction(
-            admin=admin, name="update_subject_roles", label="更新用户角色", icon="fa fa-user", flags="item"
+            tooltip="更新用户页面权限",
         ),
         lambda admin: CasbinUpdateSubFieldPermAction(
             admin=admin,
             name="update_subject_field_permissions",
-            tooltip="设置用户字段权限",
+            tooltip="更新用户字段权限",
+        ),
+        lambda admin: CasbinUpdateSubRolesAction(
+            admin=admin, name="update_subject_roles", tooltip="更新用户角色", icon="fa fa-user", flags="item"
         ),
     ]
-
     list_display = [
         User.id,
         User.username,
@@ -289,6 +282,16 @@ class UserAdmin(AuthModelAdmin, SoftDeleteModelAdmin, FootableModelAdmin):
         UserRoleNameLabel,
         User.create_time,
     ]
+    permission_exclude = {
+        "all": [
+            "id",
+            "username",
+            "nickname",
+            "avatar",
+            "is_active",
+            "create_time",
+        ],
+    }
 
     async def get_select(self, request: Request) -> Select:
         sel = await super().get_select(request)
@@ -315,23 +318,18 @@ class RoleAdmin(AutoTimeModelAdmin, FootableModelAdmin):
     update_exclude = AutoTimeModelAdmin.update_exclude | {"key"}
     display_item_action_as_column = True
     admin_action_maker = [
-        lambda admin: CasbinViewSubPermAction(
-            admin=admin,
-            name="view_subject_permissions",
-            tooltip="查看角色权限",
-        ),
         lambda admin: CasbinUpdateSubPermsAction(
             admin=admin,
             name="update_subject_permissions",
-            tooltip="设置角色页面权限",
+            tooltip="更新角色页面权限",
         ),
         lambda admin: CasbinUpdateSubFieldPermAction(
             admin=admin,
             name="update_subject_field_permissions",
-            tooltip="设置角色字段权限",
+            tooltip="更新角色字段权限",
         ),
         lambda admin: CasbinUpdateSubRolesAction(
-            admin=admin, name="update_subject_roles", label="设置子角色", icon="fa fa-user", flags="item"
+            admin=admin, name="update_subject_roles", tooltip="更新子角色", icon="fa fa-user", flags="item"
         ),
     ]
 

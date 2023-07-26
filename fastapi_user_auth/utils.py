@@ -1,6 +1,6 @@
 from copy import copy
 from functools import lru_cache
-from typing import Any, Callable, Dict, List, Tuple, Type
+from typing import Any, Callable, Dict, List, Sequence, Tuple, Type
 
 from casbin import Enforcer
 from fastapi_amis_admin.admin import FormAdmin, ModelAdmin, PageSchemaAdmin
@@ -23,27 +23,28 @@ def get_admin_action_options(
             continue
         item = {
             "label": admin.page_schema.label,
-            "value": casbin_permission_encode(admin.unique_id, "admin:page", "page"),
+            "value": casbin_permission_encode(admin.unique_id, "page", "page"),
             "sort": admin.page_schema.sort,
         }
         if isinstance(admin, BaseActionAdmin):
             item["children"] = []
             if isinstance(admin, ModelAdmin):
                 item["children"].append(
-                    {"label": "查看列表", "value": casbin_permission_encode(admin.unique_id, "admin:list", "page")}
+                    {"label": "查看列表", "value": casbin_permission_encode(admin.unique_id, "page:list", "page")}
                 )
                 item["children"].append(
-                    {"label": "筛选列表", "value": casbin_permission_encode(admin.unique_id, "admin:filter", "page")}
+                    {"label": "筛选列表", "value": casbin_permission_encode(admin.unique_id, "page:filter", "page")}
                 )
             elif isinstance(admin, FormAdmin) and "submit" not in admin.registered_admin_actions:
                 item["children"].append(
-                    {"label": "提交", "value": casbin_permission_encode(admin.unique_id, "admin:submit", "page")}
+                    {"label": "提交", "value": casbin_permission_encode(admin.unique_id, "page:submit", "page")}
                 )
             for admin_action in admin.registered_admin_actions.values():
+                # todo admin_action 下可能有多个action,需要遍历
                 item["children"].append(
                     {
                         "label": admin_action.label,
-                        "value": casbin_permission_encode(admin.unique_id, f"admin:{admin_action.name}", "page"),
+                        "value": casbin_permission_encode(admin.unique_id, f"page:{admin_action.name}", "page"),
                     }
                 )
         elif isinstance(admin, AdminGroup):
@@ -67,15 +68,25 @@ def filter_options(options: List[Dict[str, Any]], filter_func: Callable[[Dict[st
     return result
 
 
-def get_schema_fields_name_label(schema: Type[BaseModel], label_prefix: str = "") -> Dict[str, str]:
+def get_schema_fields_name_label(
+    schema: Type[BaseModel],
+    *,
+    prefix: str = "",
+    exclude_required: bool = False,
+    exclude: Sequence[str] = None,
+) -> Dict[str, str]:
     """获取schema字段名和标签"""
     if not schema:
         return {}
     fields = {}
     for field in model_fields(schema).values():
+        if exclude_required and field.required:
+            continue
         name = field.alias or field.name
+        if exclude and name in exclude:
+            continue
         label = field.field_info.title or field.name
-        fields[name] = label_prefix + label
+        fields[name] = prefix + label
     return fields
 
 
@@ -114,7 +125,6 @@ def casbin_permission_decode(permission: str) -> List[str]:
 
 async def casbin_get_subject_permissions(enforcer: Enforcer, subject: str, implicit: bool = False) -> List[str]:
     """根据指定subject主体获取casbin规则"""
-    # todo flag.不要获取字段权限; 可能要排除deny权限
     if implicit:
         permissions = await enforcer.get_implicit_permissions_for_user(subject)
         permissions = [perm for perm in permissions if perm[-2] == "page"]  # 只获取page权限
@@ -123,10 +133,10 @@ async def casbin_get_subject_permissions(enforcer: Enforcer, subject: str, impli
     return [casbin_permission_encode(*permission[1:]) for permission in permissions]
 
 
-async def casbin_update_subject_roles(enforcer: Enforcer, subject: str, role_keys: str = None):
+async def casbin_update_subject_roles(enforcer: Enforcer, subject: str, role_keys: List[str]):
     """更新casbin主体权限角色"""
     # todo 避免角色链循环
-    new_roles = {(subject, f"r:{role}") for role in role_keys.split(",") if role and f"r:{role}" != subject}
+    new_roles = {(subject, role) for role in role_keys if role and role != subject}
     await enforcer.delete_roles_for_user(subject)
     if new_roles:
         await enforcer.add_grouping_policies(new_roles)
@@ -153,6 +163,7 @@ async def casbin_update_subject_permissions(
         # 删除旧的权限
         # 注意casbin缓存的是list,不能是tuple,否则无法删除.
         # 可能存在不存在的rule,导致批量删除失败. 例如站点页面
+        # 如果存在重复的rule,则会导致批量删除失败.
         # todo 这个api有bug, 更换其他api
         await enforcer.remove_policies([list(rule) for rule in remove_rules])
     if add_rules:
@@ -169,16 +180,14 @@ async def casbin_get_subject_field_policy_matrix(
 ):
     """体字段权限配置,存在allow,deny,default(未设置)"""
     default_, allow_, deny_ = [], [], []
-    # bfc1eec773c2b331#admin:list#page
+    # bfc1eec773c2b331#page:list#page
     v1, v2, v3 = casbin_permission_decode(permission)
-    v2 = v2.replace("admin:", "page:")  # 兼容旧的数据,后面可以删除
-    rules = await enforcer.get_filtered_policy(0, subject, v1, v2, "", "")
+    rules = await enforcer.get_filtered_policy(0, subject, v1, "", v2, "")
     allow_rule = set()
     deny_rule = set()
     for rule in rules:
         effect = rule[-1]
         perm = casbin_permission_encode(*rule[1:-1])
-        print("rule", rule, effect, perm)
         if effect == "allow":
             allow_rule.add(perm)
         else:
@@ -225,26 +234,40 @@ async def casbin_update_subject_field_permissions(
     subject: str,
     permission: str,
     field_policy_matrix: List[Dict[str, Any]],
-):
+    super_subject: str = "u:root",
+) -> str:
     """更新casbin字段权限"""
     # [[{'label': '默认', 'rol': 'page:list:uid', 'col': 'default', 'checked': True}]]
     if not field_policy_matrix:
-        return
+        return "success"
     remove_, allow_, deny_ = field_policy_matrix
     # 删除旧的权限
-    # bfc1eec773c2b331#admin:list#page
+    # bfc1eec773c2b331#page:list#page
     v1, v2, v3 = casbin_permission_decode(permission)
-    v2 = v2.replace("admin:", "page:")  # 兼容旧的数据,后面可以删除
-    await enforcer.remove_filtered_policy(0, subject, v1, v2, "", "")  # todo 可能会删除page权限
-    allow_rules = {(subject, *casbin_permission_decode(item["rol"]), "allow") for item in allow_ if item["checked"]}
-    deny_rules = {(subject, *casbin_permission_decode(item["rol"]), "deny") for item in deny_ if item["checked"]}
+    if super_subject != "u:" + SystemUserEnum.ROOT:
+        #  检查当前用户是否有对应的权限,只有自己拥有的权限才能分配给其他主体
+        eff = enforcer.enforce(super_subject, v1, v2, v3)
+        if not eff:
+            return "没有更新权限"
+
+    def item_check(item: dict):
+        if not item["checked"]:
+            return False
+        if super_subject == "u:" + SystemUserEnum.ROOT:
+            return True
+        return enforcer.enforce(super_subject, *casbin_permission_decode(item["rol"]))
+
+    allow_rules = {(subject, *casbin_permission_decode(item["rol"]), "allow") for item in allow_ if item_check(item)}
+    deny_rules = {(subject, *casbin_permission_decode(item["rol"]), "deny") for item in deny_ if item_check(item)}
     add_rules = allow_rules | deny_rules
+    # 删除旧的权限.注意必须在添加新的权限之前删除旧的权限,否则会导致重复的权限
+    await enforcer.remove_filtered_policy(0, subject, v1, "", v2, "")
     # if remove_rules:
-    #     # 删除旧的权限
+    #
     #     await enforcer.remove_policies(remove_rules)
     if add_rules:
         await enforcer.add_policies(add_rules)
-    return None
+    return "success"
 
 
 # 获取全部admin上下级关系

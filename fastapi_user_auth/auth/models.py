@@ -58,7 +58,7 @@ class Role(PkMixin, CUDTimeMixin, table=True):
 
 
 class CasbinRule(PkMixin, table=True):  # type: ignore
-    __tablename__ = "casbin_rule"
+    __tablename__ = "auth_casbin_rule"
 
     ptype: str = Field(title="Policy Type")
     v0: str = Field(title="Subject")
@@ -84,9 +84,9 @@ class CasbinRule(PkMixin, table=True):  # type: ignore
 """
 SELECT v0, GROUP_CONCAT(t.name) as roles, GROUP_CONCAT(t.key) as role_keys
 FROM (select v0, auth_role.name, auth_role.key
-      from casbin_rule
+      from auth_casbin_rule
                left join auth_role on casbin_rule.v1 = concat('r:', auth_role.key)
-      where casbin_rule.ptype = 'g') as t
+      where auth_casbin_rule.ptype = 'g') as t
 GROUP BY v0;
 """
 # casbin主体拥有的角色列表,使用','分隔.

@@ -18,6 +18,7 @@ from fastapi_user_auth.auth.crud import (
     casbin_get_permissions_by_user_id,
 )
 from fastapi_user_auth.auth.models import Role, User
+from fastapi_user_auth.auth.schemas import SystemUserEnum
 from fastapi_user_auth.mixins.admin import AuthModelAdmin
 from fastapi_user_auth.utils import (
     casbin_get_subject_field_effect_matrix,
@@ -55,7 +56,7 @@ def get_admin_permission_fields_rows(
             rows.append(
                 {
                     "label": label,
-                    "rol": f"{admin.unique_id}#page:{action}#field:{name}",
+                    "rol": f"{admin.unique_id}#page:{action}:{name}#page:{action}",
                 }
             )
     elif isinstance(admin, FormAdmin):  # todo 表单管理
@@ -139,16 +140,23 @@ class CasbinUpdateSubRolesAction(CasbinBaseSubAction):
         role_keys = await self.site.auth.enforcer.get_implicit_roles_for_user(subject)
         return BaseApiOut(data=self.schema(role_keys=",".join(role_keys).replace("r:", "")))
 
-    async def handle(self, request: Request, item_id: List[str], data: BaseModel, **kwargs):
+    async def handle(self, request: Request, item_id: List[str], data: schema, **kwargs):
         """更新角色Casbin权限"""
         subject = await self.get_subject_by_id(item_id[0])
         if not subject:
             return BaseApiOut(status=0, msg="暂不支持的模型")
-        # 更新角色列表
+        identity = await self.site.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
+        if subject == "u:" + identity:
+            return BaseApiOut(status=0, msg="不能修改自己的权限")
         enforcer: Enforcer = self.site.auth.enforcer
-        await casbin_update_subject_roles(enforcer, subject, data.role_keys)  # 更新角色权限
-        # 返回动作处理结果
-        return BaseApiOut(data="success")
+        role_keys = [f"r:{role}" for role in data.role_keys.split(",") if role]
+        if role_keys and identity != SystemUserEnum.ROOT:
+            # 检查当前用户是否有对应的角色,只有自己拥有的角色才能分配给其他主体
+            user_role_keys = await self.site.auth.enforcer.get_implicit_roles_for_user("u:" + identity)
+            role_keys = [role for role in role_keys if role in user_role_keys]  # 过滤掉当前用户的角色
+        # 更新角色列表
+        await casbin_update_subject_roles(enforcer, subject, role_keys)  # 更新角色权限
+        return BaseApiOut(msg="success")
 
 
 class CasbinBaseSubPermAction(CasbinBaseSubAction):
@@ -236,7 +244,6 @@ class CasbinViewSubPermAction(CasbinBaseSubPermAction):
             permissions = await casbin_get_permissions_by_user_id(self.site.auth, item_id, implicit=self._implicit)
         else:  # 其他管理
             permissions = []
-        # todo 只保留最后是allow的权限
         permissions = [perm.replace("#allow", "") for perm in permissions if perm.endswith("#allow")]
         return BaseApiOut(data=self.schema(permissions=",".join(permissions)))
 
@@ -252,7 +259,7 @@ class CasbinUpdateSubFieldPermAction(CasbinBaseSubPermAction):
     action = ActionType.Dialog(
         name="update_subject_field_permissions",
         icon="fa fa-gavel",
-        tooltip="设置字段权限",
+        tooltip="更新字段权限",
         dialog=amis.Dialog(actions=[amis.Action(actionType="submit", label="保存", close=False, primary=True)]),
         level=LevelEnum.warning,
     )
@@ -340,7 +347,7 @@ class CasbinUpdateSubFieldPermAction(CasbinBaseSubPermAction):
             admin, parent = self.site.get_page_schema_child(unique_id)
             if not admin:
                 return out
-            action = action.replace("admin:", "")
+            action = action.replace("page:", "")
             rows = get_admin_permission_fields_rows(admin, action)
             out.data["rows"] = rows
             if not item_id:
@@ -368,10 +375,17 @@ class CasbinUpdateSubFieldPermAction(CasbinBaseSubPermAction):
 
     async def handle(self, request: Request, item_id: List[str], data: BaseModel, **kwargs):
         subject = await self.get_subject_by_id(item_id[0])
-        await casbin_update_subject_field_permissions(
-            self.site.auth.enforcer, subject=subject, permission=data.permissions, field_policy_matrix=data.field_policy_matrix
+        identity = await self.site.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
+        if subject == "u:" + identity:
+            return BaseApiOut(status=0, msg="不能修改自己的权限")
+        msg = await casbin_update_subject_field_permissions(
+            self.site.auth.enforcer,
+            subject=subject,
+            permission=data.permissions,
+            field_policy_matrix=data.field_policy_matrix,
+            super_subject="u:" + identity,
         )
-        return BaseApiOut(data="success")
+        return BaseApiOut(msg=msg)
 
 
 class CasbinUpdateSubPermsAction(CasbinViewSubPermAction):
@@ -381,7 +395,7 @@ class CasbinUpdateSubPermsAction(CasbinViewSubPermAction):
     action = ActionType.Dialog(
         name="update_subject_permissions",
         icon="fa fa-gavel",
-        tooltip="设置页面权限",
+        tooltip="更新页面权限",
         dialog=amis.Dialog(),
         level=LevelEnum.warning,
     )
@@ -391,11 +405,14 @@ class CasbinUpdateSubPermsAction(CasbinViewSubPermAction):
         subject = await self.get_subject_by_id(item_id[0])
         if not subject:
             return BaseApiOut(status=0, msg="暂不支持的模型")
-        # 权限列表 #todo 可能添加了不存在的权限,或者超过了显示的权限范围
+        identity = await self.site.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
+        if subject == "u:" + identity:
+            return BaseApiOut(status=0, msg="不能修改自己的权限")
+        # 权限列表
         permissions = [rule for rule in data.permissions.split(",") if rule]  # 分割权限列表,去除空值
-        # site_rule = casbin_permission_encode(self.site.unique_id, "admin:page",'page')
-        # if permissions and site_rule not in permissions:  # 添加后台站点默认权限
-        #     permissions.append(site_rule)
         enforcer: Enforcer = self.site.auth.enforcer
+        if permissions and identity != SystemUserEnum.ROOT:
+            #  检查当前用户是否有对应的权限,只有自己拥有的权限才能分配给其他主体
+            permissions = [perm for perm in permissions if enforcer.enforce("u:" + identity, *casbin_permission_decode(perm))]
         await casbin_update_subject_permissions(enforcer, subject=subject, permissions=permissions)  # 更新角色权限
-        return BaseApiOut(data="success")
+        return BaseApiOut(msg="success")
