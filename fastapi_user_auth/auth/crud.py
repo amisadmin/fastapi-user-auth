@@ -6,7 +6,7 @@ from sqlalchemy_database import AsyncDatabase, Database
 
 from fastapi_user_auth.auth import Auth
 from fastapi_user_auth.auth.models import CasbinRule, Role, User
-from fastapi_user_auth.utils import casbin_get_subject_permissions, casbin_permission_encode
+from fastapi_user_auth.utils import casbin_get_subject_page_permissions, casbin_permission_encode
 
 
 async def casbin_get_subject_permissions_by_db(
@@ -20,13 +20,13 @@ async def casbin_get_subject_permissions_by_db(
 async def casbin_get_permissions_by_role_id(auth: Auth, role_id: str, implicit: bool = False) -> List[str]:
     """根据角色id获取casbin规则,是否包含隐式权限"""
     role_key = await auth.db.async_scalar(select(Role.key).where(Role.id == role_id))
-    return await casbin_get_subject_permissions(auth.enforcer, "r:" + role_key, implicit=implicit)
+    return await casbin_get_subject_page_permissions(auth.enforcer, subject="r:" + role_key, implicit=implicit)
 
 
 async def casbin_get_permissions_by_user_id(auth: Auth, user_id: str, implicit: bool = False) -> List[str]:
     """根据用户id获取casbin规则,是否包含隐式权限"""
     username = await auth.db.async_scalar(select(User.username).where(User.id == user_id))
-    return await casbin_get_subject_permissions(auth.enforcer, "u:" + username, implicit=implicit)
+    return await casbin_get_subject_page_permissions(auth.enforcer, subject="u:" + username, implicit=implicit)
 
 
 async def casbin_delete_duplicate_rule(auth: Auth):

@@ -264,7 +264,7 @@ class Auth(Generic[UserModelT]):
         if commit:
             await self.db.async_commit()
         # Update casbin role
-        await casbin_update_subject_roles(self.enforcer, "u:" + role_key, ["r:" + role_key])
+        await casbin_update_subject_roles(self.enforcer, subject="u:" + role_key, role_keys=["r:" + role_key])
         return user
 
     async def request_login(self, request: Request, response: Response, username: str, password: str) -> BaseApiOut[UserLoginOut]:
