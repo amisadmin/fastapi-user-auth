@@ -109,7 +109,7 @@ class CasbinUpdateSubRolesAction(CasbinBaseSubAction):
                 selectMode="table",
                 resultListModeFollowSelect=True,
                 columns=[
-                    {"name": "key", "label": "角色标识"},
+                    # {"name": "key", "label": "角色标识"},
                     {"name": "name", "label": "角色名称"},
                     {"name": "desc", "label": "角色描述"},
                     {"name": "role_names", "label": "子角色"},
