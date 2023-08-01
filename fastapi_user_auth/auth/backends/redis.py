@@ -1,7 +1,7 @@
 import secrets
 from typing import Optional, Union
 
-from aioredis import Redis
+from redis.asyncio import Redis
 
 from ..backends.base import BaseTokenStore, _TokenDataSchemaT
 

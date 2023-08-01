@@ -372,7 +372,7 @@ class CasbinRuleAdmin(ReadOnlyModelAdmin):
 
         @self.site.fastapi.on_event("startup")
         async def _load_policy():
-            await self.load_policy()
+            self.load_policy()
 
     @classmethod
     def bind(cls, app: AdminApp, enforcer: Enforcer = None) -> Enforcer:
@@ -380,15 +380,15 @@ class CasbinRuleAdmin(ReadOnlyModelAdmin):
         app.register_admin(cls)
         return cls.enforcer
 
-    async def load_policy(self):
-        await self.enforcer.load_policy()
+    def load_policy(self):
+        self.enforcer.load_policy()
         # 更新站点资源分组
-        await casbin_update_site_grouping(self.enforcer, self.site)
+        casbin_update_site_grouping(self.enforcer, self.site)
 
     def register_router(self):
         @self.router.get("/load_policy", response_model=BaseApiOut)
-        async def _load_policy():
-            await self.load_policy()
+        def _load_policy():
+            self.load_policy()
             get_admin_action_options.cache_clear()  # 清除系统菜单缓存
             return BaseApiOut(data="刷新成功")
 

@@ -137,7 +137,7 @@ class CasbinUpdateSubRolesAction(CasbinBaseSubAction):
         subject = await self.get_subject_by_id(item_id)
         if not subject:
             return BaseApiOut(status=0, msg="暂不支持的模型")
-        role_keys = await self.site.auth.enforcer.get_implicit_roles_for_user(subject)
+        role_keys = self.site.auth.enforcer.get_implicit_roles_for_user(subject)
         return BaseApiOut(data=self.schema(role_keys=",".join(role_keys).replace("r:", "")))
 
     async def handle(self, request: Request, item_id: List[str], data: schema, **kwargs):
@@ -152,10 +152,10 @@ class CasbinUpdateSubRolesAction(CasbinBaseSubAction):
         role_keys = [f"r:{role}" for role in data.role_keys.split(",") if role]
         if role_keys and identity != SystemUserEnum.ROOT:
             # 检查当前用户是否有对应的角色,只有自己拥有的角色才能分配给其他主体
-            user_role_keys = await self.site.auth.enforcer.get_implicit_roles_for_user("u:" + identity)
+            user_role_keys = self.site.auth.enforcer.get_implicit_roles_for_user("u:" + identity)
             role_keys = [role for role in role_keys if role in user_role_keys]  # 过滤掉当前用户的角色
         # 更新角色列表
-        await casbin_update_subject_roles(enforcer, subject, role_keys)  # 更新角色权限
+        casbin_update_subject_roles(enforcer, subject, role_keys)  # 更新角色权限
         return BaseApiOut(msg="success")
 
 
@@ -239,9 +239,9 @@ class CasbinViewSubPermAction(CasbinBaseSubPermAction):
         if not item_id:
             return BaseApiOut(data=self.schema())
         if self._subject == "r":  # 角色管理
-            permissions = await casbin_get_permissions_by_role_id(self.site.auth, item_id, implicit=self._implicit)
+            permissions = casbin_get_permissions_by_role_id(self.site.auth, item_id, implicit=self._implicit)
         elif self._subject == "u":  # 用户管理
-            permissions = await casbin_get_permissions_by_user_id(self.site.auth, item_id, implicit=self._implicit)
+            permissions = casbin_get_permissions_by_user_id(self.site.auth, item_id, implicit=self._implicit)
         else:  # 其他管理
             permissions = []
         permissions = [perm.replace("#allow", "") for perm in permissions if perm.endswith("#allow")]
@@ -357,7 +357,7 @@ class CasbinUpdateSubFieldPermAction(CasbinBaseSubPermAction):
             if type == "effect":
                 value = casbin_get_subject_field_effect_matrix(self.site.auth.enforcer, subject=subject, rows=rows)
             else:
-                value = await casbin_get_subject_field_policy_matrix(
+                value = casbin_get_subject_field_policy_matrix(
                     self.site.auth.enforcer,
                     subject=subject,
                     permission=permission,
@@ -378,7 +378,7 @@ class CasbinUpdateSubFieldPermAction(CasbinBaseSubPermAction):
         identity = await self.site.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
         if subject == "u:" + identity:
             return BaseApiOut(status=0, msg="不能修改自己的权限")
-        msg = await casbin_update_subject_field_permissions(
+        msg = casbin_update_subject_field_permissions(
             self.site.auth.enforcer,
             subject=subject,
             permission=data.permissions,
@@ -414,5 +414,5 @@ class CasbinUpdateSubPermsAction(CasbinViewSubPermAction):
         if permissions and identity != SystemUserEnum.ROOT:
             #  检查当前用户是否有对应的权限,只有自己拥有的权限才能分配给其他主体
             permissions = [perm for perm in permissions if enforcer.enforce("u:" + identity, *casbin_permission_decode(perm))]
-        await casbin_update_subject_permissions(enforcer, subject=subject, permissions=permissions)  # 更新角色权限
+        casbin_update_subject_permissions(enforcer, subject=subject, permissions=permissions)  # 更新角色权限
         return BaseApiOut(msg="success")

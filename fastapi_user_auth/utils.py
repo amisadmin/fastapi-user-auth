@@ -123,26 +123,26 @@ def casbin_permission_decode(permission: str) -> List[str]:
     return permission.strip("#").split("#")
 
 
-async def casbin_get_subject_permissions(enforcer: Enforcer, subject: str, implicit: bool = False) -> List[str]:
+def casbin_get_subject_permissions(enforcer: Enforcer, subject: str, implicit: bool = False) -> List[str]:
     """根据指定subject主体获取casbin规则"""
     if implicit:
-        permissions = await enforcer.get_implicit_permissions_for_user(subject)
+        permissions = enforcer.get_implicit_permissions_for_user(subject)
         permissions = [perm for perm in permissions if perm[-2] == "page"]  # 只获取page权限
     else:
-        permissions = await enforcer.get_filtered_policy(0, subject, "", "", "page")
+        permissions = enforcer.get_filtered_policy(0, subject, "", "", "page")
     return [casbin_permission_encode(*permission[1:]) for permission in permissions]
 
 
-async def casbin_update_subject_roles(enforcer: Enforcer, subject: str, role_keys: List[str]):
+def casbin_update_subject_roles(enforcer: Enforcer, subject: str, role_keys: List[str]):
     """更新casbin主体权限角色"""
     # todo 避免角色链循环
     new_roles = {(subject, role) for role in role_keys if role and role != subject}
-    await enforcer.delete_roles_for_user(subject)
+    enforcer.delete_roles_for_user(subject)
     if new_roles:
-        await enforcer.add_grouping_policies(new_roles)
+        enforcer.add_grouping_policies(new_roles)
 
 
-async def casbin_update_subject_permissions(
+def casbin_update_subject_permissions(
     enforcer: Enforcer,
     *,
     subject: str,
@@ -150,7 +150,7 @@ async def casbin_update_subject_permissions(
 ) -> List[str]:
     """根据指定subject主体更新casbin规则,会删除旧的规则,添加新的规则"""
     # 获取主体的页面权限
-    old_rules = await enforcer.get_filtered_policy(0, subject, "", "", "page")
+    old_rules = enforcer.get_filtered_policy(0, subject, "", "", "page")
     old_rules = {tuple(i) for i in old_rules}
     # 添加新的权限
     new_rules = set()
@@ -165,13 +165,13 @@ async def casbin_update_subject_permissions(
         # 可能存在不存在的rule,导致批量删除失败. 例如站点页面
         # 如果存在重复的rule,则会导致批量删除失败.
         # todo 这个api有bug, 更换其他api
-        await enforcer.remove_policies([list(rule) for rule in remove_rules])
+        enforcer.remove_policies([list(rule) for rule in remove_rules])
     if add_rules:
-        await enforcer.add_policies(add_rules)
+        enforcer.add_policies(add_rules)
     return permissions
 
 
-async def casbin_get_subject_field_policy_matrix(
+def casbin_get_subject_field_policy_matrix(
     enforcer: Enforcer,
     *,
     subject: str,
@@ -182,7 +182,7 @@ async def casbin_get_subject_field_policy_matrix(
     default_, allow_, deny_ = [], [], []
     # bfc1eec773c2b331#page:list#page
     v1, v2, v3 = casbin_permission_decode(permission)
-    rules = await enforcer.get_filtered_policy(0, subject, v1, "", v2, "")
+    rules = enforcer.get_filtered_policy(0, subject, v1, "", v2, "")
     allow_rule = set()
     deny_rule = set()
     for rule in rules:
@@ -228,7 +228,7 @@ def casbin_get_subject_field_effect_matrix(
     return [allow_, deny_]
 
 
-async def casbin_update_subject_field_permissions(
+def casbin_update_subject_field_permissions(
     enforcer: Enforcer,
     *,
     subject: str,
@@ -261,12 +261,12 @@ async def casbin_update_subject_field_permissions(
     deny_rules = {(subject, *casbin_permission_decode(item["rol"]), "deny") for item in deny_ if item_check(item)}
     add_rules = allow_rules | deny_rules
     # 删除旧的权限.注意必须在添加新的权限之前删除旧的权限,否则会导致重复的权限
-    await enforcer.remove_filtered_policy(0, subject, v1, "", v2, "")
+    enforcer.remove_filtered_policy(0, subject, v1, "", v2, "")
     # if remove_rules:
     #
-    #     await enforcer.remove_policies(remove_rules)
+    #     enforcer.remove_policies(remove_rules)
     if add_rules:
-        await enforcer.add_policies(add_rules)
+        enforcer.add_policies(add_rules)
     return "success"
 
 
@@ -283,14 +283,14 @@ def get_admin_grouping(group: AdminGroup) -> List[Tuple[str, str]]:
 
 
 # 更新casbin admin资源角色关系
-async def casbin_update_site_grouping(enforcer: Enforcer, site: BaseAdminSite):
+def casbin_update_site_grouping(enforcer: Enforcer, site: BaseAdminSite):
     """更新casbin admin资源角色关系"""
-    roles = await enforcer.get_filtered_named_grouping_policy("g2", 0)
+    roles = enforcer.get_filtered_named_grouping_policy("g2", 0)
     old_roles = {tuple(role) for role in roles}
     new_roles = set(get_admin_grouping(site))
     remove_roles = old_roles - new_roles
     add_roles = new_roles - old_roles
     if remove_roles:  # 删除旧的资源角色
-        await enforcer.remove_named_grouping_policies("g2", [list(role) for role in remove_roles])
+        enforcer.remove_named_grouping_policies("g2", [list(role) for role in remove_roles])
     if add_roles:  # 添加新的资源角色
-        await enforcer.add_named_grouping_policies("g2", add_roles)
+        enforcer.add_named_grouping_policies("g2", add_roles)

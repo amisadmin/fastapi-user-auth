@@ -6,7 +6,7 @@ async def test_create_role_user(auth: Auth):
     await auth.db.async_refresh(user)
     assert user.username == "admin2"
     # test user roles
-    result = await auth.has_role_for_user(user.username, roles="admin2")
+    result = auth.has_role_for_user(user.username, roles="admin2")
     assert result
 
 

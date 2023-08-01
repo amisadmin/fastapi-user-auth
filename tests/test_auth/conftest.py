@@ -10,10 +10,10 @@ from starlette.testclient import TestClient
 
 from fastapi_user_auth.auth.auth import Auth, AuthRouter
 from fastapi_user_auth.auth.models import User
-from tests.conftest import async_db, sync_db
+from tests.conftest import sync_db
 
 
-@pytest.fixture(params=[async_db, sync_db])
+@pytest.fixture(params=[sync_db])
 async def db(request) -> Union[Database, AsyncDatabase]:
     database = request.param
     await database.async_run_sync(SQLModel.metadata.create_all, is_session=False)
@@ -24,7 +24,7 @@ async def db(request) -> Union[Database, AsyncDatabase]:
 
 @pytest.fixture()
 def auth(db: Union[Database, AsyncDatabase]) -> Auth:
-    return Auth(db=async_db)
+    return Auth(db=db)
 
 
 @pytest.fixture(scope="session")
@@ -36,9 +36,8 @@ def event_loop():
 
 @pytest.fixture(scope="session")
 async def fake_auth() -> Auth:
-    auth = Auth(db=async_db)
-
-    await auth.db.async_run_sync(SQLModel.metadata.create_all, is_session=False)
+    await sync_db.async_run_sync(SQLModel.metadata.create_all, is_session=False)
+    auth = Auth(db=sync_db)
     # 创建角色
     await auth.create_role_user("admin")
     await auth.create_role_user("vip")
@@ -59,7 +58,7 @@ class UserClient:
 @pytest.fixture(scope="session")
 def logins(request, fake_auth: Auth) -> UserClient:
     app = FastAPI()
-    app.add_middleware(BaseHTTPMiddleware, dispatch=async_db.asgi_dispatch)
+    app.add_middleware(BaseHTTPMiddleware, dispatch=sync_db.asgi_dispatch)
     #  注册auth基础路由
     auth_router = AuthRouter(auth=fake_auth)
     app.include_router(auth_router.router)

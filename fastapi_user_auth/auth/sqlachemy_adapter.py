@@ -1,11 +1,11 @@
-from typing import List, Optional, Tuple, Type, Union
+from typing import Iterable, List, Optional, Tuple, Type
 
 from casbin import Model, persist
 from casbin.persist import Adapter as BaseAdapter
 from casbin.persist.adapters.update_adapter import UpdateAdapter
 from sqlalchemy import insert
 from sqlalchemy.sql.dml import Delete
-from sqlalchemy_database import AsyncDatabase, Database
+from sqlalchemy_database import Database
 from sqlmodel import SQLModel, and_, delete, or_, select
 from sqlmodel.sql.expression import SelectOfScalar
 
@@ -37,7 +37,7 @@ class Adapter(BaseAdapter, UpdateAdapter):
 
     def __init__(
         self,
-        db: Union[AsyncDatabase, Database],
+        db: Database,
         db_class: Optional[Type[SQLModel]] = None,
         filtered: bool = False,
     ):
@@ -68,9 +68,9 @@ class Adapter(BaseAdapter, UpdateAdapter):
         # )
         self._filtered: bool = filtered
 
-    async def load_policy(self, model: Model) -> None:
+    def load_policy(self, model: Model) -> None:
         """loads all policy rules from the storage."""
-        result = await self.db.async_scalars(select(self._db_class))
+        result = self.db.session.scalars(select(self._db_class))
         for line in result:
             persist.load_policy_line(str(line), model)
 
@@ -79,12 +79,12 @@ class Adapter(BaseAdapter, UpdateAdapter):
 
         return self._filtered
 
-    async def load_filtered_policy(self, model: Model, filter_: Filter) -> None:
+    def load_filtered_policy(self, model: Model, filter_: Filter) -> None:
         """loads all policy rules from the storage."""
 
         query: SelectOfScalar = select(self._db_class)
         filters = self.filter_query(query, filter_)
-        result = await self.db.async_scalars(filters)
+        result = self.db.session.scalars(filters)
         for line in result:
             persist.load_policy_line(str(line), model)
         self._filtered = True
@@ -97,15 +97,15 @@ class Adapter(BaseAdapter, UpdateAdapter):
                 querydb = querydb.filter(getattr(self._db_class, attr).in_(getattr(filter_, attr)))
         return querydb.order_by(self._db_class.id)
 
-    def parse_rule(self, ptype: str, rule: List[str]) -> SQLModel:
+    def parse_rule(self, ptype: str, rule: Iterable[str]) -> SQLModel:
         line = self._db_class(ptype=ptype)
         for i, v in enumerate(rule):  # pylint: disable=invalid-name
             setattr(line, f"v{i}", v)
         return line
 
-    async def save_policy(self, model: Model) -> bool:
+    def save_policy(self, model: Model) -> bool:
         """saves all policy rules to the storage."""
-        await self.db.async_execute(delete(self._db_class))  # delete all
+        self.db.session.execute(delete(self._db_class))  # delete all
         values = []
         for sec in ["p", "g"]:
             if sec not in model.model.keys():  # pragma: no cover
@@ -114,30 +114,30 @@ class Adapter(BaseAdapter, UpdateAdapter):
                 for rule in ast.policy:
                     values.append(self.parse_rule(ptype, rule).dict())
         if values:
-            await self.db.async_execute(insert(self._db_class).values(values))
-        await self.db.async_commit()
+            self.db.session.execute(insert(self._db_class).values(values))
+        self.db.session.commit()
         return True
 
     # pylint: disable=unused-argument
-    async def add_policy(self, sec: str, ptype: str, rule: List[str]) -> None:
+    def add_policy(self, sec: str, ptype: str, rule: List[str]) -> None:
         """adds a policy rule to the storage."""
         obj = self.parse_rule(ptype, rule)
-        self.db.add(obj)
-        await self.db.async_commit()
+        self.db.session.add(obj)
+        self.db.session.commit()
 
     # pylint: disable=unused-argument
-    async def add_policies(self, sec: str, ptype: str, rules: Tuple[Tuple[str]]) -> None:
+    def add_policies(self, sec: str, ptype: str, rules: Iterable[Tuple[str]]) -> None:
         """adds a policy rules to the storage."""
         values = []
         for rule in rules:
             values.append(self.parse_rule(ptype, rule).dict())
         if not values:
             return
-        await self.db.async_execute(insert(self._db_class).values(values))
-        await self.db.async_commit()
+        self.db.session.execute(insert(self._db_class).values(values))
+        self.db.session.commit()
 
     # pylint: disable=unused-argument
-    async def remove_policy(self, sec: str, ptype: str, rule: List[str]) -> bool:
+    def remove_policy(self, sec: str, ptype: str, rule: Iterable[str]) -> bool:
         """removes a policy rule from the storage."""
 
         query: Delete = delete(self._db_class)
@@ -146,16 +146,16 @@ class Adapter(BaseAdapter, UpdateAdapter):
             if not v:
                 continue
             query = query.filter(getattr(self._db_class, f"v{i}") == v)
-        res = (await self.db.async_execute(query)).rowcount  # type: ignore
-        await self.db.async_commit()
+        res = (self.db.session.execute(query)).rowcount  # type: ignore
+        self.db.session.commit()
         return res > 0  # pragma: no cover
 
-    async def remove_policies(self, sec: str, ptype: str, rules: Tuple[Tuple[str]]) -> None:
+    def remove_policies(self, sec: str, ptype: str, rules: Tuple[Tuple[str]]) -> None:
         """remove policy rules from the storage."""
         if not rules:  # pragma: no cover
             return
         if len(rules) == 1:
-            await self.remove_policy(sec, ptype, rules[0])
+            self.remove_policy(sec, ptype, rules[0])
             return
         query: Delete = delete(self._db_class)
         query = query.filter(self._db_class.ptype == ptype)
@@ -163,11 +163,10 @@ class Adapter(BaseAdapter, UpdateAdapter):
         for rule in rules:
             _rules.append(and_(*(getattr(self._db_class, f"v{i+1}") == v for i, v in enumerate(rule) if v)))
         query = query.filter(or_(*_rules))
-        await self.db.async_execute(query)
-        await self.db.async_commit()
+        self.db.session.execute(query)
+        self.db.session.commit()
 
-    # pylint: disable=unused-argument
-    async def remove_filtered_policy(self, sec: str, ptype: str, field_index: int, *field_values: Tuple[str]) -> bool:
+    def remove_filtered_policy(self, sec: str, ptype: str, field_index: int, *field_values: Tuple[str]) -> bool:
         """removes policy rules that match the filter from the storage.
         This is part of the Auto-Save feature.
         """
@@ -183,11 +182,11 @@ class Adapter(BaseAdapter, UpdateAdapter):
             if v != "":
                 v_value = getattr(self._db_class, f"v{field_index + i}")
                 query = query.filter(v_value == v)
-        res = (await self.db.async_execute(query)).rowcount  # type: ignore
-        await self.db.async_commit()
+        res = (self.db.session.execute(query)).rowcount  # type: ignore
+        self.db.session.commit()
         return res > 0
 
-    async def update_policy(self, sec: str, ptype: str, old_rule: List[str], new_rule: List[str]) -> None:
+    def update_policy(self, sec: str, ptype: str, old_rule: List[str], new_rule: List[str]) -> None:
         """
         Update the old_rule with the new_rule in the database (storage).
         :param sec: section type
@@ -207,18 +206,16 @@ class Adapter(BaseAdapter, UpdateAdapter):
 
         # need the length of the longest_rule to perform overwrite
         longest_rule = old_rule if len(old_rule) > len(new_rule) else new_rule
-
-        old_rule_line = await self.db.async_scalar(query)
-
+        old_rule_line = self.db.session.scalar(query)
         # overwrite the old rule with the new rule
         for index in range(len(longest_rule)):
             if index < len(new_rule):
                 setattr(old_rule_line, f"v{index}", new_rule[index])
             else:  # pragma: no cover
                 setattr(old_rule_line, f"v{index}", None)
-        await self.db.async_commit()
+        self.db.session.commit()
 
-    async def update_policies(
+    def update_policies(
         self,
         sec: str,
         ptype: str,
@@ -233,6 +230,37 @@ class Adapter(BaseAdapter, UpdateAdapter):
         :param new_rules: the new rules to replace the old rules
         :return: None
         """
+        if len(old_rules) != len(new_rules):
+            raise ValueError("Invalid request, old and new rules must be of the same length")
+        for i, rule in enumerate(old_rules):  # todo optimize
+            self.update_policy(sec, ptype, rule, new_rules[i])
 
-        for i, rule in enumerate(old_rules):
-            await self.update_policy(sec, ptype, rule, new_rules[i])
+    def update_filtered_policies(
+        self, sec: str, ptype: str, new_rules: Iterable[Tuple[str]], field_index: int, *field_values: Tuple[str]
+    ) -> List[Tuple[str]]:
+        """update_filtered_policies updates all the policies on the basis of the filter."""
+
+        filter_ = Filter()
+        filter_.ptype = [ptype]
+
+        # Creating Filter from the field_index & field_values provided
+        for i in range(len(field_values)):
+            if field_index <= i < field_index + len(field_values):
+                setattr(filter_, f"v{i}", [field_values[i - field_index]])
+            else:
+                break
+
+        return self._update_filtered_policies(new_rules, filter_)
+
+    def _update_filtered_policies(self, new_rules: Iterable[Tuple[str]], filter_: Filter) -> List[Tuple[str]]:
+        """_update_filtered_policies updates all the policies on the basis of the filter."""
+        query = select(self._db_class).filter(self._db_class.ptype == filter_.ptype)
+        self.filter_query(query, filter_)
+        old_rules = self.db.session.scalars(query).all()
+        # Delete old policies
+        self.remove_policies("p", filter_.ptype[0], old_rules)
+        # Insert new policies
+        self.add_policies("p", filter_.ptype[0], new_rules)
+        # return deleted rules
+        self.db.session.commit()
+        return old_rules
