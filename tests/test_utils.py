@@ -50,14 +50,13 @@ async def fake_data(db, site, admin_instances, enforcer: Enforcer):
     db.add_all(test_user_rules)
     await db.async_commit()
     # 加载页面分组
-    await casbin_update_site_grouping(enforcer, site)
+    casbin_update_site_grouping(enforcer, site)
     # 重新加载权限
-    await enforcer.load_policy()
+    enforcer.load_policy()
 
 
 def test_get_admin_action_options(site: AuthAdminSite, admin_instances: dict):
     options = get_admin_action_options(site)
-    print(options)
     assert len(options) == 3
     assert options[0]["value"] == admin_instances["home_admin"].unique_id + "#page#page"
     assert options[1]["value"] == admin_instances["user_auth_app"].unique_id + "#page#page"
@@ -102,43 +101,43 @@ def test_get_admin_grouping(site: AuthAdminSite, admin_instances: dict):
     assert (admin_instances["user_auth_app"].unique_id, admin_instances["user_admin"].unique_id) in grouping
 
 
-async def test_casbin_update_site_grouping(site: AuthAdminSite, admin_instances: dict):
-    await casbin_update_site_grouping(site.auth.enforcer, site)
-    grouping = await site.auth.enforcer.get_named_grouping_policy("g2")
+def test_casbin_update_site_grouping(site: AuthAdminSite, admin_instances: dict):
+    casbin_update_site_grouping(site.auth.enforcer, site)
+    grouping = site.auth.enforcer.get_named_grouping_policy("g2")
     assert (site.unique_id, admin_instances["home_admin"].unique_id) in grouping
     assert (site.unique_id, admin_instances["user_auth_app"].unique_id) in grouping
     assert (admin_instances["user_auth_app"].unique_id, admin_instances["user_admin"].unique_id) in grouping
 
 
-async def test_casbin_get_subject_page_permissions(enforcer: Enforcer, admin_instances: dict, fake_data):
-    permissions = await casbin_get_subject_page_permissions(enforcer, subject="u:admin", implicit=False)
+def test_casbin_get_subject_page_permissions(enforcer: Enforcer, admin_instances: dict, fake_data):
+    permissions = casbin_get_subject_page_permissions(enforcer, subject="u:admin", implicit=False)
     assert not permissions
-    permissions = await casbin_get_subject_page_permissions(enforcer, subject="u:admin", implicit=True)
+    permissions = casbin_get_subject_page_permissions(enforcer, subject="u:admin", implicit=True)
     user_admin_unique_id = admin_instances["user_admin"].unique_id
     assert f"{user_admin_unique_id}#page#page#allow" in permissions
     assert f"{user_admin_unique_id}#page:list#page#allow" in permissions
     assert f"{user_admin_unique_id}#page:list:email#page:list#allow" not in permissions
     assert permissions
-    permissions2 = await casbin_get_subject_page_permissions(enforcer, subject="r:admin", implicit=False)
+    permissions2 = casbin_get_subject_page_permissions(enforcer, subject="r:admin", implicit=False)
     assert permissions2 == permissions
 
 
-async def test_casbin_update_subject_roles(enforcer: Enforcer, admin_instances: dict, fake_data):
-    admin_roles = await enforcer.get_implicit_roles_for_user("u:admin")
+def test_casbin_update_subject_roles(enforcer: Enforcer, admin_instances: dict, fake_data):
+    admin_roles = enforcer.get_implicit_roles_for_user("u:admin")
     assert "r:admin" in admin_roles
-    await casbin_update_subject_roles(enforcer, subject="u:admin", role_keys=["r:test"])
-    admin_roles = await enforcer.get_implicit_roles_for_user("u:admin")
+    casbin_update_subject_roles(enforcer, subject="u:admin", role_keys=["r:test"])
+    admin_roles = enforcer.get_implicit_roles_for_user("u:admin")
     assert "r:admin" not in admin_roles
     assert "r:test" in admin_roles
 
 
-async def test_casbin_update_subject_page_permissions(enforcer: Enforcer, admin_instances: dict, fake_data):
-    permissions = await casbin_get_subject_page_permissions(enforcer, subject="r:admin", implicit=True)
+def test_casbin_update_subject_page_permissions(enforcer: Enforcer, admin_instances: dict, fake_data):
+    permissions = casbin_get_subject_page_permissions(enforcer, subject="r:admin", implicit=True)
     user_admin_unique_id = admin_instances["user_admin"].unique_id
     casbin_rule_admin_unique_id = admin_instances["casbin_rule_admin"].unique_id
     assert f"{user_admin_unique_id}#page#page#allow" in permissions
     assert f"{casbin_rule_admin_unique_id}#page#page#allow" not in permissions
-    await casbin_update_subject_page_permissions(
+    casbin_update_subject_page_permissions(
         enforcer,
         subject="r:admin",
         permissions=[
@@ -146,12 +145,12 @@ async def test_casbin_update_subject_page_permissions(enforcer: Enforcer, admin_
             f"{casbin_rule_admin_unique_id}#page:list#page#allow",  # v1,v2,v3,v4
         ],
     )
-    permissions = await casbin_get_subject_page_permissions(enforcer, subject="r:admin", implicit=True)
+    permissions = casbin_get_subject_page_permissions(enforcer, subject="r:admin", implicit=True)
     # 原来的page权限应该被删除
     assert f"{user_admin_unique_id}#page#page#allow" not in permissions
     # 新的page权限应该被添加
     assert f"{casbin_rule_admin_unique_id}#page#page#allow" in permissions
     assert f"{casbin_rule_admin_unique_id}#page:list#page#allow" in permissions
     # 非page权限应该保留
-    assert await enforcer.has_policy("r:admin", user_admin_unique_id, "page:list:email", "page:list", "allow")
-    assert await enforcer.has_policy("r:admin", user_admin_unique_id, "page:filter:email", "page:filter", "allow")
+    assert enforcer.has_policy("r:admin", user_admin_unique_id, "page:list:email", "page:list", "allow")
+    assert enforcer.has_policy("r:admin", user_admin_unique_id, "page:filter:email", "page:filter", "allow")

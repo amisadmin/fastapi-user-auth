@@ -13,15 +13,6 @@ from fastapi_user_auth.auth.models import User
 from tests.conftest import sync_db
 
 
-@pytest.fixture(params=[sync_db])
-async def db(request) -> Union[Database, AsyncDatabase]:
-    database = request.param
-    await database.async_run_sync(SQLModel.metadata.create_all, is_session=False)
-    yield database
-    await database.async_run_sync(SQLModel.metadata.drop_all, is_session=False)
-    await database.async_close()
-
-
 @pytest.fixture()
 def auth(db: Union[Database, AsyncDatabase]) -> Auth:
     return Auth(db=db)

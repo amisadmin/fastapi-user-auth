@@ -31,7 +31,7 @@ async_db = AsyncDatabase.create("sqlite+aiosqlite:///amisadmin.db?check_same_thr
 # sync_db = Database.create('mssql+pyodbc://scott:tiger@mydsn')
 
 
-@pytest.fixture(params=[async_db])
+@pytest.fixture(params=[sync_db])
 async def db(request) -> Union[Database, AsyncDatabase]:
     database = request.param
     await database.async_run_sync(SQLModel.metadata.create_all, is_session=False)

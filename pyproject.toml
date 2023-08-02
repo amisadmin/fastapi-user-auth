@@ -54,7 +54,7 @@ FastAPI-Amis-Admin = "https://github.com/amisadmin/fastapi_amis_admin"
 jwt = [
     "python-jose==3.3.0",
 ]
-redis = ["aioredis"]
+redis = ["redis>=4.2.0"]
 test = [
     "uvicorn[standard] >=0.19.0,<1.0",
     "pytest >=6.2.4",

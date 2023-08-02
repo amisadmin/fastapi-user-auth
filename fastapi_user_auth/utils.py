@@ -7,6 +7,8 @@ from fastapi_amis_admin.admin import FormAdmin, ModelAdmin, PageSchemaAdmin
 from fastapi_amis_admin.admin.admin import AdminGroup, BaseActionAdmin, BaseAdminSite
 from fastapi_amis_admin.utils.pydantic import model_fields
 from pydantic import BaseModel
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from fastapi_user_auth.auth.schemas import SystemUserEnum
 
@@ -118,17 +120,17 @@ def get_admin_grouping(group: AdminGroup) -> List[Tuple[str, str]]:
 
 
 # 更新casbin admin资源角色关系
-async def casbin_update_site_grouping(enforcer: Enforcer, site: BaseAdminSite):
+def casbin_update_site_grouping(enforcer: Enforcer, site: BaseAdminSite):
     """更新casbin admin资源角色关系"""
-    roles = await enforcer.get_filtered_named_grouping_policy("g2", 0)
+    roles = enforcer.get_filtered_named_grouping_policy("g2", 0)
     old_roles = {tuple(role) for role in roles}
     new_roles = set(get_admin_grouping(site))
     remove_roles = old_roles - new_roles
     add_roles = new_roles - old_roles
     if remove_roles:  # 删除旧的资源角色
-        await enforcer.remove_named_grouping_policies("g2", [list(role) for role in remove_roles])
+        enforcer.remove_named_grouping_policies("g2", [list(role) for role in remove_roles])
     if add_roles:  # 添加新的资源角色
-        await enforcer.add_named_grouping_policies("g2", add_roles)
+        enforcer.add_named_grouping_policies("g2", add_roles)
 
 
 # 执行casbin字符串规则
@@ -296,3 +298,23 @@ def casbin_update_subject_field_permissions(
     if add_rules:
         enforcer.add_policies(add_rules)
     return "success"
+
+
+def casbin_delete_duplicate_rule(session: Session):
+    """删除重复的casbin规则,只保留一条"""
+    from auth.models import CasbinRule
+
+    stmt = text(
+        f"""DELETE FROM {CasbinRule.__tablename__}
+            WHERE id NOT IN (
+                SELECT id
+                FROM (
+                    SELECT MIN(id) AS id
+                    FROM {CasbinRule.__tablename__}
+                    GROUP BY ptype, v0, v1, v2, v3, v4, v5
+                ) AS unique_rule_id
+            );
+        """
+    )
+    session.execute(stmt)
+    session.commit()

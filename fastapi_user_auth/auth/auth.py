@@ -37,7 +37,6 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 from starlette.websockets import WebSocket
 
-from ..utils import casbin_update_subject_roles
 from .backends.base import BaseTokenStore
 from .backends.db import DbTokenStore
 from .models import BaseUser, CasbinRule, LoginHistory, Role, User
@@ -272,8 +271,9 @@ class Auth(Generic[UserModelT]):
         user = await self.db.async_run_sync(self._create_role_user_sync, role_key)
         if commit:
             await self.db.async_commit()
-        # Update casbin role
-        casbin_update_subject_roles(self.enforcer, subject="u:" + role_key, role_keys=["r:" + role_key])
+        subject = "u:" + role_key
+        self.enforcer.delete_roles_for_user(subject)
+        self.enforcer.add_grouping_policies([(subject, "r:" + role_key)])
         return user
 
     async def request_login(self, request: Request, response: Response, username: str, password: str) -> BaseApiOut[UserLoginOut]:

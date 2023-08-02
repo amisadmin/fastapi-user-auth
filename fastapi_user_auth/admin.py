@@ -371,8 +371,11 @@ class CasbinRuleAdmin(ReadOnlyModelAdmin):
         super().__init__(app)
 
         @self.site.fastapi.on_event("startup")
-        async def _load_policy():
-            self.load_policy()
+        def _load_policy():
+            # 同步casbin会自动加载策略
+            # self.load_policy()
+            # 更新站点资源分组
+            casbin_update_site_grouping(self.enforcer, self.site)
 
     @classmethod
     def bind(cls, app: AdminApp, enforcer: Enforcer = None) -> Enforcer:
