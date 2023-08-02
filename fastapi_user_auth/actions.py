@@ -408,7 +408,7 @@ class CasbinUpdateSubPermsAction(CasbinViewSubPermAction):
         if subject == "u:" + identity:
             return BaseApiOut(status=0, msg="不能修改自己的权限")
         # 权限列表
-        permissions = [rule for rule in data.permissions.split(",") if rule and rule[-1] == "page"]  # 分割权限列表,去除空值
+        permissions = [perm for perm in data.permissions.split(",") if perm and perm.endswith("#page")]  # 分割权限列表,去除空值
         enforcer: Enforcer = self.site.auth.enforcer
         if permissions and identity != SystemUserEnum.ROOT:
             #  检查当前用户是否有对应的权限,只有自己拥有的权限才能分配给其他主体
