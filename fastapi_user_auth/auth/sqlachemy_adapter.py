@@ -161,7 +161,7 @@ class Adapter(BaseAdapter, UpdateAdapter):
         query = query.filter(self._db_class.ptype == ptype)
         _rules = []
         for rule in rules:
-            _rules.append(and_(*(getattr(self._db_class, f"v{i+1}") == v for i, v in enumerate(rule) if v)))
+            _rules.append(and_(*(getattr(self._db_class, f"v{i}") == v for i, v in enumerate(rule) if v)))
         query = query.filter(or_(*_rules))
         self.db.session.execute(query)
         self.db.session.commit()
