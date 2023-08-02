@@ -66,7 +66,7 @@ class UserAuthApp(AdminApp, AuthRouter):
             # 获取当前登录用户的权限
             user = await self.auth.get_current_user(request)
             # 获取当前用户的权限列表
-            options = await get_admin_action_options_by_subject(
+            options = get_admin_action_options_by_subject(
                 enforcer=self.auth.enforcer, subject="u:" + user.username, group=self.site
             )
             return BaseApiOut(data=options)
