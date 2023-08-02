@@ -16,7 +16,7 @@ from starlette.requests import Request
 
 from fastapi_user_auth.auth.models import Role, User
 from fastapi_user_auth.auth.schemas import SystemUserEnum
-from fastapi_user_auth.mixins.admin import AuthModelAdmin
+from fastapi_user_auth.mixins.admin import AuthFieldModelAdmin
 from fastapi_user_auth.utils import (
     casbin_get_subject_field_effect_matrix,
     casbin_get_subject_field_policy_matrix,
@@ -37,7 +37,7 @@ def get_admin_field_permission_rows(
     """获取指定页面权限的字段权限,用于amis组件"""
     rows = []
     fields = {}
-    if isinstance(admin, AuthModelAdmin):  # 模型管理
+    if isinstance(admin, AuthFieldModelAdmin):  # 模型管理
         if action == "list":  # 列表展示模型
             fields = admin.list_permission_fields
         elif action == "filter":  # 列表筛选模型
@@ -345,6 +345,7 @@ class CasbinUpdateSubFieldPermAction(CasbinBaseSubPermAction):
             admin, parent = self.site.get_page_schema_child(unique_id)
             if not admin:
                 return out
+            # todo action == "page" 时,获取页面的数据集权限
             action = action.replace("page:", "")
             rows = get_admin_field_permission_rows(admin, action)
             out.data["rows"] = rows

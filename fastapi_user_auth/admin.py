@@ -44,7 +44,7 @@ from fastapi_user_auth.auth.models import (
 )
 from fastapi_user_auth.auth.schemas import SystemUserEnum, UserLoginOut
 from fastapi_user_auth.mixins.admin import (
-    AuthModelAdmin,
+    AuthFieldModelAdmin,
     AutoTimeModelAdmin,
     FootableModelAdmin,
     ReadOnlyModelAdmin,
@@ -251,7 +251,7 @@ class UserInfoFormAdmin(FormAdmin):
         return await self.site.auth.requires(response=False)(request)
 
 
-class UserAdmin(AuthModelAdmin, SoftDeleteModelAdmin, FootableModelAdmin):
+class UserAdmin(AuthFieldModelAdmin, SoftDeleteModelAdmin, FootableModelAdmin):
     page_schema = PageSchema(label=_("User"), icon="fa fa-user")
     model: Type[BaseUser] = None
     exclude = ["password"]

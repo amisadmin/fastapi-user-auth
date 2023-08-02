@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from functools import cached_property
 from typing import Any, Callable, Dict, List, Optional, Set, Union
@@ -9,10 +10,11 @@ from fastapi_amis_admin.crud.base import ItemListSchema, SchemaCreateT, SchemaFi
 from fastapi_amis_admin.crud.schema import BaseApiOut, CrudEnum
 from fastapi_amis_admin.utils.pydantic import ModelField
 from sqlalchemy.engine import Result
+from sqlalchemy.sql import Select
 from starlette.requests import Request
 
 from fastapi_user_auth.auth.schemas import SystemUserEnum
-from fastapi_user_auth.mixins.schemas import PermissionExcludeDict
+from fastapi_user_auth.mixins.schemas import PermissionExcludeDict, RecentTimeSelectPerm, SelectPerm
 from fastapi_user_auth.utils import get_schema_fields_name_label
 
 
@@ -89,7 +91,7 @@ class FootableModelAdmin(admin.ModelAdmin):
         return table
 
 
-class AuthModelAdmin(admin.ModelAdmin):
+class AuthFieldModelAdmin(admin.ModelAdmin):
     """字段级别权限控制模型管理.
     - xxx_permission_fields:
         1.动作权限字段,可以通过覆盖这些属性来控制哪些字段需要进行权限验证.
@@ -261,7 +263,7 @@ class AuthModelAdmin(admin.ModelAdmin):
         form_item = await super().get_form_item(request, modelfield, action)
         return form_item
 
-    async def get_list_column(self, request: Request, modelfield: ModelField) -> TableColumn:
+    async def get_list_column(self, request: Request, modelfield: ModelField) -> Optional[TableColumn]:
         """过滤前端展示字段"""
         exclude = await self.get_deny_fields(request, "list")  # 获取没有权限的字段
         name = modelfield.alias or modelfield.name
@@ -271,7 +273,37 @@ class AuthModelAdmin(admin.ModelAdmin):
         return column
 
 
-class AuthFormAdmin(admin.FormAdmin):
+class AuthSelectModelAdmin(admin.ModelAdmin):
+    """包含选择数据集权限控制的模型管理"""
+
+    select_permissions: List[SelectPerm] = [
+        # 最近7天创建的数据. reverse=True表示反向选择,即默认选择最近7天之内的数据
+        RecentTimeSelectPerm(name="recent7_create", label="最近7天创建", td=60 * 60 * 24 * 7, reverse=True),
+        # 最近30天创建的数据
+        RecentTimeSelectPerm(name="recent30_create", label="最近30天创建", td=60 * 60 * 24 * 30),
+        # 最近3天更新的数据
+        RecentTimeSelectPerm(name="recent3_update", label="最近3天更新", td=60 * 60 * 24 * 3, time_column="update_time"),
+    ]
+
+    async def has_select_permission(self, request: Request, name: str) -> bool:
+        """判断用户是否有数据集权限"""
+        subject = await self.site.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
+        effect = self.site.auth.enforcer.enforce("u:" + subject, self.unique_id, f"page:select:{name}", "page:select")
+        return effect
+
+    async def get_select(self, request: Request) -> Select:
+        sel = await super().get_select(request)
+        for permission in self.select_permissions:
+            effect = await self.has_select_permission(request, permission.name)
+            # 如果权限为反向权限,则判断用户是否没有权限
+            if effect or (permission.reverse and not effect):
+                sel = permission.call(self, request, sel)
+                if asyncio.iscoroutine(sel):
+                    sel = await sel
+        return sel
+
+
+class AuthFieldFormAdmin(admin.FormAdmin):
     """#todo 字段级别权限控制表单管理"""
 
     pass
