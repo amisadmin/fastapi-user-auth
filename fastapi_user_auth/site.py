@@ -29,9 +29,7 @@ class AuthAdminSite(AdminSite):
     def __init__(self, settings: Settings, fastapi: FastAPI = None, engine: SqlalchemyDatabase = None, auth: Auth = None):
         super().__init__(settings, fastapi, engine)
         self.auth = auth or self.auth or Auth(db=self.db)
-        self.register_admin(self.UserAuthApp)
-        CasbinRuleAdmin.enforcer = self.auth.enforcer
-        self.register_admin(CasbinRuleAdmin)
+        self.register_admin(self.UserAuthApp, CasbinRuleAdmin)
 
     def get_page_schema(self) -> Optional[PageSchema]:
         if super().get_page_schema():

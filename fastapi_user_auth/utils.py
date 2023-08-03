@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from fastapi_user_auth.auth.models import CasbinRule
 from fastapi_user_auth.auth.schemas import SystemUserEnum
 
 
@@ -302,8 +303,6 @@ def casbin_update_subject_field_permissions(
 
 def casbin_delete_duplicate_rule(session: Session):
     """删除重复的casbin规则,只保留一条"""
-    from auth.models import CasbinRule
-
     stmt = text(
         f"""DELETE FROM {CasbinRule.__tablename__}
             WHERE id NOT IN (

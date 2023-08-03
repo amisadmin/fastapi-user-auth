@@ -84,15 +84,22 @@ class Auth(Generic[UserModelT]):
         self.pwd_context = pwd_context
         if enforcer is None:
             assert isinstance(self.db, Database), "enforcer is None, db must be Database"
-            # 注意: 同步版本的Casbin在实例化时会自动加载策略, 但异步版本的Casbin不会自动加载策略, 需要手动调用load_policy
-            enforcer = Enforcer(
-                model=str(Path(__file__).parent / "model.conf"),
-                adapter=Adapter(
-                    db=self.db,
-                    db_class=CasbinRule,
-                ),
-            )
-        self.enforcer = enforcer
+        self._enforcer = enforcer
+
+    @cached_property
+    def enforcer(self) -> Enforcer:
+        if self._enforcer is not None:
+            return self._enforcer
+        # 注意: 同步版本的Casbin在实例化时会自动加载策略, 但异步版本的Casbin不会自动加载策略, 需要手动调用load_policy
+        # 使用cached_property缓存enforcer, 避免在__init__中加载策略(可能数据库未创建完成)
+        enforcer = Enforcer(
+            model=str(Path(__file__).parent / "model.conf"),
+            adapter=Adapter(
+                db=self.db,
+                db_class=CasbinRule,
+            ),
+        )
+        return enforcer
 
     async def authenticate_user(self, username: str, password: Union[str, SecretStr]) -> Optional[UserModelT]:
         user = await self.db.async_scalar(

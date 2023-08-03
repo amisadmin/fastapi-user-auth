@@ -1,7 +1,6 @@
 import contextlib
 from typing import Any, Callable, Dict, List, Type
 
-from casbin import Enforcer
 from fastapi import Depends, HTTPException
 from fastapi_amis_admin.admin import AdminAction, AdminApp, FormAdmin, PageSchemaAdmin
 from fastapi_amis_admin.amis.components import (
@@ -364,10 +363,8 @@ class CasbinRuleAdmin(ReadOnlyModelAdmin):
             flags=["toolbar"],
         ),
     ]
-    enforcer: Enforcer = None
 
     def __init__(self, app: "AdminApp"):
-        assert self.enforcer, "enforcer is None"
         super().__init__(app)
 
         @self.site.fastapi.on_event("startup")
@@ -375,18 +372,12 @@ class CasbinRuleAdmin(ReadOnlyModelAdmin):
             # 同步casbin会自动加载策略
             # self.load_policy()
             # 更新站点资源分组
-            casbin_update_site_grouping(self.enforcer, self.site)
-
-    @classmethod
-    def bind(cls, app: AdminApp, enforcer: Enforcer = None) -> Enforcer:
-        cls.enforcer = enforcer or cls.enforcer
-        app.register_admin(cls)
-        return cls.enforcer
+            casbin_update_site_grouping(self.site.auth.enforcer, self.site)
 
     def load_policy(self):
-        self.enforcer.load_policy()
+        self.site.auth.enforcer.load_policy()
         # 更新站点资源分组
-        casbin_update_site_grouping(self.enforcer, self.site)
+        casbin_update_site_grouping(self.site.auth.enforcer, self.site)
 
     def register_router(self):
         @self.router.get("/load_policy", response_model=BaseApiOut)
