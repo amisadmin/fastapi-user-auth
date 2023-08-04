@@ -124,11 +124,11 @@ class Auth(Generic[UserModelT]):
         request.scope["user_token_info"] = await self.backend.token_store.read_token(token) if token else None
         return request.scope["user_token_info"]
 
-    async def get_current_user_identity(self, request: Request) -> str:
-        if "user_identity" not in request.scope:  # 防止重复授权
-            token_info = await self._get_token_info(request)
-            request.scope["user_identity"] = token_info.username if token_info else ""
-        return request.scope["user_identity"]
+    async def get_current_user_identity(self, request: Request, name: str = None) -> str:
+        token_info = await self._get_token_info(request)
+        name = name or "username"
+        user_identity = getattr(token_info, name, "") if token_info else ""
+        return user_identity
 
     def has_role_for_user(self, identity: str, roles: Union[str, Sequence[str]], is_any: bool = True) -> bool:
         identity = "u:" + identity

@@ -16,17 +16,35 @@ from starlette.requests import Request
 
 from fastapi_user_auth.auth.models import Role, User
 from fastapi_user_auth.auth.schemas import SystemUserEnum
-from fastapi_user_auth.mixins.admin import AuthFieldModelAdmin
+from fastapi_user_auth.mixins.admin import AuthFieldModelAdmin, AuthSelectModelAdmin
 from fastapi_user_auth.utils import (
-    casbin_get_subject_field_effect_matrix,
-    casbin_get_subject_field_policy_matrix,
+    casbin_get_subject_effect_matrix,
     casbin_get_subject_page_permissions,
+    casbin_get_subject_policy_matrix,
     casbin_permission_decode,
-    casbin_update_subject_field_permissions,
+    casbin_update_subject_data_permissions,
     casbin_update_subject_page_permissions,
     casbin_update_subject_roles,
     get_admin_action_options_by_subject,
 )
+
+
+@lru_cache()
+def get_admin_select_permission_rows(
+    admin: PageSchemaAdmin,
+) -> List[Dict[str, Any]]:
+    rows = []
+    if not isinstance(admin, AuthSelectModelAdmin):
+        return rows
+    for perm in admin.select_permissions:
+        rows.append(
+            {
+                "label": "仅限数据-" + perm.label,
+                "rol": f"{admin.unique_id}#page:select:{perm.name}#page:select",
+                "reverse": perm.reverse,
+            }
+        )
+    return rows
 
 
 @lru_cache()
@@ -249,37 +267,37 @@ class CasbinViewSubPermAction(CasbinBaseSubPermAction):
         return BaseApiOut(status=1, msg="请通过的【设置权限】更新设置!")
 
 
-class CasbinUpdateSubFieldPermAction(CasbinBaseSubPermAction):
-    """更新主体Casbin权限,字段权限"""
+class CasbinUpdateSubDataPermAction(CasbinBaseSubPermAction):
+    """更新主体Casbin权限,字段权限+数据集权限"""
 
     _implicit: bool = True
 
     action = ActionType.Dialog(
         name="update_subject_field_permissions",
         icon="fa fa-gavel",
-        tooltip="更新字段权限",
+        tooltip="更新数据权限",
         dialog=amis.Dialog(actions=[amis.Action(actionType="submit", label="保存", close=False, primary=True)]),
         level=LevelEnum.warning,
     )
 
     # 创建动作表单数据模型
     class schema(CasbinBaseSubPermAction.schema):
-        field_effect_matrix: list = Field(
+        effect_matrix: list = Field(
             None,
-            title="字段权限效果",
+            title="当前权限",
             amis_form_item=amis.MatrixCheckboxes(
-                rowLabel="字段名称",
+                rowLabel="权限名称",
                 multiple=False,
                 singleSelectMode="row",
                 source="",
                 disabled=True,
             ),
         )
-        field_policy_matrix: list = Field(
+        policy_matrix: list = Field(
             None,
-            title="字段权限配置",
+            title="权限配置",
             amis_form_item=amis.MatrixCheckboxes(
-                rowLabel="字段名称",
+                rowLabel="名称",
                 multiple=False,
                 singleSelectMode="row",
                 yCheckAll=True,
@@ -292,10 +310,10 @@ class CasbinUpdateSubFieldPermAction(CasbinBaseSubPermAction):
         if item.name == "permissions":  # 为角色树形选择器数据指定API源
             item.multiple = False
             item.source = f"{self.router_path}/get_admin_action_options?item_id=$id"  # 获取对方权限列表
-        elif item.name == "field_policy_matrix":
-            item.source = f"{self.router_path}/get_admin_action_fields_options?type=policy&permission=$permissions&item_id=$id"
-        elif item.name == "field_effect_matrix":
-            item.source = f"{self.router_path}/get_admin_action_fields_options?type=effect&permission=$permissions&item_id=$id"
+        elif item.name == "policy_matrix":
+            item.source = f"{self.router_path}/get_admin_action_perm_options?type=policy&permission=$permissions&item_id=$id"
+        elif item.name == "effect_matrix":
+            item.source = f"{self.router_path}/get_admin_action_perm_options?type=effect&permission=$permissions&item_id=$id"
         return item
 
     def register_router(self):
@@ -310,8 +328,8 @@ class CasbinUpdateSubFieldPermAction(CasbinBaseSubPermAction):
             options = get_admin_action_options_by_subject(self.site.auth.enforcer, subject, self.site)
             return BaseApiOut(data=options)
 
-        @self.router.get("/get_admin_action_fields_options", response_model=BaseApiOut)
-        async def get_admin_action_fields_options(
+        @self.router.get("/get_admin_action_perm_options", response_model=BaseApiOut)
+        async def get_admin_action_perm_options(
             request: Request,
             permission: str = "",
             item_id: str = "",
@@ -323,11 +341,11 @@ class CasbinUpdateSubFieldPermAction(CasbinBaseSubPermAction):
                     "col": "default",
                 },
                 {
-                    "label": "允许",
+                    "label": "是",
                     "col": "allow",
                 },
                 {
-                    "label": "拒绝",
+                    "label": "否",
                     "col": "deny",
                 },
             ]
@@ -345,18 +363,20 @@ class CasbinUpdateSubFieldPermAction(CasbinBaseSubPermAction):
             admin, parent = self.site.get_page_schema_child(unique_id)
             if not admin:
                 return out
-            # todo action == "page" 时,获取页面的数据集权限
-            action = action.replace("page:", "")
-            rows = get_admin_field_permission_rows(admin, action)
+            if action == "page":
+                rows = get_admin_select_permission_rows(admin)
+            else:
+                action = action.replace("page:", "")
+                rows = get_admin_field_permission_rows(admin, action)
             out.data["rows"] = rows
             if not item_id:
                 return out
             # 设置初始值
             subject = await self.get_subject_by_id(item_id)
             if type == "effect":
-                value = casbin_get_subject_field_effect_matrix(self.site.auth.enforcer, subject=subject, rows=rows)
+                value = casbin_get_subject_effect_matrix(self.site.auth.enforcer, subject=subject, rows=rows)
             else:
-                value = casbin_get_subject_field_policy_matrix(
+                value = casbin_get_subject_policy_matrix(
                     self.site.auth.enforcer,
                     subject=subject,
                     permission=permission,
@@ -378,11 +398,11 @@ class CasbinUpdateSubFieldPermAction(CasbinBaseSubPermAction):
         if subject == "u:" + identity:
             return BaseApiOut(status=0, msg="不能修改自己的权限")
         msg = await run_in_threadpool(
-            casbin_update_subject_field_permissions,
+            casbin_update_subject_data_permissions,
             self.site.auth.enforcer,
             subject=subject,
             permission=data.permissions,
-            field_policy_matrix=data.field_policy_matrix,
+            policy_matrix=data.policy_matrix,
             super_subject="u:" + identity,
         )
         return BaseApiOut(msg=msg)

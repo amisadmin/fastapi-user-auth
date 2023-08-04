@@ -202,7 +202,7 @@ def casbin_update_subject_page_permissions(
     return permissions
 
 
-def casbin_get_subject_field_policy_matrix(
+def casbin_get_subject_policy_matrix(
     enforcer: Enforcer,
     *,
     subject: str,
@@ -213,6 +213,7 @@ def casbin_get_subject_field_policy_matrix(
     default_, allow_, deny_ = [], [], []
     # bfc1eec773c2b331#page:list#page
     v1, v2, v3 = casbin_permission_decode(permission)
+    v2 = "page:select" if v2 == "page" else v2
     rules = enforcer.get_filtered_policy(0, subject, v1, "", v2, "")
     allow_rule = set()
     deny_rule = set()
@@ -225,10 +226,11 @@ def casbin_get_subject_field_policy_matrix(
             deny_rule.add(perm)
     for row in rows:
         perm = row["rol"]
+        reverse = row.get("reverse", False)
         allow_item = deny_item = default_item = {"checked": False, **row}
-        if perm in allow_rule:
+        if reverse ^ (perm in allow_rule):
             allow_item = {"checked": True, **row}
-        elif perm in deny_rule:
+        elif reverse ^ (perm in deny_rule):
             deny_item = {"checked": True, **row}
         else:
             default_item = {"checked": True, **row}
@@ -238,7 +240,7 @@ def casbin_get_subject_field_policy_matrix(
     return [default_, allow_, deny_]
 
 
-def casbin_get_subject_field_effect_matrix(
+def casbin_get_subject_effect_matrix(
     enforcer: Enforcer,
     *,
     subject: str,
@@ -249,8 +251,9 @@ def casbin_get_subject_field_effect_matrix(
     for row in rows:
         v1, v2, v3 = casbin_permission_decode(row["rol"])
         eff = enforcer.enforce(subject, v1, v2, v3)
+        reverse = row.get("reverse", False)
         allow_item = deny_item = {"checked": False, **row}
-        if eff:
+        if reverse ^ eff:
             allow_item = {"checked": True, **row}
         else:
             deny_item = {"checked": True, **row}
@@ -259,19 +262,19 @@ def casbin_get_subject_field_effect_matrix(
     return [allow_, deny_]
 
 
-def casbin_update_subject_field_permissions(
+def casbin_update_subject_data_permissions(
     enforcer: Enforcer,
     *,
     subject: str,
     permission: str,
-    field_policy_matrix: List[Dict[str, Any]],
+    policy_matrix: List[List[Dict[str, Any]]],
     super_subject: str = "u:root",
 ) -> str:
-    """更新casbin字段权限"""
+    """更新casbin数据字段权限或数据集权限"""
     # [[{'label': '默认', 'rol': 'page:list:uid', 'col': 'default', 'checked': True}]]
-    if not field_policy_matrix:
+    if not policy_matrix:
         return "success"
-    remove_, allow_, deny_ = field_policy_matrix
+    remove_, allow_, deny_ = policy_matrix
     # 删除旧的权限
     # bfc1eec773c2b331#page:list#page
     v1, v2, v3 = casbin_permission_decode(permission)
@@ -281,21 +284,24 @@ def casbin_update_subject_field_permissions(
         if not eff:
             return "没有更新权限"
 
-    def item_check(item: dict):
-        if not item["checked"]:
-            return False
-        if super_subject == "u:" + SystemUserEnum.ROOT:
-            return True
-        return enforcer.enforce(super_subject, *casbin_permission_decode(item["rol"]))
+    def to_rules(items: List[dict], is_allow: bool = True) -> set:
+        rules = set()
+        for item in items:
+            if not item["checked"]:
+                continue
+            reverse = item.get("reverse", False)
+            # 检查当前用户是否有对应的权限,只有自己拥有的权限才能分配给其他主体
+            perm = casbin_permission_decode(item["rol"])
+            if super_subject != "u:" + SystemUserEnum.ROOT and (reverse ^ enforcer.enforce(super_subject, *perm)):
+                continue
+            effect = "allow" if is_allow ^ reverse else "deny"
+            rules.add((subject, *perm, effect))
+        return rules
 
-    allow_rules = {(subject, *casbin_permission_decode(item["rol"]), "allow") for item in allow_ if item_check(item)}
-    deny_rules = {(subject, *casbin_permission_decode(item["rol"]), "deny") for item in deny_ if item_check(item)}
-    add_rules = allow_rules | deny_rules
+    add_rules = to_rules(allow_, is_allow=True) | to_rules(deny_, is_allow=False)
     # 删除旧的权限.注意必须在添加新的权限之前删除旧的权限,否则会导致重复的权限
+    v2 = "page:select" if v2 == "page" else v2
     enforcer.remove_filtered_policy(0, subject, v1, "", v2, "")
-    # if remove_rules:
-    #
-    #     enforcer.remove_policies(remove_rules)
     if add_rules:
         enforcer.add_policies(add_rules)
     return "success"

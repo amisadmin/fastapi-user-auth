@@ -27,7 +27,7 @@ from starlette.responses import Response
 from starlette.routing import NoMatchFound
 
 from fastapi_user_auth.actions import (
-    CasbinUpdateSubFieldPermAction,
+    CasbinUpdateSubDataPermAction,
     CasbinUpdateSubPermsAction,
     CasbinUpdateSubRolesAction,
 )
@@ -44,6 +44,7 @@ from fastapi_user_auth.auth.models import (
 from fastapi_user_auth.auth.schemas import SystemUserEnum, UserLoginOut
 from fastapi_user_auth.mixins.admin import (
     AuthFieldModelAdmin,
+    AuthSelectModelAdmin,
     AutoTimeModelAdmin,
     FootableModelAdmin,
     ReadOnlyModelAdmin,
@@ -250,7 +251,7 @@ class UserInfoFormAdmin(FormAdmin):
         return await self.site.auth.requires(response=False)(request)
 
 
-class UserAdmin(AuthFieldModelAdmin, SoftDeleteModelAdmin, FootableModelAdmin):
+class UserAdmin(AuthFieldModelAdmin, AuthSelectModelAdmin, SoftDeleteModelAdmin, FootableModelAdmin):
     page_schema = PageSchema(label=_("User"), icon="fa fa-user")
     model: Type[BaseUser] = None
     exclude = ["password"]
@@ -263,7 +264,7 @@ class UserAdmin(AuthFieldModelAdmin, SoftDeleteModelAdmin, FootableModelAdmin):
             name="update_subject_permissions",
             tooltip="更新用户页面权限",
         ),
-        lambda admin: CasbinUpdateSubFieldPermAction(
+        lambda admin: CasbinUpdateSubDataPermAction(
             admin=admin,
             name="update_subject_field_permissions",
             tooltip="更新用户字段权限",
@@ -322,7 +323,7 @@ class RoleAdmin(AutoTimeModelAdmin, FootableModelAdmin):
             name="update_subject_permissions",
             tooltip="更新角色页面权限",
         ),
-        lambda admin: CasbinUpdateSubFieldPermAction(
+        lambda admin: CasbinUpdateSubDataPermAction(
             admin=admin,
             name="update_subject_field_permissions",
             tooltip="更新角色字段权限",

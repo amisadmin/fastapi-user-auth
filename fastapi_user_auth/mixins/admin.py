@@ -15,7 +15,7 @@ from sqlalchemy.sql import Select
 from starlette.requests import Request
 
 from fastapi_user_auth.auth.schemas import SystemUserEnum
-from fastapi_user_auth.mixins.schemas import PermissionExcludeDict, RecentTimeSelectPerm, SelectPerm
+from fastapi_user_auth.mixins.schemas import PermissionExcludeDict, SelectPerm
 from fastapi_user_auth.utils import get_schema_fields_name_label
 
 
@@ -162,9 +162,10 @@ class AuthFieldModelAdmin(admin.ModelAdmin):
         """过滤筛选权限字段"""
         return self.get_permission_fields("filter")
 
-    async def has_field_permission(self, request: Request, field: str, action: str = None) -> bool:
+    async def has_field_permission(self, request: Request, field: str, action: str = "") -> bool:
         """判断用户是否有字段权限"""
         subject = await self.site.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
+        action += ""
         effect = self.site.auth.enforcer.enforce("u:" + subject, self.unique_id, f"page:{action}:{field}", f"page:{action}")
         return effect
 
@@ -259,14 +260,7 @@ class AuthFieldModelAdmin(admin.ModelAdmin):
 class AuthSelectModelAdmin(admin.ModelAdmin):
     """包含选择数据集权限控制的模型管理"""
 
-    select_permissions: List[SelectPerm] = [
-        # 最近7天创建的数据. reverse=True表示反向选择,即默认选择最近7天之内的数据
-        RecentTimeSelectPerm(name="recent7_create", label="最近7天创建", td=60 * 60 * 24 * 7, reverse=True),
-        # 最近30天创建的数据
-        RecentTimeSelectPerm(name="recent30_create", label="最近30天创建", td=60 * 60 * 24 * 30),
-        # 最近3天更新的数据
-        RecentTimeSelectPerm(name="recent3_update", label="最近3天更新", td=60 * 60 * 24 * 3, time_column="update_time"),
-    ]
+    select_permissions: List[SelectPerm] = []
 
     async def has_select_permission(self, request: Request, name: str) -> bool:
         """判断用户是否有数据集权限"""

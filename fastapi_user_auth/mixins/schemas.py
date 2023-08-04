@@ -57,3 +57,26 @@ class RecentTimeSelectPerm(SelectPerm):
     async def _call(self, admin: ModelAdmin, request: Request, sel: Select) -> Select:
         column = getattr(admin.model, self.time_column)
         return sel.where(column > datetime.now() - self.td)
+
+
+class UserSelectPerm(SelectPerm):
+    """所属用户选择数据集权限控制,只能选择匹配当前用户的数据"""
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        label: str,
+        call: SelectPermCallable = None,
+        reverse: bool = False,
+        user_column: str = "user_id",
+    ):
+        self.user_column = user_column
+        super().__init__(name=name, label=label, call=call or self._call, reverse=reverse)
+
+    async def _call(self, admin: ModelAdmin, request: Request, sel: Select) -> Select:
+        user_id = await admin.site.auth.get_current_user_identity(request, name="id")
+        if not user_id:  # 未登录
+            return sel.where(False)
+        column = getattr(admin.model, self.user_column)
+        return sel.where(column == user_id)
