@@ -38,11 +38,12 @@ classifiers = [
 ]
 dependencies = [
     "pydantic>=1.9",
-    "fastapi-amis-admin>=0.6.2,<0.7.0",
+    "fastapi-amis-admin>=0.6.3,<0.7.0",
     "email-validator",
     "passlib>=1.7.4",
     "bcrypt>=4.0.0",
     "casbin>=1.22.0",
+    "sqlmodelx>=0.0.2",
 ]
 
 [project.urls]

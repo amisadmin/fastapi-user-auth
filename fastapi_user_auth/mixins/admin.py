@@ -1,13 +1,14 @@
 import asyncio
 from datetime import datetime
 from functools import cached_property
-from typing import Any, Callable, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set, Union
 
 from fastapi_amis_admin import admin
 from fastapi_amis_admin.admin import AdminAction, AdminApp
 from fastapi_amis_admin.amis import FormItem, SchemaNode, TableColumn, TableCRUD
 from fastapi_amis_admin.crud.base import ItemListSchema, SchemaCreateT, SchemaFilterT, SchemaModelT, SchemaReadT, SchemaUpdateT
-from fastapi_amis_admin.crud.schema import BaseApiOut, CrudEnum
+from fastapi_amis_admin.crud.parser import TableModelT
+from fastapi_amis_admin.crud.schema import CrudEnum
 from fastapi_amis_admin.utils.pydantic import ModelField
 from sqlalchemy.engine import Result
 from sqlalchemy.sql import Select
@@ -206,11 +207,18 @@ class AuthFieldModelAdmin(admin.ModelAdmin):
         exclude = await self.get_deny_fields(request, "filter")  # 过滤没有权限的字段
         return {k: v for k, v in data.items() if k not in exclude}
 
-    async def on_create_pre(self, request: Request, obj: SchemaCreateT, **kwargs) -> Dict[str, Any]:
-        exclude = await self.get_deny_fields(request, "create")  # 过滤没有权限的字段
-        obj = obj.copy(exclude=exclude)  # 过滤没有权限的字段
-        data = await super().on_create_pre(request, obj, **kwargs)
-        return data
+    async def create_items(self, request: Request, items: List[SchemaCreateT]) -> List[TableModelT]:
+        """Create multiple data"""
+        exclude = await self.get_deny_fields(request, "create")
+        items = [item.copy(exclude=exclude) for item in items]  # 过滤没有权限的字段
+        items = await super().create_items(request, items)
+        return items
+
+    async def read_items(self, request: Request, item_id: List[str]) -> List[SchemaReadT]:
+        """Read multiple data"""
+        items = await super().read_items(request, item_id)
+        exclude = await self.get_deny_fields(request, "read")  # 过滤没有权限的字段
+        return [item.copy(exclude=exclude) for item in items]
 
     async def on_update_pre(
         self,
@@ -223,31 +231,6 @@ class AuthFieldModelAdmin(admin.ModelAdmin):
         obj = obj.copy(exclude=exclude)  # 过滤没有权限的字段
         data = await super().on_update_pre(request, obj, item_id, **kwargs)
         return data
-
-    async def on_read_after(
-        self,
-        request: Request,
-        obj: SchemaReadT,
-    ):
-        exclude = await self.get_deny_fields(request, "read")  # 过滤没有权限的字段
-        obj = obj.copy(exclude=exclude)  # 过滤没有权限的字段
-        return obj
-
-    @property
-    def route_read(self) -> Callable:
-        async def route(
-            request: Request,
-            item_id: self.AnnotatedItemIdList,  # type: ignore
-        ):
-            if not await self.has_read_permission(request, item_id):
-                return self.error_no_router_permission(request)
-            items = await self.db.async_run_sync(self._read_items, item_id)
-            items = [await self.on_read_after(request, item) for item in items]
-            if len(items) == 1:
-                items = items[0]
-            return BaseApiOut(data=items)
-
-        return route
 
     async def get_form_item(
         self, request: Request, modelfield: ModelField, action: CrudEnum
