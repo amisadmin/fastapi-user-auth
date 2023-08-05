@@ -2,7 +2,7 @@ from typing import Type
 
 from fastapi_amis_admin.admin import AdminApp, ModelAdmin, PageSchemaAdmin
 from fastapi_amis_admin.amis.components import PageSchema
-from fastapi_amis_admin.crud.utils import schema_create_by_schema
+from fastapi_amis_admin.utils.pydantic import create_model_by_model
 from fastapi_amis_admin.utils.translation import i18n as _
 from starlette.requests import Request
 
@@ -33,16 +33,16 @@ class UserAuthApp(AdminApp, AuthRouter):
         self.auth = self.auth or self.site.auth
         AuthRouter.__init__(self)
         self.UserAdmin.model = self.UserAdmin.model or self.auth.user_model
-        self.UserLoginFormAdmin.schema = self.UserLoginFormAdmin.schema or schema_create_by_schema(
+        self.UserLoginFormAdmin.schema = self.UserLoginFormAdmin.schema or create_model_by_model(
             self.auth.user_model, "UserLoginIn", include={"username", "password"}
         )
         self.UserLoginFormAdmin.schema_submit_out = self.UserLoginFormAdmin.schema_submit_out or self.schema_user_login_out
-        self.UserRegFormAdmin.schema = self.UserRegFormAdmin.schema or schema_create_by_schema(
+        self.UserRegFormAdmin.schema = self.UserRegFormAdmin.schema or create_model_by_model(
             self.auth.user_model, "UserRegIn", include={"username", "password", "email"}
         )
         self.UserRegFormAdmin.schema_submit_out = self.UserRegFormAdmin.schema_submit_out or self.schema_user_login_out
         self.UserInfoFormAdmin.user_model = self.auth.user_model
-        self.UserInfoFormAdmin.schema = self.UserInfoFormAdmin.schema or schema_create_by_schema(
+        self.UserInfoFormAdmin.schema = self.UserInfoFormAdmin.schema or create_model_by_model(
             self.auth.user_model,
             "UserInfoForm",
             include={"nickname", "password", "avatar", "email"},

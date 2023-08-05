@@ -263,17 +263,17 @@ class RoleAdmin(ModelAdmin):
     page_schema = PageSchema(label=_("Role"), icon="fa fa-group")
     model = Role
     link_model_fields = [Role.permissions]
-    readonly_fields = ["key"]
+    update_exclude = {"key"}
 
 
 class GroupAdmin(ModelAdmin):
     page_schema = PageSchema(label=_("Group"), icon="fa fa-group")
     model = Group
     link_model_fields = [Group.roles]
-    readonly_fields = ["key"]
+    update_exclude = {"key"}
 
 
 class PermissionAdmin(ModelAdmin):
     page_schema = PageSchema(label=_("Permission"), icon="fa fa-lock")
     model = Permission
-    readonly_fields = ["key"]
+    update_exclude = {"key"}

@@ -311,7 +311,7 @@ class MyGroupAdmin(admin.ModelAdmin):
     page_schema = PageSchema(label='用户组管理', icon='fa fa-group')
     model = MyGroup
     link_model_fields = [Group.roles]
-    readonly_fields = ['key']
+    update_exclude = {"key"}
 
 # 自定义用户认证应用,继承重写默认的用户认证应用
 class MyUserAuthApp(UserAuthApp):

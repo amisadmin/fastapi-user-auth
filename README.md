@@ -312,7 +312,7 @@ class MyGroupAdmin(admin.ModelAdmin):
     page_schema = PageSchema(label='用户组管理', icon='fa fa-group')
     model = MyGroup
     link_model_fields = [Group.roles]
-    readonly_fields = ['key']
+    update_exclude = {"key"}
 
 # Customize the user authentication application, inherit and override the default user authentication application
 class MyUserAuthApp(UserAuthApp):

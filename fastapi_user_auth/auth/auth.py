@@ -20,8 +20,8 @@ from fastapi.security import OAuth2PasswordBearer
 from fastapi.security.utils import get_authorization_scheme_param
 from fastapi_amis_admin.crud.base import RouterMixin
 from fastapi_amis_admin.crud.schema import BaseApiOut
-from fastapi_amis_admin.crud.utils import schema_create_by_schema
 from fastapi_amis_admin.utils.functools import cached_property
+from fastapi_amis_admin.utils.pydantic import create_model_by_model
 from fastapi_amis_admin.utils.translation import i18n as _
 from passlib.context import CryptContext
 from pydantic import BaseModel, SecretStr
@@ -238,7 +238,7 @@ class AuthRouter(RouterMixin):
         assert self.auth, "auth is None"
         RouterMixin.__init__(self)
         self.router.dependencies.insert(0, Depends(self.auth.backend.authenticate))
-        self.schema_user_info = self.schema_user_info or schema_create_by_schema(
+        self.schema_user_info = self.schema_user_info or create_model_by_model(
             self.auth.user_model, "UserInfo", exclude={"password"}
         )
 
