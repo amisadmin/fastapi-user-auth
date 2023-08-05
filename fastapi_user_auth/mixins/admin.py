@@ -15,7 +15,7 @@ from sqlalchemy.sql import Select
 from starlette.requests import Request
 
 from fastapi_user_auth.auth.schemas import SystemUserEnum
-from fastapi_user_auth.mixins.schemas import PermissionExcludeDict, SelectPerm
+from fastapi_user_auth.mixins.schemas import PermFieldsExclude, SelectPerm
 from fastapi_user_auth.utils import get_schema_fields_name_label
 
 
@@ -101,37 +101,37 @@ class AuthFieldModelAdmin(admin.ModelAdmin):
     #todo  初步实现,未优化
     """
 
-    permission_exclude: PermissionExcludeDict = None
+    perm_fields_exclude: PermFieldsExclude = PermFieldsExclude()
+    """exclude指定的字段,不进行权限验证."""
 
     def __init__(self, app: "AdminApp"):
         super().__init__(app)
-        self.permission_exclude = self.permission_exclude or {}
 
     def get_permission_fields(self, action: str) -> Dict[str, str]:
         """获取权限字段"""
-        all_exclude = self.permission_exclude.get("all", [])
+        all_exclude = self.perm_fields_exclude.all or []
         if action == "list":
-            list_exclude = self.permission_exclude.get("list", [])
+            list_exclude = self.perm_fields_exclude.list or []
             return get_schema_fields_name_label(
                 self.schema_list, prefix="列表展示-", exclude_required=True, exclude=[*all_exclude, *list_exclude]
             )
         elif action == "filter":
-            filter_exclude = self.permission_exclude.get("filter", [])
+            filter_exclude = self.perm_fields_exclude.filter or []
             return get_schema_fields_name_label(
                 self.schema_filter, prefix="列表筛选-", exclude_required=True, exclude=[*all_exclude, *filter_exclude]
             )
         elif action == "create":
-            create_exclude = self.permission_exclude.get("create", [])
+            create_exclude = self.perm_fields_exclude.create or []
             return get_schema_fields_name_label(
                 self.schema_create, prefix="新增-", exclude_required=True, exclude=[*all_exclude, *create_exclude]
             )
         elif action == "read":
-            read_exclude = self.permission_exclude.get("read", [])
+            read_exclude = self.perm_fields_exclude.read or []
             return get_schema_fields_name_label(
                 self.schema_read, prefix="查看-", exclude_required=True, exclude=[*all_exclude, *read_exclude]
             )
         elif action == "update":
-            update_exclude = self.permission_exclude.get("update", [])
+            update_exclude = self.perm_fields_exclude.update or []
             return get_schema_fields_name_label(
                 self.schema_update, prefix="更新-", exclude_required=True, exclude=[*all_exclude, *update_exclude]
             )
@@ -261,6 +261,7 @@ class AuthSelectModelAdmin(admin.ModelAdmin):
     """包含选择数据集权限控制的模型管理"""
 
     select_permissions: List[SelectPerm] = []
+    """需要进行权限控制的数据集列表"""
 
     async def has_select_permission(self, request: Request, name: str) -> bool:
         """判断用户是否有数据集权限"""

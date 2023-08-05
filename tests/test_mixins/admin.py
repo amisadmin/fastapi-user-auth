@@ -7,7 +7,7 @@ from sqlalchemy import Column, Text
 
 from fastapi_user_auth.mixins.admin import AuthFieldModelAdmin, AuthSelectModelAdmin
 from fastapi_user_auth.mixins.models import CUDTimeMixin, PkMixin
-from fastapi_user_auth.mixins.schemas import RecentTimeSelectPerm, SelectPerm, UserSelectPerm
+from fastapi_user_auth.mixins.schemas import RecentTimeSelectPerm, SelectPerm, SimpleSelectPerm, UserSelectPerm
 
 
 class Article(PkMixin, CUDTimeMixin, table=True):
@@ -17,12 +17,13 @@ class Article(PkMixin, CUDTimeMixin, table=True):
     category_id: Optional[int] = Field(default=None, title="CategoryId")
     user_id: Optional[int] = Field(default=None, foreign_key="auth_user.id", title="Author")
     content: str = Field(title="ArticleContent", sa_column=Column(Text, default=""))
+    is_published: bool = Field(default=False, title="IsPublished")
 
 
 class AuthFieldArticleAdmin(AuthFieldModelAdmin, admin.ModelAdmin):
     page_schema = PageSchema(label="字段控制文章管理")
     model = Article
-    permission_exclude = {
+    perm_fields_exclude = {
         "create": ["title", "description", "content"],
     }
 
@@ -41,4 +42,8 @@ class AuthSelectArticleAdmin(AuthSelectModelAdmin, admin.ModelAdmin):
         UserSelectPerm(name="self_create", label="自己创建", user_column="user_id", reverse=True),
         # # 只能选择自己更新的数据
         # UserSelectPerm(name="self_update", label="自己更新", user_column="update_by"),
+        # 只能选择已发布的数据
+        SimpleSelectPerm(name="published", label="已发布", column="is_published", values=[True]),
+        # 只能选择状态为[1,2,3]的数据
+        SimpleSelectPerm(name="status_1_2_3", label="状态为1_2_3", column="status", values=[1, 2, 3]),
     ]

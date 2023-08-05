@@ -50,6 +50,7 @@ from fastapi_user_auth.mixins.admin import (
     ReadOnlyModelAdmin,
     SoftDeleteModelAdmin,
 )
+from fastapi_user_auth.mixins.schemas import PermFieldsExclude
 from fastapi_user_auth.utils import (
     casbin_update_site_grouping,
     get_admin_action_options,
@@ -282,8 +283,8 @@ class UserAdmin(AuthFieldModelAdmin, AuthSelectModelAdmin, SoftDeleteModelAdmin,
         UserRoleNameLabel,
         User.create_time,
     ]
-    permission_exclude = {
-        "all": [
+    perm_fields_exclude = PermFieldsExclude(
+        all=[
             "id",
             "username",
             "nickname",
@@ -291,7 +292,7 @@ class UserAdmin(AuthFieldModelAdmin, AuthSelectModelAdmin, SoftDeleteModelAdmin,
             "is_active",
             "create_time",
         ],
-    }
+    )
 
     async def get_select(self, request: Request) -> Select:
         sel = await super().get_select(request)
