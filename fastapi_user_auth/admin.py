@@ -27,9 +27,9 @@ from starlette.responses import Response
 from starlette.routing import NoMatchFound
 
 from fastapi_user_auth.actions import (
-    CasbinUpdateSubDataPermAction,
-    CasbinUpdateSubPermsAction,
-    CasbinUpdateSubRolesAction,
+    UpdateSubDataPermAction,
+    UpdateSubPagePermsAction,
+    UpdateSubRolesAction,
 )
 from fastapi_user_auth.auth import Auth
 from fastapi_user_auth.auth.models import (
@@ -260,17 +260,17 @@ class UserAdmin(AuthFieldModelAdmin, AuthSelectModelAdmin, SoftDeleteModelAdmin,
     search_fields = [User.username, UserRoleNameLabel]
     display_item_action_as_column = True
     admin_action_maker = [
-        lambda admin: CasbinUpdateSubPermsAction(
+        lambda admin: UpdateSubPagePermsAction(
             admin=admin,
-            name="update_subject_permissions",
+            name="update_subject_page_permissions",
             tooltip="更新用户页面权限",
         ),
-        lambda admin: CasbinUpdateSubDataPermAction(
+        lambda admin: UpdateSubDataPermAction(
             admin=admin,
-            name="update_subject_field_permissions",
-            tooltip="更新用户字段权限",
+            name="update_subject_data_permissions",
+            tooltip="更新用户数据权限",
         ),
-        lambda admin: CasbinUpdateSubRolesAction(
+        lambda admin: UpdateSubRolesAction(
             admin=admin, name="update_subject_roles", tooltip="更新用户角色", icon="fa fa-user", flags="item"
         ),
     ]
@@ -319,17 +319,17 @@ class RoleAdmin(AutoTimeModelAdmin, FootableModelAdmin):
     update_exclude = AutoTimeModelAdmin.update_exclude | {"key"}
     display_item_action_as_column = True
     admin_action_maker = [
-        lambda admin: CasbinUpdateSubPermsAction(
+        lambda admin: UpdateSubPagePermsAction(
             admin=admin,
-            name="update_subject_permissions",
+            name="update_subject_page_permissions",
             tooltip="更新角色页面权限",
         ),
-        lambda admin: CasbinUpdateSubDataPermAction(
+        lambda admin: UpdateSubDataPermAction(
             admin=admin,
-            name="update_subject_field_permissions",
-            tooltip="更新角色字段权限",
+            name="update_subject_data_permissions",
+            tooltip="更新角色数据权限",
         ),
-        lambda admin: CasbinUpdateSubRolesAction(
+        lambda admin: UpdateSubRolesAction(
             admin=admin, name="update_subject_roles", tooltip="更新子角色", icon="fa fa-user", flags="item"
         ),
     ]

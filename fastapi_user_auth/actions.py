@@ -30,9 +30,7 @@ from fastapi_user_auth.utils import (
 
 
 @lru_cache()
-def get_admin_select_permission_rows(
-    admin: PageSchemaAdmin,
-) -> List[Dict[str, Any]]:
+def get_admin_select_permission_rows(admin: PageSchemaAdmin) -> List[Dict[str, Any]]:
     rows = []
     if not isinstance(admin, AuthSelectModelAdmin):
         return rows
@@ -48,10 +46,7 @@ def get_admin_select_permission_rows(
 
 
 @lru_cache()
-def get_admin_field_permission_rows(
-    admin: PageSchemaAdmin,
-    action: str,
-) -> List[Dict[str, Any]]:
+def get_admin_field_permission_rows(admin: PageSchemaAdmin, action: str) -> List[Dict[str, Any]]:
     """获取指定页面权限的字段权限,用于amis组件"""
     rows = []
     fields = {}
@@ -80,7 +75,7 @@ def get_admin_field_permission_rows(
     return rows
 
 
-class CasbinBaseSubAction(ModelAction):
+class BaseSubAction(ModelAction):
     def __init__(self, admin, **kwargs):
         super().__init__(admin, **kwargs)
         if self.admin.model.__table__.name == Role.__tablename__:
@@ -103,7 +98,7 @@ class CasbinBaseSubAction(ModelAction):
             return ""
 
 
-class CasbinUpdateSubRolesAction(CasbinBaseSubAction):
+class UpdateSubRolesAction(BaseSubAction):
     """主体Casbin角色基类"""
 
     _implicit: bool = True
@@ -175,20 +170,12 @@ class CasbinUpdateSubRolesAction(CasbinBaseSubAction):
         return BaseApiOut(msg="success")
 
 
-class CasbinBaseSubPermAction(CasbinBaseSubAction):
+class BaseSubPermAction(BaseSubAction):
     """主体Casbin权限基类"""
 
     _implicit: bool = True
     form_init = False
     # 配置动作基本信息
-    # action = ActionType.Drawer(
-    #     name="view_subject_permissions",
-    #     icon="fa fa-check",
-    #     tooltip="查看权限",
-    #     drawer=amis.Drawer(),
-    #     level=LevelEnum.warning
-    # )
-
     action = ActionType.Dialog(
         name="view_subject_permissions",
         icon="fa fa-check",
@@ -229,16 +216,16 @@ class CasbinBaseSubPermAction(CasbinBaseSubAction):
         return item
 
 
-class CasbinViewSubPermAction(CasbinBaseSubPermAction):
+class ViewSubPagePermAction(BaseSubPermAction):
     """查看主体Casbin权限,暂时不支持单个主体的权限可视化配置"""
 
     _implicit: bool = True
     form_init = True
 
     action = ActionType.Dialog(
-        name="view_subject_permissions",
+        name="view_subject_page_permissions",
         icon="fa fa-check",
-        tooltip="查看权限",
+        tooltip="查看页面权限",
         dialog=amis.Dialog(actions=[]),
         level=LevelEnum.warning,
     )
@@ -267,13 +254,13 @@ class CasbinViewSubPermAction(CasbinBaseSubPermAction):
         return BaseApiOut(status=1, msg="请通过的【设置权限】更新设置!")
 
 
-class CasbinUpdateSubDataPermAction(CasbinBaseSubPermAction):
+class UpdateSubDataPermAction(BaseSubPermAction):
     """更新主体Casbin权限,字段权限+数据集权限"""
 
     _implicit: bool = True
 
     action = ActionType.Dialog(
-        name="update_subject_field_permissions",
+        name="update_subject_data_permissions",
         icon="fa fa-gavel",
         tooltip="更新数据权限",
         dialog=amis.Dialog(actions=[amis.Action(actionType="submit", label="保存", close=False, primary=True)]),
@@ -281,7 +268,7 @@ class CasbinUpdateSubDataPermAction(CasbinBaseSubPermAction):
     )
 
     # 创建动作表单数据模型
-    class schema(CasbinBaseSubPermAction.schema):
+    class schema(BaseSubPermAction.schema):
         effect_matrix: list = Field(
             None,
             title="当前权限",
@@ -408,12 +395,12 @@ class CasbinUpdateSubDataPermAction(CasbinBaseSubPermAction):
         return BaseApiOut(msg=msg)
 
 
-class CasbinUpdateSubPermsAction(CasbinViewSubPermAction):
+class UpdateSubPagePermsAction(ViewSubPagePermAction):
     """更新主体Casbin权限"""
 
     _implicit: bool = False
     action = ActionType.Dialog(
-        name="update_subject_permissions",
+        name="update_subject_page_permissions",
         icon="fa fa-gavel",
         tooltip="更新页面权限",
         dialog=amis.Dialog(),

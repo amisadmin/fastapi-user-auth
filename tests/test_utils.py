@@ -36,7 +36,9 @@ async def fake_data(db, site, admin_instances, enforcer: Enforcer):
         CasbinRule(ptype="p", v0="r:admin", v1=user_admin_unique_id, v2="page:update", v3="page", v4="allow"),
         CasbinRule(ptype="p", v0="r:admin", v1=user_admin_unique_id, v2="page:delete", v3="page", v4="allow"),
         CasbinRule(ptype="p", v0="r:admin", v1=user_admin_unique_id, v2="page:bulk_delete", v3="page", v4="allow"),
-        CasbinRule(ptype="p", v0="r:admin", v1=user_admin_unique_id, v2="page:update_subject_permissions", v3="page", v4="allow"),
+        CasbinRule(
+            ptype="p", v0="r:admin", v1=user_admin_unique_id, v2="page:update_subject_page_permissions", v3="page", v4="allow"
+        ),
         CasbinRule(ptype="p", v0="r:admin", v1=user_admin_unique_id, v2="page:list:email", v3="page:list", v4="allow"),
         CasbinRule(ptype="p", v0="r:admin", v1=user_admin_unique_id, v2="page:filter:email", v3="page:filter", v4="allow"),
         CasbinRule(ptype="p", v0="r:admin", v1=user_admin_unique_id, v2="page:create:email", v3="page:create", v4="allow"),
@@ -69,7 +71,7 @@ def test_get_admin_action_options(site: AuthAdminSite, admin_instances: dict):
     assert children[3]["value"] == user_admin_unique_id + "#page:update#page"
     assert children[4]["value"] == user_admin_unique_id + "#page:delete#page"
     assert children[5]["value"] == user_admin_unique_id + "#page:bulk_delete#page"
-    assert children[6]["value"] == user_admin_unique_id + "#page:update_subject_permissions#page"
+    assert children[6]["value"] == user_admin_unique_id + "#page:update_subject_page_permissions#page"
     assert options[-1]["value"] == admin_instances["casbin_rule_admin"].unique_id + "#page#page"
     options2 = get_admin_action_options(site)
     assert options is options2  # test cache
@@ -90,7 +92,7 @@ def test_get_admin_action_options_by_subject(site: AuthAdminSite, admin_instance
     assert children[3]["value"] == user_admin_unique_id + "#page:update#page"
     assert children[4]["value"] == user_admin_unique_id + "#page:delete#page"
     assert children[5]["value"] == user_admin_unique_id + "#page:bulk_delete#page"
-    assert children[6]["value"] == user_admin_unique_id + "#page:update_subject_permissions#page"
+    assert children[6]["value"] == user_admin_unique_id + "#page:update_subject_page_permissions#page"
     assert options[-1]["value"] != admin_instances["casbin_rule_admin"].unique_id + "#page#page"
 
 
