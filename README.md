@@ -58,7 +58,7 @@ from sqlmodel import SQLModel
 app = FastAPI()
 
 # 创建AdminSite实例
-site = AuthAdminSite(settings=Settings(database_url_async='sqlite+aiosqlite:///amisadmin.db'))
+site = AuthAdminSite(settings=Settings(database_url='sqlite:///amisadmin.db?check_same_thread=False'))
 auth = site.auth
 # 挂载后台管理系统
 site.mount_app(app)
@@ -83,7 +83,7 @@ def get_user(request: Request):
 if __name__ == '__main__':
     import uvicorn
 
-    uvicorn.run(app, debug=True)
+    uvicorn.run(app)
 
 ```
 
@@ -194,20 +194,22 @@ async def get_request_user(request: Request) -> Optional[User]:
 
 ```python
 from fastapi_user_auth.auth.backends.jwt import JwtTokenStore
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy_database import AsyncDatabase
+from sqlalchemy_database import Database
+from fastapi_user_auth.auth import Auth
+from fastapi_amis_admin.admin.site import AuthAdminSite
+# 创建同步数据库引擎
+db=Database.create(url="sqlite:///amisadmin.db?check_same_thread=False")
 
-# 创建异步数据库引擎
-engine = create_async_engine(url='sqlite+aiosqlite:///amisadmin.db', future=True)
 # 使用`JwtTokenStore`创建auth对象
 auth = Auth(
-    db=AsyncDatabase(engine),
+    db=db,
     token_store=JwtTokenStore(secret_key='09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7')
 )
 
 # 将auth对象传入AdminSite
 site = AuthAdminSite(
-    settings=Settings(database_url_async='sqlite+aiosqlite:///amisadmin.db'),
+    settings=Settings(),
+    db=db,
     auth=auth
 )
 
@@ -220,8 +222,8 @@ site = AuthAdminSite(
 from fastapi_user_auth.auth.backends.db import DbTokenStore
 
 auth = Auth(
-    db=AsyncDatabase(engine),
-    token_store=DbTokenStore(db=AsyncDatabase(engine))
+    db=db,
+    token_store=DbTokenStore(db=db)
 )
 ```
 
@@ -233,7 +235,7 @@ from fastapi_user_auth.auth.backends.redis import RedisTokenStore
 from aioredis import Redis
 
 auth = Auth(
-    db=AsyncDatabase(engine),
+    db=db,
     token_store=RedisTokenStore(redis=Redis.from_url('redis://localhost?db=0'))
 )
 ```
