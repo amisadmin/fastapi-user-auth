@@ -14,18 +14,18 @@ from pydantic.fields import ModelField
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 
+from fastapi_user_auth.admin.utils import get_admin_action_options_by_subject
 from fastapi_user_auth.auth.models import Role, User
 from fastapi_user_auth.auth.schemas import SystemUserEnum
 from fastapi_user_auth.mixins.admin import AuthFieldModelAdmin, AuthSelectModelAdmin
-from fastapi_user_auth.utils import (
-    casbin_get_subject_effect_matrix,
-    casbin_get_subject_page_permissions,
-    casbin_get_subject_policy_matrix,
-    casbin_permission_decode,
-    casbin_update_subject_data_permissions,
-    casbin_update_subject_page_permissions,
-    casbin_update_subject_roles,
-    get_admin_action_options_by_subject,
+from fastapi_user_auth.utils.casbin import (
+    get_subject_effect_matrix,
+    get_subject_page_permissions,
+    get_subject_policy_matrix,
+    permission_decode,
+    update_subject_data_permissions,
+    update_subject_page_permissions,
+    update_subject_roles,
 )
 
 
@@ -166,7 +166,7 @@ class UpdateSubRolesAction(BaseSubAction):
             user_role_keys = self.site.auth.enforcer.get_implicit_roles_for_user("u:" + identity)
             role_keys = [role for role in role_keys if role in user_role_keys]  # 过滤掉当前用户的角色
         # 更新角色列表
-        await run_in_threadpool(casbin_update_subject_roles, enforcer, subject=subject, role_keys=role_keys)
+        await run_in_threadpool(update_subject_roles, enforcer, subject=subject, role_keys=role_keys)
         return BaseApiOut(msg="success")
 
 
@@ -245,7 +245,7 @@ class ViewSubPagePermAction(BaseSubPermAction):
         if not subject:
             return BaseApiOut(status=0, msg="暂不支持的模型")
         permissions = await run_in_threadpool(
-            casbin_get_subject_page_permissions, self.site.auth.enforcer, subject=subject, implicit=self._implicit
+            get_subject_page_permissions, self.site.auth.enforcer, subject=subject, implicit=self._implicit
         )
         permissions = [perm.replace("#allow", "") for perm in permissions if perm.endswith("#allow")]
         return BaseApiOut(data=self.schema(permissions=",".join(permissions)))
@@ -346,7 +346,7 @@ class UpdateSubDataPermAction(BaseSubPermAction):
             )
             if not permission:
                 return out
-            unique_id, action, *_ = casbin_permission_decode(permission)
+            unique_id, action, *_ = permission_decode(permission)
             admin, parent = self.site.get_page_schema_child(unique_id)
             if not admin:
                 return out
@@ -361,9 +361,9 @@ class UpdateSubDataPermAction(BaseSubPermAction):
             # 设置初始值
             subject = await self.get_subject_by_id(item_id)
             if type == "effect":
-                value = casbin_get_subject_effect_matrix(self.site.auth.enforcer, subject=subject, rows=rows)
+                value = get_subject_effect_matrix(self.site.auth.enforcer, subject=subject, rows=rows)
             else:
-                value = casbin_get_subject_policy_matrix(
+                value = get_subject_policy_matrix(
                     self.site.auth.enforcer,
                     subject=subject,
                     permission=permission,
@@ -385,7 +385,7 @@ class UpdateSubDataPermAction(BaseSubPermAction):
         if subject == "u:" + identity:
             return BaseApiOut(status=0, msg="不能修改自己的权限")
         msg = await run_in_threadpool(
-            casbin_update_subject_data_permissions,
+            update_subject_data_permissions,
             self.site.auth.enforcer,
             subject=subject,
             permission=data.permissions,
@@ -420,8 +420,6 @@ class UpdateSubPagePermsAction(ViewSubPagePermAction):
         enforcer: Enforcer = self.site.auth.enforcer
         if permissions and identity != SystemUserEnum.ROOT:
             #  检查当前用户是否有对应的权限,只有自己拥有的权限才能分配给其他主体
-            permissions = [perm for perm in permissions if enforcer.enforce("u:" + identity, *casbin_permission_decode(perm))]
-        await run_in_threadpool(
-            casbin_update_subject_page_permissions, enforcer, subject=subject, permissions=permissions
-        )  # 更新角色权限
+            permissions = [perm for perm in permissions if enforcer.enforce("u:" + identity, *permission_decode(perm))]
+        await run_in_threadpool(update_subject_page_permissions, enforcer, subject=subject, permissions=permissions)  # 更新角色权限
         return BaseApiOut(msg="success")

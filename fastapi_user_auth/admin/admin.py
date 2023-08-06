@@ -26,10 +26,14 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import NoMatchFound
 
-from fastapi_user_auth.actions import (
+from fastapi_user_auth.admin.actions import (
     UpdateSubDataPermAction,
     UpdateSubPagePermsAction,
     UpdateSubRolesAction,
+)
+from fastapi_user_auth.admin.utils import (
+    get_admin_action_options,
+    update_casbin_site_grouping,
 )
 from fastapi_user_auth.auth import Auth
 from fastapi_user_auth.auth.models import (
@@ -51,10 +55,6 @@ from fastapi_user_auth.mixins.admin import (
     SoftDeleteModelAdmin,
 )
 from fastapi_user_auth.mixins.schemas import PermFieldsExclude
-from fastapi_user_auth.utils import (
-    casbin_update_site_grouping,
-    get_admin_action_options,
-)
 
 
 def attach_page_head(page: Page) -> Page:
@@ -374,12 +374,12 @@ class CasbinRuleAdmin(ReadOnlyModelAdmin):
             # 同步casbin会自动加载策略
             # self.load_policy()
             # 更新站点资源分组
-            casbin_update_site_grouping(self.site.auth.enforcer, self.site)
+            update_casbin_site_grouping(self.site.auth.enforcer, self.site)
 
     def load_policy(self):
         self.site.auth.enforcer.load_policy()
         # 更新站点资源分组
-        casbin_update_site_grouping(self.site.auth.enforcer, self.site)
+        update_casbin_site_grouping(self.site.auth.enforcer, self.site)
 
     def register_router(self):
         @self.router.get("/load_policy", response_model=BaseApiOut)

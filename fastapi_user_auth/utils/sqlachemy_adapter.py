@@ -6,8 +6,33 @@ from casbin.persist.adapters.update_adapter import UpdateAdapter
 from sqlalchemy import insert
 from sqlalchemy.sql.dml import Delete
 from sqlalchemy_database import Database
-from sqlmodel import SQLModel, and_, delete, or_, select
+from sqlmodel import Field, SQLModel, and_, delete, or_, select
 from sqlmodel.sql.expression import SelectOfScalar
+
+
+class CasbinRule(SQLModel, table=True):
+    __tablename__ = "auth_casbin_rule"
+
+    id: int = Field(default=None, primary_key=True, nullable=False)
+    ptype: str = Field(title="Policy Type")
+    v0: str = Field(title="Subject")
+    v1: str = Field(title="Object")
+    v2: str = Field(None, title="Action")
+    v3: str = Field(None)
+    v4: str = Field(None)
+    v5: str = Field(None)
+
+    def __str__(self) -> str:
+        arr = [self.ptype]
+        # pylint: disable=invalid-name
+        for v in (self.v0, self.v1, self.v2, self.v3, self.v4, self.v5):
+            if v is None:
+                break
+            arr.append(v)
+        return ", ".join(arr)
+
+    def __repr__(self) -> str:
+        return f'<CasbinRule {self.id}: "{str(self)}">'
 
 
 class AdapterException(Exception):
@@ -43,10 +68,6 @@ class Adapter(BaseAdapter, UpdateAdapter):
     ):
         self.db = db
         if db_class is None:
-            from .models import (  # isort: skip # pylint: disable=import-outside-toplevel
-                CasbinRule,
-            )
-
             db_class = CasbinRule
         else:
             for attr in (

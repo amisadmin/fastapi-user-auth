@@ -37,11 +37,11 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 from starlette.websockets import WebSocket
 
+from ..utils.sqlachemy_adapter import Adapter
 from .backends.base import BaseTokenStore
 from .backends.db import DbTokenStore
 from .models import BaseUser, CasbinRule, LoginHistory, Role, User
 from .schemas import BaseTokenData, UserLoginOut
-from .sqlachemy_adapter import Adapter
 
 UserModelT = TypeVar("UserModelT", bound=BaseUser)
 

@@ -13,8 +13,8 @@ from fastapi_user_auth.admin import UserAdmin as DefaultUserAdmin
 from fastapi_user_auth.admin import UserInfoFormAdmin as DefaultUserInfoFormAdmin
 from fastapi_user_auth.admin import UserLoginFormAdmin as DefaultUserLoginFormAdmin
 from fastapi_user_auth.admin import UserRegFormAdmin as DefaultUserRegFormAdmin
+from fastapi_user_auth.admin.utils import get_admin_action_options_by_subject
 from fastapi_user_auth.auth import AuthRouter
-from fastapi_user_auth.utils import get_admin_action_options_by_subject
 
 
 class UserAuthApp(AdminApp, AuthRouter):

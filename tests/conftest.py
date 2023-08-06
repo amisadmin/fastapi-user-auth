@@ -8,8 +8,7 @@ from sqlalchemy_database import AsyncDatabase, Database
 from sqlmodel import SQLModel
 from starlette.testclient import TestClient
 
-from fastapi_user_auth.admin import CasbinRuleAdmin, LoginHistoryAdmin
-from fastapi_user_auth.site import AuthAdminSite
+from fastapi_user_auth.admin import AuthAdminSite, CasbinRuleAdmin, LoginHistoryAdmin
 
 # sqlite
 sync_db = Database.create("sqlite:///amisadmin.db?check_same_thread=False")

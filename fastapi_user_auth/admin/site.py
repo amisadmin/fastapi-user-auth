@@ -17,7 +17,7 @@ from fastapi_amis_admin.utils.translation import i18n as _
 from starlette.requests import Request
 
 from fastapi_user_auth.admin import CasbinRuleAdmin
-from fastapi_user_auth.app import UserAuthApp as DefaultUserAuthApp
+from fastapi_user_auth.admin import UserAuthApp as DefaultUserAuthApp
 from fastapi_user_auth.auth import Auth
 from fastapi_user_auth.auth.schemas import SystemUserEnum
 

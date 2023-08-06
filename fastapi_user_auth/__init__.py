@@ -2,7 +2,6 @@ __version__ = "0.6.0"
 __url__ = "https://github.com/amisadmin/fastapi_user_auth"
 
 import gettext
-import os
 from pathlib import Path
 
 from fastapi_amis_admin import i18n
@@ -18,3 +17,7 @@ i18n.load_translations(
         ),
     }
 )
+
+from . import globals as g  # noqa: E402
+
+__all__ = ["__version__", "__url__", "g", "i18n"]

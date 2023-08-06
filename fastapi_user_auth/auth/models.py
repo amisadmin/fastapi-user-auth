@@ -14,6 +14,7 @@ from fastapi_user_auth.mixins.models import (  # noqa F401
     UpdateTimeMixin,
     UsernameMixin,
 )
+from fastapi_user_auth.utils.sqlachemy_adapter import CasbinRule
 
 
 class BaseUser(PkMixin, CUDTimeMixin, UsernameMixin, PasswordMixin, EmailMixin):
@@ -55,30 +56,6 @@ class Role(PkMixin, CUDTimeMixin, table=True):
     key: str = Field(title="角色标识", max_length=40, unique=True, index=True, nullable=False)
     name: str = Field(default="", title="角色名称", max_length=40)
     desc: str = Field(default="", title="角色描述", max_length=400, amis_form_item="textarea")
-
-
-class CasbinRule(PkMixin, table=True):  # type: ignore
-    __tablename__ = "auth_casbin_rule"
-
-    ptype: str = Field(title="Policy Type")
-    v0: str = Field(title="Subject")
-    v1: str = Field(title="Object")
-    v2: str = Field(None, title="Action")
-    v3: str = Field(None)
-    v4: str = Field(None)
-    v5: str = Field(None)
-
-    def __str__(self) -> str:
-        arr = [self.ptype]
-        # pylint: disable=invalid-name
-        for v in (self.v0, self.v1, self.v2, self.v3, self.v4, self.v5):
-            if v is None:
-                break
-            arr.append(v)
-        return ", ".join(arr)
-
-    def __repr__(self) -> str:
-        return f'<CasbinRule {self.id}: "{str(self)}">'
 
 
 """

@@ -14,9 +14,9 @@ from sqlalchemy.engine import Result
 from sqlalchemy.sql import Select
 from starlette.requests import Request
 
+from fastapi_user_auth.admin.utils import get_schema_fields_name_label
 from fastapi_user_auth.auth.schemas import SystemUserEnum
 from fastapi_user_auth.mixins.schemas import PermFieldsExclude, SelectPerm
-from fastapi_user_auth.utils import get_schema_fields_name_label
 
 
 class ReadOnlyModelAdmin(admin.ModelAdmin):
