@@ -26,8 +26,8 @@ class AuthAdminSite(AdminSite):
     auth: Auth = None
     UserAuthApp: Type[DefaultUserAuthApp] = DefaultUserAuthApp
 
-    def __init__(self, settings: Settings, fastapi: FastAPI = None, engine: SqlalchemyDatabase = None, auth: Auth = None):
-        super().__init__(settings, fastapi, engine)
+    def __init__(self, settings: Settings, *, fastapi: FastAPI = None, engine: SqlalchemyDatabase = None, auth: Auth = None):
+        super().__init__(settings, fastapi=fastapi, engine=engine)
         self.auth = auth or self.auth or Auth(db=self.db)
         self.register_admin(self.UserAuthApp, CasbinRuleAdmin)
 

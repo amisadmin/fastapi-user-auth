@@ -74,7 +74,7 @@ CasbinSubjectRolesQuery = (
         func.group_concat(Role.key).label("role_keys"),
     )
     .where(CasbinRule.ptype == "g")
-    .outerjoin(Role, CasbinRule.v1 == func.concat("r:", Role.key))
+    .outerjoin(Role, CasbinRule.v1 == "r:" + Role.key)  # sqlalchemy#5275
     .group_by(CasbinRule.v0)
     .subquery()
 )

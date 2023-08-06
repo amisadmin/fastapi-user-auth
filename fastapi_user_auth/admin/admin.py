@@ -19,7 +19,7 @@ from fastapi_amis_admin.crud.base import SchemaUpdateT
 from fastapi_amis_admin.crud.schema import BaseApiOut
 from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlmodel.sql.expression import Select
 from starlette import status
 from starlette.requests import Request
@@ -296,7 +296,7 @@ class UserAdmin(AuthFieldModelAdmin, AuthSelectModelAdmin, SoftDeleteModelAdmin,
 
     async def get_select(self, request: Request) -> Select:
         sel = await super().get_select(request)
-        sel = sel.outerjoin(CasbinSubjectRolesQuery, CasbinSubjectRolesQuery.c.subject == func.concat("u:", User.username))
+        sel = sel.outerjoin(CasbinSubjectRolesQuery, CasbinSubjectRolesQuery.c.subject == "u:" + User.username)
         return sel
 
     async def on_create_pre(self, request: Request, obj, **kwargs) -> Dict[str, Any]:
@@ -344,7 +344,7 @@ class RoleAdmin(AutoTimeModelAdmin, FootableModelAdmin):
 
     async def get_select(self, request: Request) -> Select:
         sel = await super().get_select(request)
-        sel = sel.outerjoin(CasbinSubjectRolesQuery, CasbinSubjectRolesQuery.c.subject == func.concat("r:", Role.key))
+        sel = sel.outerjoin(CasbinSubjectRolesQuery, CasbinSubjectRolesQuery.c.subject == "r:" + Role.key)
         return sel
 
 
