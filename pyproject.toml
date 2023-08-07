@@ -42,7 +42,7 @@ dependencies = [
     "email-validator",
     "passlib>=1.7.4",
     "bcrypt>=4.0.0",
-    "casbin>=1.22.0",
+    "casbin>=1.23.0",
     "sqlmodelx>=0.0.5",
 ]
 
