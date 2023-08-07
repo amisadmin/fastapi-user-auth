@@ -16,7 +16,7 @@ from typing import (
     Union,
 )
 
-from casbin import Enforcer
+from casbin import AsyncEnforcer
 from fastapi import Depends, FastAPI, Form, HTTPException, params
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.security.utils import get_authorization_scheme_param
@@ -75,24 +75,20 @@ class Auth(Generic[UserModelT]):
         token_store: BaseTokenStore = None,
         user_model: Type[UserModelT] = User,
         pwd_context: CryptContext = CryptContext(schemes=["bcrypt"], deprecated="auto"),
-        enforcer: Enforcer = None,
+        enforcer: AsyncEnforcer = None,
     ):
         self.user_model = user_model or self.user_model
         assert self.user_model, "user_model is None"
         self.db = db or self.db
         self.backend = self.backend or AuthBackend(self, token_store or DbTokenStore(self.db))
         self.pwd_context = pwd_context
-        if enforcer is None:
-            assert isinstance(self.db, Database), "enforcer is None, db must be Database"
         self._enforcer = enforcer
 
     @cached_property
-    def enforcer(self) -> Enforcer:
+    def enforcer(self) -> AsyncEnforcer:
         if self._enforcer is not None:
             return self._enforcer
-        # 注意: 同步版本的Casbin在实例化时会自动加载策略, 但异步版本的Casbin不会自动加载策略, 需要手动调用load_policy
-        # 使用cached_property缓存enforcer, 避免在__init__中加载策略(可能数据库未创建完成)
-        enforcer = Enforcer(
+        enforcer = AsyncEnforcer(
             model=str(Path(__file__).parent / "model.conf"),
             adapter=Adapter(
                 db=self.db,
@@ -130,7 +126,7 @@ class Auth(Generic[UserModelT]):
         user_identity = getattr(token_info, name, "") if token_info else ""
         return user_identity
 
-    def has_role_for_user(self, identity: str, roles: Union[str, Sequence[str]], is_any: bool = True) -> bool:
+    async def has_role_for_user(self, identity: str, roles: Union[str, Sequence[str]], is_any: bool = True) -> bool:
         identity = "u:" + identity
         if isinstance(roles, str):
             roles = [roles]
@@ -139,7 +135,7 @@ class Auth(Generic[UserModelT]):
         for role in roles:
             if not role:
                 continue
-            ret = self.enforcer.has_role_for_user(identity, "r:" + role)
+            ret = await self.enforcer.has_role_for_user(identity, "r:" + role)
             if is_any and ret:
                 return True
             elif not is_any and not ret:
@@ -149,7 +145,7 @@ class Auth(Generic[UserModelT]):
     async def has_role(self, request: Request, *, roles: Union[str, Sequence[str]]) -> bool:
         """判断当前用户是否拥有指定角色,拥有任意一个角色即返回True"""
         identity = await self.get_current_user_identity(request)
-        return self.has_role_for_user(identity, roles, is_any=True)
+        return await self.has_role_for_user(identity, roles, is_any=True)
 
     async def get_current_user(self, request: Request) -> Optional[UserModelT]:
         if "user" in request.scope:  # 防止重复授权
@@ -168,12 +164,12 @@ class Auth(Generic[UserModelT]):
         # todo 优化
         roles_ = (roles,) if not roles or isinstance(roles, str) else tuple(roles)
 
-        def has_requires(user: UserModelT) -> bool:
+        async def has_requires(user: UserModelT) -> bool:
             if not user:
                 return False
             if roles_ == (None,):
                 return True
-            return self.has_role_for_user(user.username, roles_)
+            return await self.has_role_for_user(user.username, roles_)
 
         async def depend(
             request: Request,
@@ -186,7 +182,7 @@ class Auth(Generic[UserModelT]):
             if cache_key not in request.scope["__user_auth__"]:  # 防止重复授权
                 if isinstance(user, params.Depends):
                     user = await self.get_current_user(request)
-                result = has_requires(user)
+                result = await has_requires(user)
                 request.scope["__user_auth__"][cache_key] = result
             if not request.scope["__user_auth__"][cache_key]:
                 if response is not None:
@@ -218,7 +214,7 @@ class Auth(Generic[UserModelT]):
                     websocket = kwargs.get("websocket", args[idx] if args else None)
                     assert isinstance(websocket, WebSocket)
                     user = await self.get_current_user(websocket)  # type: ignore
-                    if not has_requires(user):
+                    if not await has_requires(user):
                         await websocket.close()
                     else:
                         await func(*args, **kwargs)
@@ -279,8 +275,8 @@ class Auth(Generic[UserModelT]):
         if commit:
             await self.db.async_commit()
         subject = "u:" + role_key
-        self.enforcer.delete_roles_for_user(subject)
-        self.enforcer.add_grouping_policies([(subject, "r:" + role_key)])
+        await self.enforcer.delete_roles_for_user(subject)
+        await self.enforcer.add_grouping_policies([(subject, "r:" + role_key)])
         return user
 
     async def request_login(self, request: Request, response: Response, username: str, password: str) -> BaseApiOut[UserLoginOut]:

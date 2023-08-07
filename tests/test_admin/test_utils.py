@@ -1,5 +1,5 @@
 import pytest
-from casbin import Enforcer
+from casbin import AsyncEnforcer
 from sqlalchemy import delete
 
 from fastapi_user_auth.admin import AuthAdminSite
@@ -13,12 +13,12 @@ from fastapi_user_auth.auth.models import CasbinRule
 
 
 @pytest.fixture
-def enforcer(site: AuthAdminSite) -> Enforcer:
+def enforcer(site: AuthAdminSite) -> AsyncEnforcer:
     return site.auth.enforcer
 
 
 @pytest.fixture
-async def fake_data(db, site, admin_instances, enforcer: Enforcer):
+async def fake_data(db, site, admin_instances, enforcer: AsyncEnforcer):
     # 清空数据
     await db.async_execute(delete(CasbinRule))
     home_admin_unique_id = admin_instances["home_admin"].unique_id
@@ -49,9 +49,9 @@ async def fake_data(db, site, admin_instances, enforcer: Enforcer):
     db.add_all(test_user_rules)
     await db.async_commit()
     # 加载页面分组
-    update_casbin_site_grouping(enforcer, site)
+    await update_casbin_site_grouping(enforcer, site)
     # 重新加载权限
-    enforcer.load_policy()
+    await enforcer.load_policy()
 
 
 def test_get_admin_action_options(site: AuthAdminSite, admin_instances: dict):
@@ -100,8 +100,8 @@ def test_get_admin_grouping(site: AuthAdminSite, admin_instances: dict):
     assert (admin_instances["user_auth_app"].unique_id, admin_instances["user_admin"].unique_id) in grouping
 
 
-def test_casbin_update_site_grouping(site: AuthAdminSite, admin_instances: dict):
-    update_casbin_site_grouping(site.auth.enforcer, site)
+async def test_casbin_update_site_grouping(site: AuthAdminSite, admin_instances: dict):
+    await update_casbin_site_grouping(site.auth.enforcer, site)
     grouping = site.auth.enforcer.get_named_grouping_policy("g2")
     assert (site.unique_id, admin_instances["home_admin"].unique_id) in grouping
     assert (site.unique_id, admin_instances["user_auth_app"].unique_id) in grouping

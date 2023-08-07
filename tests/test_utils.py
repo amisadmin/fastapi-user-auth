@@ -1,5 +1,5 @@
 import pytest
-from casbin import Enforcer
+from casbin import AsyncEnforcer
 from sqlalchemy import delete
 
 from fastapi_user_auth.admin import AuthAdminSite
@@ -13,12 +13,12 @@ from fastapi_user_auth.utils.casbin import (
 
 
 @pytest.fixture
-def enforcer(site: AuthAdminSite) -> Enforcer:
+def enforcer(site: AuthAdminSite) -> AsyncEnforcer:
     return site.auth.enforcer
 
 
 @pytest.fixture
-async def fake_data(db, site, admin_instances, enforcer: Enforcer):
+async def fake_data(db, site, admin_instances, enforcer: AsyncEnforcer):
     # 清空数据
     await db.async_execute(delete(CasbinRule))
     home_admin_unique_id = admin_instances["home_admin"].unique_id
@@ -49,40 +49,40 @@ async def fake_data(db, site, admin_instances, enforcer: Enforcer):
     db.add_all(test_user_rules)
     await db.async_commit()
     # 加载页面分组
-    update_casbin_site_grouping(enforcer, site)
+    await update_casbin_site_grouping(enforcer, site)
     # 重新加载权限
-    enforcer.load_policy()
+    await enforcer.load_policy()
 
 
-def test_casbin_get_subject_page_permissions(enforcer: Enforcer, admin_instances: dict, fake_data):
-    permissions = get_subject_page_permissions(enforcer, subject="u:admin", implicit=False)
+async def test_casbin_get_subject_page_permissions(enforcer: AsyncEnforcer, admin_instances: dict, fake_data):
+    permissions = await get_subject_page_permissions(enforcer, subject="u:admin", implicit=False)
     assert not permissions
-    permissions = get_subject_page_permissions(enforcer, subject="u:admin", implicit=True)
+    permissions = await get_subject_page_permissions(enforcer, subject="u:admin", implicit=True)
     user_admin_unique_id = admin_instances["user_admin"].unique_id
     assert f"{user_admin_unique_id}#page#page#allow" in permissions
     assert f"{user_admin_unique_id}#page:list#page#allow" in permissions
     assert f"{user_admin_unique_id}#page:list:email#page:list#allow" not in permissions
     assert permissions
-    permissions2 = get_subject_page_permissions(enforcer, subject="r:admin", implicit=False)
+    permissions2 = await get_subject_page_permissions(enforcer, subject="r:admin", implicit=False)
     assert permissions2 == permissions
 
 
-def test_casbin_update_subject_roles(enforcer: Enforcer, admin_instances: dict, fake_data):
-    admin_roles = enforcer.get_implicit_roles_for_user("u:admin")
+async def test_casbin_update_subject_roles(enforcer: AsyncEnforcer, admin_instances: dict, fake_data):
+    admin_roles = await enforcer.get_implicit_roles_for_user("u:admin")
     assert "r:admin" in admin_roles
-    update_subject_roles(enforcer, subject="u:admin", role_keys=["r:test"])
-    admin_roles = enforcer.get_implicit_roles_for_user("u:admin")
+    await update_subject_roles(enforcer, subject="u:admin", role_keys=["r:test"])
+    admin_roles = await enforcer.get_implicit_roles_for_user("u:admin")
     assert "r:admin" not in admin_roles
     assert "r:test" in admin_roles
 
 
-def test_casbin_update_subject_page_permissions(enforcer: Enforcer, admin_instances: dict, fake_data):
-    permissions = get_subject_page_permissions(enforcer, subject="r:admin", implicit=True)
+async def test_casbin_update_subject_page_permissions(enforcer: AsyncEnforcer, admin_instances: dict, fake_data):
+    permissions = await get_subject_page_permissions(enforcer, subject="r:admin", implicit=True)
     user_admin_unique_id = admin_instances["user_admin"].unique_id
     casbin_rule_admin_unique_id = admin_instances["casbin_rule_admin"].unique_id
     assert f"{user_admin_unique_id}#page#page#allow" in permissions
     assert f"{casbin_rule_admin_unique_id}#page#page#allow" not in permissions
-    update_subject_page_permissions(
+    await update_subject_page_permissions(
         enforcer,
         subject="r:admin",
         permissions=[
@@ -90,7 +90,7 @@ def test_casbin_update_subject_page_permissions(enforcer: Enforcer, admin_instan
             f"{casbin_rule_admin_unique_id}#page:list#page#allow",  # v1,v2,v3,v4
         ],
     )
-    permissions = get_subject_page_permissions(enforcer, subject="r:admin", implicit=True)
+    permissions = await get_subject_page_permissions(enforcer, subject="r:admin", implicit=True)
     # 原来的page权限应该被删除
     assert f"{user_admin_unique_id}#page#page#allow" not in permissions
     # 新的page权限应该被添加

@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Any, Dict, List, Union
 
-from casbin import Enforcer
+from casbin import AsyncEnforcer
 from fastapi_amis_admin import amis
 from fastapi_amis_admin.admin import FormAdmin, ModelAction, PageSchemaAdmin
 from fastapi_amis_admin.amis import SchemaNode
@@ -11,7 +11,6 @@ from fastapi_amis_admin.crud.schema import BaseApiOut
 from fastapi_amis_admin.models import Field
 from pydantic import BaseModel
 from pydantic.fields import ModelField
-from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 
 from fastapi_user_auth.admin.utils import get_admin_action_options_by_subject
@@ -148,7 +147,7 @@ class UpdateSubRolesAction(BaseSubAction):
         subject = await self.get_subject_by_id(item_id)
         if not subject:
             return BaseApiOut(status=0, msg="暂不支持的模型")
-        role_keys = self.site.auth.enforcer.get_implicit_roles_for_user(subject)
+        role_keys = await self.site.auth.enforcer.get_implicit_roles_for_user(subject)
         return BaseApiOut(data=self.schema(role_keys=",".join(role_keys).replace("r:", "")))
 
     async def handle(self, request: Request, item_id: List[str], data: schema, **kwargs):
@@ -159,14 +158,14 @@ class UpdateSubRolesAction(BaseSubAction):
         identity = await self.site.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
         if subject == "u:" + identity:
             return BaseApiOut(status=0, msg="不能修改自己的权限")
-        enforcer: Enforcer = self.site.auth.enforcer
+        enforcer: AsyncEnforcer = self.site.auth.enforcer
         role_keys = [f"r:{role}" for role in data.role_keys.split(",") if role]
         if role_keys and identity != SystemUserEnum.ROOT:
             # 检查当前用户是否有对应的角色,只有自己拥有的角色才能分配给其他主体
-            user_role_keys = self.site.auth.enforcer.get_implicit_roles_for_user("u:" + identity)
+            user_role_keys = await self.site.auth.enforcer.get_implicit_roles_for_user("u:" + identity)
             role_keys = [role for role in role_keys if role in user_role_keys]  # 过滤掉当前用户的角色
         # 更新角色列表
-        await run_in_threadpool(update_subject_roles, enforcer, subject=subject, role_keys=role_keys)
+        await update_subject_roles(enforcer, subject=subject, role_keys=role_keys)
         return BaseApiOut(msg="success")
 
 
@@ -244,9 +243,7 @@ class ViewSubPagePermAction(BaseSubPermAction):
         subject = await self.get_subject_by_id(item_id)
         if not subject:
             return BaseApiOut(status=0, msg="暂不支持的模型")
-        permissions = await run_in_threadpool(
-            get_subject_page_permissions, self.site.auth.enforcer, subject=subject, implicit=self._implicit
-        )
+        permissions = await get_subject_page_permissions(self.site.auth.enforcer, subject=subject, implicit=self._implicit)
         permissions = [perm.replace("#allow", "") for perm in permissions if perm.endswith("#allow")]
         return BaseApiOut(data=self.schema(permissions=",".join(permissions)))
 
@@ -384,8 +381,7 @@ class UpdateSubDataPermAction(BaseSubPermAction):
         identity = await self.site.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
         if subject == "u:" + identity:
             return BaseApiOut(status=0, msg="不能修改自己的权限")
-        msg = await run_in_threadpool(
-            update_subject_data_permissions,
+        msg = await update_subject_data_permissions(
             self.site.auth.enforcer,
             subject=subject,
             permission=data.permissions,
@@ -417,9 +413,9 @@ class UpdateSubPagePermsAction(ViewSubPagePermAction):
             return BaseApiOut(status=0, msg="不能修改自己的权限")
         # 权限列表
         permissions = [perm for perm in data.permissions.split(",") if perm and perm.endswith("#page")]  # 分割权限列表,去除空值
-        enforcer: Enforcer = self.site.auth.enforcer
+        enforcer: AsyncEnforcer = self.site.auth.enforcer
         if permissions and identity != SystemUserEnum.ROOT:
             #  检查当前用户是否有对应的权限,只有自己拥有的权限才能分配给其他主体
             permissions = [perm for perm in permissions if enforcer.enforce("u:" + identity, *permission_decode(perm))]
-        await run_in_threadpool(update_subject_page_permissions, enforcer, subject=subject, permissions=permissions)  # 更新角色权限
+        await update_subject_page_permissions(enforcer, subject=subject, permissions=permissions)  # 更新角色权限
         return BaseApiOut(msg="success")

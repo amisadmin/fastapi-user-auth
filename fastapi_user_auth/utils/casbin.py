@@ -1,6 +1,6 @@
 from typing import Any, Dict, List
 
-from casbin import Enforcer
+from casbin import AsyncEnforcer
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -9,7 +9,7 @@ from fastapi_user_auth.auth.schemas import SystemUserEnum
 
 
 # 执行casbin字符串规则
-def permission_enforce(enforcer: Enforcer, subject: str, permission: str) -> bool:
+def permission_enforce(enforcer: AsyncEnforcer, subject: str, permission: str) -> bool:
     values = permission_decode(permission)
     return enforcer.enforce(subject, *values)
 
@@ -26,27 +26,27 @@ def permission_decode(permission: str) -> List[str]:
     return permission.strip("#").split("#")
 
 
-def get_subject_page_permissions(enforcer: Enforcer, *, subject: str, implicit: bool = False) -> List[str]:
+async def get_subject_page_permissions(enforcer: AsyncEnforcer, *, subject: str, implicit: bool = False) -> List[str]:
     """根据指定subject主体获取casbin规则"""
     if implicit:
-        permissions = enforcer.get_implicit_permissions_for_user(subject)
+        permissions = await enforcer.get_implicit_permissions_for_user(subject)
         permissions = [perm for perm in permissions if perm[-2] == "page"]  # 只获取page权限
     else:
         permissions = enforcer.get_filtered_policy(0, subject, "", "", "page")
     return [permission_encode(*permission[1:]) for permission in permissions]
 
 
-def update_subject_roles(enforcer: Enforcer, *, subject: str, role_keys: List[str]):
+async def update_subject_roles(enforcer: AsyncEnforcer, *, subject: str, role_keys: List[str]):
     """更新casbin主体权限角色"""
     # todo 避免角色链循环
     new_roles = {(subject, role) for role in role_keys if role and role != subject}
-    enforcer.delete_roles_for_user(subject)
+    await enforcer.delete_roles_for_user(subject)
     if new_roles:
-        enforcer.add_grouping_policies(new_roles)
+        await enforcer.add_grouping_policies(new_roles)
 
 
-def update_subject_page_permissions(
-    enforcer: Enforcer,
+async def update_subject_page_permissions(
+    enforcer: AsyncEnforcer,
     *,
     subject: str,
     permissions: List[str],
@@ -70,14 +70,14 @@ def update_subject_page_permissions(
         # 可能存在不存在的rule,导致批量删除失败. 例如站点页面
         # 如果存在重复的rule,则会导致批量删除失败.
         # todo 这个api有bug, 更换其他api
-        enforcer.remove_policies([list(rule) for rule in remove_rules])
+        await enforcer.remove_policies([list(rule) for rule in remove_rules])
     if add_rules:
-        enforcer.add_policies(add_rules)
+        await enforcer.add_policies(add_rules)
     return permissions
 
 
 def get_subject_policy_matrix(
-    enforcer: Enforcer,
+    enforcer: AsyncEnforcer,
     *,
     subject: str,
     permission: str,
@@ -115,7 +115,7 @@ def get_subject_policy_matrix(
 
 
 def get_subject_effect_matrix(
-    enforcer: Enforcer,
+    enforcer: AsyncEnforcer,
     *,
     subject: str,
     rows: List[Dict[str, Any]],
@@ -136,8 +136,8 @@ def get_subject_effect_matrix(
     return [allow_, deny_]
 
 
-def update_subject_data_permissions(
-    enforcer: Enforcer,
+async def update_subject_data_permissions(
+    enforcer: AsyncEnforcer,
     *,
     subject: str,
     permission: str,
@@ -175,9 +175,9 @@ def update_subject_data_permissions(
     add_rules = to_rules(allow_, is_allow=True) | to_rules(deny_, is_allow=False)
     # 删除旧的权限.注意必须在添加新的权限之前删除旧的权限,否则会导致重复的权限
     v2 = "page:select" if v2 == "page" else v2
-    enforcer.remove_filtered_policy(0, subject, v1, "", v2, "")
+    await enforcer.remove_filtered_policy(0, subject, v1, "", v2, "")
     if add_rules:
-        enforcer.add_policies(add_rules)
+        await enforcer.add_policies(add_rules)
     return "success"
 
 

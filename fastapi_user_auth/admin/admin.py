@@ -368,23 +368,21 @@ class CasbinRuleAdmin(ReadOnlyModelAdmin):
 
     def __init__(self, app: "AdminApp"):
         super().__init__(app)
+        server = self.site.application or self.site.fastapi
 
-        @self.site.fastapi.on_event("startup")
-        def _load_policy():
-            # 同步casbin会自动加载策略
-            # self.load_policy()
-            # 更新站点资源分组
-            update_casbin_site_grouping(self.site.auth.enforcer, self.site)
+        @server.on_event("startup")
+        async def _load_policy():
+            await self.load_policy()
 
-    def load_policy(self):
-        self.site.auth.enforcer.load_policy()
+    async def load_policy(self):
+        await self.site.auth.enforcer.load_policy()
         # 更新站点资源分组
-        update_casbin_site_grouping(self.site.auth.enforcer, self.site)
+        await update_casbin_site_grouping(self.site.auth.enforcer, self.site)
 
     def register_router(self):
         @self.router.get("/load_policy", response_model=BaseApiOut)
-        def _load_policy():
-            self.load_policy()
+        async def _load_policy():
+            await self.load_policy()
             get_admin_action_options.cache_clear()  # 清除系统菜单缓存
             return BaseApiOut(data="刷新成功")
 

@@ -2,7 +2,7 @@ from copy import copy
 from functools import lru_cache
 from typing import Any, Callable, Dict, List, Sequence, Tuple, Type
 
-from casbin import Enforcer
+from casbin import AsyncEnforcer
 from fastapi_amis_admin.admin import FormAdmin, ModelAdmin, PageSchemaAdmin
 from fastapi_amis_admin.admin.admin import AdminGroup, BaseActionAdmin, BaseAdminSite
 from fastapi_amis_admin.utils.pydantic import model_fields
@@ -86,7 +86,7 @@ def get_schema_fields_name_label(
 
 
 def get_admin_action_options_by_subject(
-    enforcer: Enforcer,
+    enforcer: AsyncEnforcer,
     subject: str,
     group: AdminGroup,
 ):
@@ -113,7 +113,7 @@ def get_admin_grouping(group: AdminGroup) -> List[Tuple[str, str]]:
 
 
 # 更新casbin admin资源角色关系
-def update_casbin_site_grouping(enforcer: Enforcer, site: BaseAdminSite):
+async def update_casbin_site_grouping(enforcer: AsyncEnforcer, site: BaseAdminSite):
     """更新casbin admin资源角色关系"""
     roles = enforcer.get_filtered_named_grouping_policy("g2", 0)
     old_roles = {tuple(role) for role in roles}
@@ -121,6 +121,6 @@ def update_casbin_site_grouping(enforcer: Enforcer, site: BaseAdminSite):
     remove_roles = old_roles - new_roles
     add_roles = new_roles - old_roles
     if remove_roles:  # 删除旧的资源角色
-        enforcer.remove_named_grouping_policies("g2", [list(role) for role in remove_roles])
+        await enforcer.remove_named_grouping_policies("g2", [list(role) for role in remove_roles])
     if add_roles:  # 添加新的资源角色
-        enforcer.add_named_grouping_policies("g2", add_roles)
+        await enforcer.add_named_grouping_policies("g2", add_roles)
