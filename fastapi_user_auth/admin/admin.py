@@ -349,7 +349,7 @@ class RoleAdmin(AutoTimeModelAdmin, FootableModelAdmin):
 
 
 class CasbinRuleAdmin(ReadOnlyModelAdmin):
-    page_schema = PageSchema(label="CasbinRule", icon="fa fa-group")
+    page_schema = PageSchema(label="CasbinRule", icon="fa fa-lock")
     model = CasbinRule
     list_filter = [CasbinRule.ptype, CasbinRule.v0, CasbinRule.v1, CasbinRule.v2, CasbinRule.v3, CasbinRule.v4, CasbinRule.v5]
     admin_action_maker = [
@@ -368,9 +368,8 @@ class CasbinRuleAdmin(ReadOnlyModelAdmin):
 
     def __init__(self, app: "AdminApp"):
         super().__init__(app)
-        server = self.site.application or self.site.fastapi
 
-        @server.on_event("startup")
+        @self.site.router.on_event("startup")
         async def _load_policy():
             await self.load_policy()
 

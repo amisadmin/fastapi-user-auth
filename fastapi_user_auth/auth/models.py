@@ -64,8 +64,8 @@ class CasbinRule(PkMixin, table=True):
     v0: str = Field(title="Subject")
     v1: str = Field(title="Object")
     v2: str = Field(None, title="Action")
-    v3: str = Field(None)
-    v4: str = Field(None)
+    v3: str = Field(None, title="Group")
+    v4: str = Field(None, title="Effect")
     v5: str = Field(None)
 
     def __str__(self) -> str:

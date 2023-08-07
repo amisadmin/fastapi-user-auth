@@ -7,7 +7,7 @@ from fastapi_amis_admin.utils.pydantic import create_model_by_model
 from fastapi_amis_admin.utils.translation import i18n as _
 from starlette.requests import Request
 
-from fastapi_user_auth.admin import LoginHistoryAdmin
+from fastapi_user_auth.admin import CasbinRuleAdmin, LoginHistoryAdmin
 from fastapi_user_auth.admin import RoleAdmin as DefaultRoleAdmin
 from fastapi_user_auth.admin import UserAdmin as DefaultUserAdmin
 from fastapi_user_auth.admin import UserInfoFormAdmin as DefaultUserInfoFormAdmin
@@ -56,6 +56,7 @@ class UserAuthApp(AdminApp, AuthRouter):
             self.UserAdmin,
             self.RoleAdmin,
             LoginHistoryAdmin,
+            CasbinRuleAdmin,
         )
 
     def register_router(self):

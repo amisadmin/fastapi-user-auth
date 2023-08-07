@@ -16,7 +16,6 @@ from fastapi_amis_admin.crud.utils import SqlalchemyDatabase
 from fastapi_amis_admin.utils.translation import i18n as _
 from starlette.requests import Request
 
-from fastapi_user_auth.admin import CasbinRuleAdmin
 from fastapi_user_auth.admin import UserAuthApp as DefaultUserAuthApp
 from fastapi_user_auth.auth import Auth
 from fastapi_user_auth.auth.schemas import SystemUserEnum
@@ -29,7 +28,7 @@ class AuthAdminSite(AdminSite):
     def __init__(self, settings: Settings, *, fastapi: FastAPI = None, engine: SqlalchemyDatabase = None, auth: Auth = None):
         super().__init__(settings, fastapi=fastapi, engine=engine)
         self.auth = auth or self.auth or Auth(db=self.db)
-        self.register_admin(self.UserAuthApp, CasbinRuleAdmin)
+        self.register_admin(self.UserAuthApp)
 
     def get_page_schema(self) -> Optional[PageSchema]:
         if super().get_page_schema():
