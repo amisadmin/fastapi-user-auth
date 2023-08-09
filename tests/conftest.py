@@ -67,11 +67,11 @@ def admin_instances(site: AuthAdminSite) -> Dict[str, BaseAdmin]:
     user_auth_app = site.get_admin_or_create(site.UserAuthApp)
     return {
         "user_auth_app": user_auth_app,
-        "casbin_rule_admin": site.get_admin_or_create(CasbinRuleAdmin),
         "home_admin": site.get_admin_or_create(HomeAdmin),
         "user_admin": user_auth_app.get_admin_or_create(user_auth_app.UserAdmin),
         "role_admin": user_auth_app.get_admin_or_create(user_auth_app.RoleAdmin),
         "login_history_admin": user_auth_app.get_admin_or_create(LoginHistoryAdmin),
+        "casbin_rule_admin": site.get_admin_or_create(CasbinRuleAdmin),
     }
 
 

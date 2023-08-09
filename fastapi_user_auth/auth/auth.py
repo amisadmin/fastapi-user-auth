@@ -72,6 +72,7 @@ class Auth(Generic[UserModelT]):
     def __init__(
         self,
         db: Union[AsyncDatabase, Database],
+        *,
         token_store: BaseTokenStore = None,
         user_model: Type[UserModelT] = User,
         pwd_context: CryptContext = CryptContext(schemes=["bcrypt"], deprecated="auto"),

@@ -27,12 +27,13 @@ async def fake_data(db, site, admin_instances, enforcer: AsyncEnforcer):
         CasbinRule(ptype="g", v0="u:admin", v1="r:admin"),
         CasbinRule(ptype="p", v0="r:admin", v1=home_admin_unique_id, v2="page", v3="page", v4="allow"),
         CasbinRule(ptype="p", v0="r:admin", v1=user_admin_unique_id, v2="page", v3="page", v4="allow"),
+        CasbinRule(ptype="p", v0="r:admin", v1=admin_instances["casbin_rule_admin"].unique_id, v2="page", v3="page", v4="deny"),
         CasbinRule(ptype="p", v0="r:admin", v1=user_admin_unique_id, v2="page:list", v3="page", v4="allow"),
         CasbinRule(ptype="p", v0="r:admin", v1=user_admin_unique_id, v2="page:filter", v3="page", v4="allow"),
         CasbinRule(ptype="p", v0="r:admin", v1=user_admin_unique_id, v2="page:create", v3="page", v4="allow"),
         CasbinRule(ptype="p", v0="r:admin", v1=user_admin_unique_id, v2="page:update", v3="page", v4="allow"),
         CasbinRule(ptype="p", v0="r:admin", v1=user_admin_unique_id, v2="page:delete", v3="page", v4="allow"),
-        CasbinRule(ptype="p", v0="r:admin", v1=user_admin_unique_id, v2="page:bulk_delete", v3="page", v4="allow"),
+        CasbinRule(ptype="p", v0="r:admin", v1=user_admin_unique_id, v2="page:bulk_delete", v3="page", v4="deny"),
         CasbinRule(
             ptype="p", v0="r:admin", v1=user_admin_unique_id, v2="page:update_subject_page_permissions", v3="page", v4="allow"
         ),
@@ -56,20 +57,24 @@ async def fake_data(db, site, admin_instances, enforcer: AsyncEnforcer):
 
 def test_get_admin_action_options(site: AuthAdminSite, admin_instances: dict):
     options = get_admin_action_options(site)
-    assert len(options) == 3
-    assert options[0]["value"] == admin_instances["home_admin"].unique_id + "#page#page"
-    assert options[1]["value"] == admin_instances["user_auth_app"].unique_id + "#page#page"
+    site_options = {item["value"]: item for item in options}
+    assert admin_instances["home_admin"].unique_id + "#page#page" in site_options
+    assert admin_instances["user_auth_app"].unique_id + "#page#page" in site_options
+    user_auth_app_options = {
+        item["value"]: item for item in site_options[admin_instances["user_auth_app"].unique_id + "#page#page"]["children"]
+    }
     user_admin_unique_id = admin_instances["user_admin"].unique_id
-    assert options[1]["children"][0]["value"] == user_admin_unique_id + "#page#page"
-    children = options[1]["children"][0]["children"]
-    assert children[0]["value"] == user_admin_unique_id + "#page:list#page"
-    assert children[1]["value"] == user_admin_unique_id + "#page:filter#page"
-    assert children[2]["value"] == user_admin_unique_id + "#page:create#page"
-    assert children[3]["value"] == user_admin_unique_id + "#page:update#page"
-    assert children[4]["value"] == user_admin_unique_id + "#page:delete#page"
-    assert children[5]["value"] == user_admin_unique_id + "#page:bulk_delete#page"
-    assert children[6]["value"] == user_admin_unique_id + "#page:update_subject_page_permissions#page"
-    assert options[-1]["value"] == admin_instances["casbin_rule_admin"].unique_id + "#page#page"
+    assert user_admin_unique_id + "#page#page" in user_auth_app_options
+    assert admin_instances["casbin_rule_admin"].unique_id + "#page#page" in user_auth_app_options
+    user_admin_options = {item["value"]: item for item in user_auth_app_options[user_admin_unique_id + "#page#page"]["children"]}
+    assert user_admin_unique_id + "#page:list#page" in user_admin_options
+    assert user_admin_unique_id + "#page:filter#page" in user_admin_options
+    assert user_admin_unique_id + "#page:create#page" in user_admin_options
+    assert user_admin_unique_id + "#page:update#page" in user_admin_options
+    assert user_admin_unique_id + "#page:delete#page" in user_admin_options
+    assert user_admin_unique_id + "#page:bulk_delete#page" in user_admin_options
+    assert user_admin_unique_id + "#page:update_subject_page_permissions#page" in user_admin_options
+    assert user_admin_unique_id + "#page:update_subject_roles#page" in user_admin_options
     options2 = get_admin_action_options(site)
     assert options is options2  # test cache
 
@@ -77,20 +82,24 @@ def test_get_admin_action_options(site: AuthAdminSite, admin_instances: dict):
 def test_get_admin_action_options_by_subject(site: AuthAdminSite, admin_instances: dict, fake_data):
     options = get_admin_action_options_by_subject(site.auth.enforcer, "u:admin", site)
     assert site.auth.enforcer.enforce("u:admin", admin_instances["user_auth_app"].unique_id, "page", "page")
-    assert len(options) == 2
-    assert options[0]["value"] == admin_instances["home_admin"].unique_id + "#page#page"
-    assert options[1]["value"] == admin_instances["user_auth_app"].unique_id + "#page#page"
+    site_options = {item["value"]: item for item in options}
+    assert admin_instances["home_admin"].unique_id + "#page#page" in site_options
+    assert admin_instances["user_auth_app"].unique_id + "#page#page" in site_options
+    user_auth_app_options = {
+        item["value"]: item for item in site_options[admin_instances["user_auth_app"].unique_id + "#page#page"]["children"]
+    }
     user_admin_unique_id = admin_instances["user_admin"].unique_id
-    assert options[1]["children"][0]["value"] == user_admin_unique_id + "#page#page"
-    children = options[1]["children"][0]["children"]
-    assert children[0]["value"] == user_admin_unique_id + "#page:list#page"
-    assert children[1]["value"] == user_admin_unique_id + "#page:filter#page"
-    assert children[2]["value"] == user_admin_unique_id + "#page:create#page"
-    assert children[3]["value"] == user_admin_unique_id + "#page:update#page"
-    assert children[4]["value"] == user_admin_unique_id + "#page:delete#page"
-    assert children[5]["value"] == user_admin_unique_id + "#page:bulk_delete#page"
-    assert children[6]["value"] == user_admin_unique_id + "#page:update_subject_page_permissions#page"
-    assert options[-1]["value"] != admin_instances["casbin_rule_admin"].unique_id + "#page#page"
+    assert user_admin_unique_id + "#page#page" in user_auth_app_options
+    assert admin_instances["casbin_rule_admin"].unique_id + "#page#page" not in user_auth_app_options
+    user_admin_options = {item["value"]: item for item in user_auth_app_options[user_admin_unique_id + "#page#page"]["children"]}
+    assert user_admin_unique_id + "#page:list#page" in user_admin_options
+    assert user_admin_unique_id + "#page:filter#page" in user_admin_options
+    assert user_admin_unique_id + "#page:create#page" in user_admin_options
+    assert user_admin_unique_id + "#page:update#page" in user_admin_options
+    assert user_admin_unique_id + "#page:delete#page" in user_admin_options
+    assert user_admin_unique_id + "#page:bulk_delete#page" not in user_admin_options
+    assert user_admin_unique_id + "#page:update_subject_page_permissions#page" in user_admin_options
+    assert user_admin_unique_id + "#page:update_subject_roles#page" not in user_admin_options
 
 
 def test_get_admin_grouping(site: AuthAdminSite, admin_instances: dict):
