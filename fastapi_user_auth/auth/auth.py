@@ -269,15 +269,24 @@ class Auth(Generic[UserModelT]):
             )
             session.add(user)
             session.flush()
+        # create casbin rule
+        rule = session.scalar(
+            select(CasbinRule).where(
+                CasbinRule.ptype == "g",
+                CasbinRule.v0 == "u:" + role_key,
+                CasbinRule.v1 == "r:" + role_key,
+            )
+        )
+        if not rule:
+            rule = CasbinRule(ptype="g", v0="u:" + role_key, v1="r:" + role_key)
+            session.add(rule)
+            session.flush()
         return user
 
     async def create_role_user(self, role_key: str = "root", commit: bool = True) -> User:
         user = await self.db.async_run_sync(self._create_role_user_sync, role_key)
         if commit:
             await self.db.async_commit()
-        subject = "u:" + role_key
-        await self.enforcer.delete_roles_for_user(subject)
-        await self.enforcer.add_grouping_policies([(subject, "r:" + role_key)])
         return user
 
     async def request_login(self, request: Request, response: Response, username: str, password: str) -> BaseApiOut[UserLoginOut]:

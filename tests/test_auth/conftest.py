@@ -33,6 +33,8 @@ async def fake_auth() -> Auth:
     await auth.create_role_user("admin")
     await auth.create_role_user("vip")
     await auth.create_role_user("test")
+    # Reload policies
+    await auth.enforcer.load_policy()
     yield auth
     await auth.db.async_run_sync(SQLModel.metadata.drop_all, is_session=False)
     await auth.db.async_close()
