@@ -37,9 +37,9 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
 ]
 dependencies = [
-    "pydantic>=1.9",
-    "fastapi-amis-admin>=0.6.4,<0.7.0",
-    "email-validator",
+    "pydantic>=1.9.0,<2.0.0",
+    "fastapi-amis-admin>=0.6.4a4,<0.7.0",
+    "email-validator>=1.3.1,<2.0.0",
     "passlib>=1.7.4",
     "bcrypt>=4.0.0",
     "casbin>=1.23.0",
