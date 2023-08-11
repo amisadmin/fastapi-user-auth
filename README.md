@@ -1,10 +1,10 @@
 # 项目介绍
 
 <h2 align="center">
-  FastAPI-User-Auth-Pro
+  FastAPI-User-Auth
 </h2>
 <p align="center">
-    <em>FastAPI-User-Auth-Pro是一个基于Casbin简单而强大的FastAPI用户认证与授权库.</em><br/>
+    <em>FastAPI-User-Auth是一个基于Casbin简单而强大的FastAPI用户认证与授权库.</em><br/>
     <em>基于FastAPI-Amis-Admin并提供可自由拓展的可视化管理界面.</em>
 </p>
 <p align="center">
@@ -38,6 +38,14 @@
 
 `FastAPI-User-Auth`是一个基于 [FastAPI-Amis-Admin](https://github.com/amisadmin/fastapi_amis_admin)
 的应用插件,与`FastAPI-Amis-Admin`深度结合,为其提供用户认证与授权.
+基于Casbin的RBAC权限管理,支持多种验证方式,支持多种数据库,支持多种颗粒度的权限控制.
+
+### 权限类型
+
+- **页面权限**: 控制用户是否可以访问某个菜单页面.如不可访问,则菜单不会显示,并且页面下的所有路由都不可访问.
+- **动作权限**: 控制用户是否可以执行某个动作,按钮是否显示.如: 新增,更新,删除等.
+- **字段权限**: 控制用户是否可以操作某个字段.如:列表展示字段,筛选字段,新增字段,更新字段等.
+- **数据权限**: 控制用户可以操作的数据范围.如:只能操作自己创建的数据,只能操作最近7天的数据等.
 
 ## 安装
 
@@ -71,6 +79,8 @@ async def startup():
     # 创建默认管理员,用户名: root,密码: root, 请及时修改密码!!!
     await auth.create_role_user('root')
     await auth.create_role_user('admin')
+    # 运行site的startup方法,加载casbin策略等
+    await site.router.startup()
 
 
 # 要求: 用户必须登录
@@ -192,13 +202,16 @@ async def get_request_user(request: Request) -> Optional[User]:
 
 ### JwtTokenStore
 
+- pip install fastapi-user-auth[jwt]
+
 ```python
 from fastapi_user_auth.auth.backends.jwt import JwtTokenStore
 from sqlalchemy_database import Database
 from fastapi_user_auth.auth import Auth
 from fastapi_amis_admin.admin.site import AuthAdminSite
+
 # 创建同步数据库引擎
-db=Database.create(url="sqlite:///amisadmin.db?check_same_thread=False")
+db = Database.create(url="sqlite:///amisadmin.db?check_same_thread=False")
 
 # 使用`JwtTokenStore`创建auth对象
 auth = Auth(
@@ -229,10 +242,12 @@ auth = Auth(
 
 ### RedisTokenStore
 
+- pip install fastapi-user-auth[redis]
+
 ```python
 # 使用`RedisTokenStore`创建auth对象
 from fastapi_user_auth.auth.backends.redis import RedisTokenStore
-from aioredis import Redis
+from redis.asyncio import Redis
 
 auth = Auth(
     db=db,
@@ -242,21 +257,23 @@ auth = Auth(
 
 ## RBAC模型
 
-本系统采用的`RBAC`模型如下, 你也可以根据自己的需求进行拓展.
+本系统采用的`Casbin RBAC`模型,并运行基于角色的优先级策略.
 
-- 参考: [权限系统的设计](https://blog.csdn.net/qq_25889465/article/details/98473611)
+- 权限可分配给角色,或者直接分配给用户.
+- 用户可拥有多个角色.
+- 角色可拥有多个子角色.
+- 用户拥有的权限策略优先级高于所拥有角色的权限策略.
 
 ```mermaid
 flowchart LR
-	 User -. m:n .-> Group 
-	 User -. m:n .-> Role 
-     Group -. m:n .-> Role 
-	 Role -. m:n .-> Perimission 
+    User -. m:n .-> Role
+    User -. m:n .-> CasbinRule
+    Role -. m:n .-> Role
+    Role -. m:n .-> CasbinRule 
 ```
 
 ## 高级拓展
 
-```bash
 ### 拓展`User`模型
 
 ```python
@@ -317,6 +334,60 @@ class MyAuthAdminSite(AuthAdminSite):
 
 # 使用自定义的`AuthAdminSite`类,创建site对象
 site = MyAuthAdminSite(settings, auth=auth)
+```
+
+## ModelAdmin权限控制
+
+### 字段权限
+
+- 继承`AuthFieldModelAdmin`类,即可实现字段权限控制.通过在后台分配用户和角色权限.
+
+- `perm_fields_exclude`: 指定不需要权限控制的字段.
+
+```python
+from fastapi_user_auth.mixins.admin import AuthFieldModelAdmin
+from fastapi_amis_admin.amis import PageSchema
+
+
+class AuthFieldArticleAdmin(AuthFieldModelAdmin):
+    page_schema = PageSchema(label="文章管理")
+    model = Article
+    # 指定不需要权限控制的字段. 
+    perm_fields_exclude = {
+        "create": ["title", "description", "content"],
+    }
+```
+
+### 数据权限
+
+- 继承`AuthSelectModelAdmin`类,即可实现数据权限控制.通过在后台分配用户和角色权限.
+- `select_permisions`: 指定查询数据权限.
+
+```python
+from fastapi_user_auth.mixins.admin import AuthSelectModelAdmin
+from fastapi_amis_admin.amis import PageSchema
+from fastapi_user_auth.mixins.schemas import SelectPerm, RecentTimeSelectPerm, UserSelectPerm, SimpleSelectPerm
+
+
+class AuthSelectArticleAdmin(AuthSelectModelAdmin):
+    page_schema = PageSchema(label="数据集控制文章管理")
+    model = Article
+    select_permissions = [
+        # 最近7天创建的数据. reverse=True表示反向选择,即默认选择最近7天之内的数据
+        RecentTimeSelectPerm(name="recent7_create", label="最近7天创建", td=60 * 60 * 24 * 7, reverse=True),
+        # 最近30天创建的数据
+        RecentTimeSelectPerm(name="recent30_create", label="最近30天创建", td=60 * 60 * 24 * 30),
+        # 最近3天更新的数据
+        RecentTimeSelectPerm(name="recent3_update", label="最近3天更新", td=60 * 60 * 24 * 3, time_column="update_time"),
+        # 只能选择自己创建的数据, reverse=True表示反向选择,即默认选择自己创建的数据
+        UserSelectPerm(name="self_create", label="自己创建", user_column="user_id", reverse=True),
+        # # 只能选择自己更新的数据
+        # UserSelectPerm(name="self_update", label="自己更新", user_column="update_by"),
+        # 只能选择已发布的数据
+        SimpleSelectPerm(name="published", label="已发布", column="is_published", values=[True]),
+        # 只能选择状态为[1,2,3]的数据
+        SimpleSelectPerm(name="status_1_2_3", label="状态为1_2_3", column="status", values=[1, 2, 3]),
+    ]
 ```
 
 ## 界面预览
