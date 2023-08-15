@@ -12,7 +12,7 @@ maintainers = [
 ]
 description = "FastAPI-User-Auth is a simple and powerful FastAPI user RBAC authentication and authorization library. Based on FastAPI-Amis-Admin and provides a freely extensible visual management interface."
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 dynamic = ["version"]
 keywords = [
     "fastapi",
@@ -30,7 +30,6 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",

@@ -17,7 +17,3 @@ i18n.load_translations(
         ),
     }
 )
-
-from . import globals as g  # noqa: E402
-
-__all__ = ["__version__", "__url__", "g", "i18n"]
