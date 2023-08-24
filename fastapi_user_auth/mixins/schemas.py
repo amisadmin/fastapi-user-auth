@@ -28,6 +28,8 @@ class SelectPerm:
     call: SelectPermCallable = None
 
     def __post_init__(self):
+        if self.call is None and hasattr(self, "_call"):
+            self.call = self._call
         assert self.call is not None, "call must be set"
 
 
@@ -42,7 +44,7 @@ class RecentTimeSelectPerm(SelectPerm):
         # 如果td为int,则表示秒数
         self.td = timedelta(seconds=self.td) if isinstance(self.td, int) else self.td
 
-    async def call(self, admin: ModelAdmin, request: Request, sel: Select) -> Select:
+    async def _call(self, admin: ModelAdmin, request: Request, sel: Select) -> Select:
         column = getattr(admin.model, self.time_column)
         return sel.where(column > datetime.now() - self.td)
 
@@ -53,7 +55,7 @@ class UserSelectPerm(SelectPerm):
 
     user_column: str = "user_id"
 
-    async def call(self, admin: ModelAdmin, request: Request, sel: Select) -> Select:
+    async def _call(self, admin: ModelAdmin, request: Request, sel: Select) -> Select:
         user_id = await admin.site.auth.get_current_user_identity(request, name="id")
         if not user_id:  # 未登录
             return sel.where(False)
@@ -68,7 +70,7 @@ class SimpleSelectPerm(SelectPerm):
     values: Union[List[str], List[int]] = None
     column: str = "status"
 
-    async def call(self, admin: ModelAdmin, request: Request, sel: Select) -> Select:
+    async def _call(self, admin: ModelAdmin, request: Request, sel: Select) -> Select:
         if not self.values:
             return sel
         column = getattr(admin.model, self.column)
@@ -83,7 +85,7 @@ class FilterSelectPerm(SelectPerm):
 
     filters: list = None
 
-    async def call(self, admin: ModelAdmin, request: Request, sel: Select) -> Select:
+    async def _call(self, admin: ModelAdmin, request: Request, sel: Select) -> Select:
         if not self.filters:
             return sel
         return sel.filter(*self.filters)
