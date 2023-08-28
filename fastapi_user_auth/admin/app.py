@@ -15,6 +15,7 @@ from fastapi_user_auth.admin import UserLoginFormAdmin as DefaultUserLoginFormAd
 from fastapi_user_auth.admin import UserRegFormAdmin as DefaultUserRegFormAdmin
 from fastapi_user_auth.admin.utils import get_admin_action_options_by_subject
 from fastapi_user_auth.auth import AuthRouter
+from fastapi_user_auth.auth.schemas import SystemUserEnum
 
 
 class UserAuthApp(AdminApp, AuthRouter):
@@ -65,11 +66,9 @@ class UserAuthApp(AdminApp, AuthRouter):
         @self.router.get("/site_admin_actions_options", response_model=BaseApiOut)
         async def site_admin_actions_options(request: Request):
             # 获取当前登录用户的权限
-            user = await self.auth.get_current_user(request)
+            username = await self.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
             # 获取当前用户的权限列表
-            options = get_admin_action_options_by_subject(
-                enforcer=self.auth.enforcer, subject="u:" + user.username, group=self.site
-            )
+            options = get_admin_action_options_by_subject(enforcer=self.auth.enforcer, subject="u:" + username, group=self.site)
             return BaseApiOut(data=options)
 
         return self
