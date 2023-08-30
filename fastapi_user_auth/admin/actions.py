@@ -160,7 +160,7 @@ class UpdateSubRolesAction(BaseSubAction):
             return BaseApiOut(status=0, msg="不能修改自己的权限")
         enforcer: AsyncEnforcer = self.site.auth.enforcer
         role_keys = [f"r:{role}" for role in data.role_keys.split(",") if role]
-        if role_keys and identity != SystemUserEnum.ROOT:
+        if role_keys and identity not in [SystemUserEnum.ROOT, SystemUserEnum.ADMIN]:
             # 检查当前用户是否有对应的角色,只有自己拥有的角色才能分配给其他主体
             user_role_keys = await self.site.auth.enforcer.get_implicit_roles_for_user("u:" + identity)
             role_keys = [role for role in role_keys if role in user_role_keys]  # 过滤掉当前用户的角色
