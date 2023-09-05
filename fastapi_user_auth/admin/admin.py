@@ -72,6 +72,7 @@ def attach_page_head(page: Page) -> Page:
 
 
 class UserLoginFormAdmin(FormAdmin):
+    unique_id = "Auth>UserLoginFormAdmin"
     page = Page(title=_("User Login"))
     page_path = "/login"
     page_parser_mode = "html"
@@ -135,6 +136,7 @@ class UserLoginFormAdmin(FormAdmin):
 
 
 class UserRegFormAdmin(FormAdmin):
+    unique_id = "Auth>UserRegFormAdmin"
     user_model: Type[BaseUser] = User
     page = Page(title=_("User Register"))
     page_path = "/reg"
@@ -215,6 +217,7 @@ class UserRegFormAdmin(FormAdmin):
 
 
 class UserInfoFormAdmin(FormAdmin):
+    unique_id = "Auth>UserInfoFormAdmin"
     page_schema = None
     user_model: Type[BaseUser] = User
     page = Page(title=_("User Profile"))
@@ -233,7 +236,7 @@ class UserInfoFormAdmin(FormAdmin):
         formitems = [
             await self.get_form_item(request, modelfield)
             for k, modelfield in self.user_model.__fields__.items()
-            if k not in self.schema.__fields__
+            if k not in self.schema.__fields__.keys() | {"delete_time"}
         ]
         form.body.extend(formitem.update_from_kwargs(disabled=True) for formitem in formitems if formitem)
         return form
@@ -253,6 +256,7 @@ class UserInfoFormAdmin(FormAdmin):
 
 
 class UserAdmin(AuthFieldModelAdmin, AuthSelectModelAdmin, SoftDeleteModelAdmin, FootableModelAdmin):
+    unique_id = "Auth>UserAdmin"
     page_schema = PageSchema(label=_("User"), icon="fa fa-user")
     model: Type[BaseUser] = None
     exclude = ["password"]
@@ -312,6 +316,7 @@ class UserAdmin(AuthFieldModelAdmin, AuthSelectModelAdmin, SoftDeleteModelAdmin,
 
 
 class RoleAdmin(AutoTimeModelAdmin, FootableModelAdmin):
+    unique_id = "Auth>RoleAdmin"
     page_schema = PageSchema(label=_("Role"), icon="fa fa-group")
     model = Role
     ordering = [Role.id.desc()]
@@ -349,6 +354,7 @@ class RoleAdmin(AutoTimeModelAdmin, FootableModelAdmin):
 
 
 class CasbinRuleAdmin(ReadOnlyModelAdmin):
+    unique_id = "Auth>CasbinRuleAdmin"
     page_schema = PageSchema(label="CasbinRule", icon="fa fa-lock")
     model = CasbinRule
     list_filter = [CasbinRule.ptype, CasbinRule.v0, CasbinRule.v1, CasbinRule.v2, CasbinRule.v3, CasbinRule.v4, CasbinRule.v5]
@@ -389,6 +395,7 @@ class CasbinRuleAdmin(ReadOnlyModelAdmin):
 
 
 class LoginHistoryAdmin(ReadOnlyModelAdmin):
+    unique_id = "Auth>LoginHistoryAdmin"
     page_schema = PageSchema(label="登录历史", icon="fa fa-history")
     model = LoginHistory
     search_fields = [LoginHistory.login_name, LoginHistory.ip, LoginHistory.login_status, LoginHistory.user_agent]

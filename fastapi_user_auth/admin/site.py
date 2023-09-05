@@ -22,6 +22,7 @@ from fastapi_user_auth.auth.schemas import SystemUserEnum
 
 
 class AuthAdminSite(AdminSite):
+    unique_id = "AuthAdminSite"
     auth: Auth = None
     UserAuthApp: Type[DefaultUserAuthApp] = DefaultUserAuthApp
 

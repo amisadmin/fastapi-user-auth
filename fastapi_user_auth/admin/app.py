@@ -7,7 +7,8 @@ from fastapi_amis_admin.utils.pydantic import create_model_by_model
 from fastapi_amis_admin.utils.translation import i18n as _
 from starlette.requests import Request
 
-from fastapi_user_auth.admin import CasbinRuleAdmin, LoginHistoryAdmin
+from fastapi_user_auth.admin import CasbinRuleAdmin
+from fastapi_user_auth.admin import LoginHistoryAdmin as DefaultLoginHistoryAdmin
 from fastapi_user_auth.admin import RoleAdmin as DefaultRoleAdmin
 from fastapi_user_auth.admin import UserAdmin as DefaultUserAdmin
 from fastapi_user_auth.admin import UserInfoFormAdmin as DefaultUserInfoFormAdmin
@@ -19,6 +20,7 @@ from fastapi_user_auth.auth.schemas import SystemUserEnum
 
 
 class UserAuthApp(AdminApp, AuthRouter):
+    unique_id = "Auth>UserAuthApp"
     page_schema = PageSchema(label=_("User Authentication"), icon="fa fa-lock", sort=99)
     router_prefix = "/auth"
     # default admin
@@ -27,6 +29,7 @@ class UserAuthApp(AdminApp, AuthRouter):
     UserInfoFormAdmin: Type[DefaultUserInfoFormAdmin] = DefaultUserInfoFormAdmin
     UserAdmin: Type[DefaultUserAdmin] = DefaultUserAdmin
     RoleAdmin: Type[ModelAdmin] = DefaultRoleAdmin
+    LoginHistoryAdmin: Type[ModelAdmin] = DefaultLoginHistoryAdmin
 
     def __init__(self, app: "AdminApp"):
         AdminApp.__init__(self, app)
@@ -56,7 +59,7 @@ class UserAuthApp(AdminApp, AuthRouter):
             self.UserInfoFormAdmin,
             self.UserAdmin,
             self.RoleAdmin,
-            LoginHistoryAdmin,
+            self.LoginHistoryAdmin,
             CasbinRuleAdmin,
         )
 

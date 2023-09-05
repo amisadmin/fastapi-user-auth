@@ -133,7 +133,8 @@ class UpdateSubRolesAction(BaseSubAction):
         item = await super().get_form_item(request, modelfield)
         from fastapi_user_auth.admin import RoleAdmin  # 防止循环导入
 
-        role_admin = self.admin.app.get_admin_or_create(RoleAdmin)
+        # role_admin = self.admin.app.get_admin_or_create(RoleAdmin)
+        role_admin, _ = self.admin.app.get_page_schema_child(unique_id=RoleAdmin.unique_id)
         if item.name == "role_keys":  # 为角色树形选择器数据指定API源
             # value
             item.source = f"post:{role_admin.router_path}/list?page=1&perPage=100"
