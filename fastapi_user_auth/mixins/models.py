@@ -13,7 +13,7 @@ except ImportError:
 
 
 class PkMixin(SQLModel):
-    id: int = Field(default=None, primary_key=True, nullable=False)
+    id: int = Field(default=None, title="ID", primary_key=True, nullable=False)
 
 
 class CreateTimeMixin(SQLModel):
