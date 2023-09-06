@@ -73,7 +73,7 @@ class SoftDeleteModelAdmin(AutoTimeModelAdmin):
 
     def __init__(self, app: "AdminApp"):
         super().__init__(app)
-        assert hasattr(self.model, "delete_time"), "SoftDeleteAdminMixin需要在模型中定义delete_time字段"
+        assert hasattr(self.model, "delete_time"), "SoftDeleteModelAdmin需要在模型中定义delete_time字段"
 
     async def get_select(self, request: Request):
         sel = await super().get_select(request)
@@ -92,7 +92,7 @@ class FootableModelAdmin(admin.ModelAdmin):
         return table
 
 
-class AuthFieldModelAdmin(admin.ModelAdmin):
+class BaseAuthFieldModelAdmin(admin.ModelAdmin):
     """字段级别权限控制模型管理.
     - xxx_permission_fields:
         1.动作权限字段,可以通过覆盖这些属性来控制哪些字段需要进行权限验证.
@@ -164,10 +164,7 @@ class AuthFieldModelAdmin(admin.ModelAdmin):
 
     async def has_field_permission(self, request: Request, field: str, action: str = "") -> bool:
         """判断用户是否有字段权限"""
-        subject = await self.site.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
-        action += ""
-        effect = self.site.auth.enforcer.enforce("u:" + subject, self.unique_id, f"page:{action}:{field}", f"page:{action}")
-        return effect
+        return True
 
     async def get_deny_fields(self, request: Request, action: str = None) -> Set[str]:
         """获取没有权限的字段"""
@@ -191,7 +188,7 @@ class AuthFieldModelAdmin(admin.ModelAdmin):
         fields = {field for field in check_fields if not await self.has_field_permission(request, field, action)}
         request_cache[action] = fields
         if cache_key not in request.scope:
-            request.scope[f"{self.unique_id}_exclude_fields"] = request_cache
+            request.scope[cache_key] = request_cache
         return fields
 
     async def on_list_after(self, request: Request, result: Result, data: ItemListSchema, **kwargs) -> ItemListSchema:
@@ -257,7 +254,16 @@ class AuthFieldModelAdmin(admin.ModelAdmin):
         return column
 
 
-class AuthSelectModelAdmin(admin.ModelAdmin):
+class AuthFieldModelAdmin(BaseAuthFieldModelAdmin):
+    async def has_field_permission(self, request: Request, field: str, action: str = "") -> bool:
+        """判断用户是否有字段权限"""
+        subject = await self.site.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
+        action += ""
+        effect = self.site.auth.enforcer.enforce("u:" + subject, self.unique_id, f"page:{action}:{field}", f"page:{action}")
+        return effect
+
+
+class BaseAuthSelectModelAdmin(admin.ModelAdmin):
     """包含选择数据集权限控制的模型管理"""
 
     select_permissions: List[SelectPerm] = []
@@ -265,15 +271,14 @@ class AuthSelectModelAdmin(admin.ModelAdmin):
 
     async def has_select_permission(self, request: Request, name: str) -> bool:
         """判断用户是否有数据集权限"""
-        subject = await self.site.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
-        effect = self.site.auth.enforcer.enforce("u:" + subject, self.unique_id, f"page:select:{name}", "page:select")
-        return effect
+        return True
 
     async def get_select(self, request: Request) -> Select:
         sel = await super().get_select(request)
-        subject = await self.site.auth.get_current_user_identity(request)
-        if subject == SystemUserEnum.ROOT:
-            return sel
+        return await self.filter_select(request, sel)
+
+    async def filter_select(self, request: Request, sel: Select) -> Select:
+        """在sel中添加权限过滤条件"""
         for permission in self.select_permissions:
             if not isinstance(permission, SelectPerm):
                 continue
@@ -286,7 +291,22 @@ class AuthSelectModelAdmin(admin.ModelAdmin):
         return sel
 
 
-class AuthFieldFormAdmin(admin.FormAdmin):
+class AuthSelectModelAdmin(BaseAuthSelectModelAdmin):
+    async def has_select_permission(self, request: Request, name: str) -> bool:
+        """判断用户是否有数据集权限"""
+        subject = await self.site.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
+        effect = self.site.auth.enforcer.enforce("u:" + subject, self.unique_id, f"page:select:{name}", "page:select")
+        return effect
+
+    async def filter_select(self, request: Request, sel: Select) -> Select:
+        """在sel中添加权限过滤条件"""
+        subject = await self.site.auth.get_current_user_identity(request)
+        if subject == SystemUserEnum.ROOT:
+            return sel
+        return await super().filter_select(request, sel)
+
+
+class BaseAuthFieldFormAdmin(admin.FormAdmin):
     """#todo 字段级别权限控制表单管理"""
 
     pass
