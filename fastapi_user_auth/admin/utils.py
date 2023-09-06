@@ -70,8 +70,10 @@ def get_schema_fields_name_label(
     exclude_required: bool = False,
     exclude: Sequence[str] = None,
 ) -> Dict[str, str]:
-    """获取schema字段名和标签"""
+    """获取schema字段名和标签.如果exclude中包含__all__,则返回空字典."""
     if not schema:
+        return {}
+    if exclude and "__all__" in exclude:
         return {}
     fields = {}
     for field in model_fields(schema).values():
