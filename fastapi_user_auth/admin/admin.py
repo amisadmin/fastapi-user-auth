@@ -54,7 +54,7 @@ from fastapi_user_auth.mixins.admin import (
     ReadOnlyModelAdmin,
     SoftDeleteModelAdmin,
 )
-from fastapi_user_auth.mixins.schemas import PermFieldsExclude
+from fastapi_user_auth.mixins.schemas import FieldPermEnum
 
 
 def attach_page_head(page: Page) -> Page:
@@ -287,16 +287,18 @@ class UserAdmin(AuthFieldModelAdmin, AuthSelectModelAdmin, SoftDeleteModelAdmin,
         UserRoleNameLabel,
         User.create_time,
     ]
-    perm_fields_exclude = PermFieldsExclude(
-        all=[
+    perm_fields_exclude = {
+        FieldPermEnum.ALL: [
             "id",
             "username",
             "nickname",
             "avatar",
             "is_active",
             "create_time",
+            "update_time",
+            "delete_time",
         ],
-    )
+    }
 
     async def get_select(self, request: Request) -> Select:
         sel = await super().get_select(request)

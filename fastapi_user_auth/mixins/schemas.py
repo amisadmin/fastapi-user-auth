@@ -1,20 +1,22 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Awaitable, Callable, List, Optional, Sequence, Union
+from enum import Enum
+from typing import Awaitable, Callable, List, Union
 
 from fastapi_amis_admin.admin import ModelAdmin
 from sqlalchemy.sql import Select
 from starlette.requests import Request
 
 
-@dataclass
-class PermFieldsExclude:
-    all: Optional[Sequence[str]] = None
-    list: Optional[Sequence[str]] = None
-    filter: Optional[Sequence[str]] = None
-    create: Optional[Sequence[str]] = None
-    read: Optional[Sequence[str]] = None
-    update: Optional[Sequence[str]] = None
+class FieldPermEnum(int, Enum):
+    LIST = 1 << 0
+    FILTER = 1 << 1
+    CREATE = 1 << 2
+    READ = 1 << 3
+    UPDATE = 1 << 4
+    ALL = LIST | FILTER | CREATE | READ | UPDATE
+    VIEW = LIST | FILTER | READ
+    EDIT = CREATE | UPDATE
 
 
 SelectPermCallable = Callable[[ModelAdmin, Request, Select], Union[Select, Awaitable[Select]]]

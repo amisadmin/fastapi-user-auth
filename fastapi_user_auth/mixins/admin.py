@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime
 from functools import cached_property
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Sequence, Set, Union
 
 from fastapi_amis_admin import admin
 from fastapi_amis_admin.admin import AdminAction, AdminApp
@@ -16,7 +16,7 @@ from starlette.requests import Request
 
 from fastapi_user_auth.admin.utils import get_schema_fields_name_label
 from fastapi_user_auth.auth.schemas import SystemUserEnum
-from fastapi_user_auth.mixins.schemas import PermFieldsExclude, SelectPerm
+from fastapi_user_auth.mixins.schemas import FieldPermEnum, SelectPerm
 
 
 class ReadOnlyModelAdmin(admin.ModelAdmin):
@@ -101,7 +101,7 @@ class BaseAuthFieldModelAdmin(admin.ModelAdmin):
     #todo  初步实现,未优化
     """
 
-    perm_fields_exclude: PermFieldsExclude = PermFieldsExclude()
+    perm_fields_exclude: Dict[int, Sequence[str]] = None
     """exclude指定的字段,不进行权限验证."""
 
     def __init__(self, app: "AdminApp"):
@@ -109,33 +109,23 @@ class BaseAuthFieldModelAdmin(admin.ModelAdmin):
 
     def get_permission_fields(self, action: str) -> Dict[str, str]:
         """获取权限字段"""
-        all_exclude = self.perm_fields_exclude.all or []
-        if action == "list":
-            list_exclude = self.perm_fields_exclude.list or []
-            return get_schema_fields_name_label(
-                self.schema_list, prefix="列表展示-", exclude_required=True, exclude=[*all_exclude, *list_exclude]
-            )
-        elif action == "filter":
-            filter_exclude = self.perm_fields_exclude.filter or []
-            return get_schema_fields_name_label(
-                self.schema_filter, prefix="列表筛选-", exclude_required=True, exclude=[*all_exclude, *filter_exclude]
-            )
-        elif action == "create":
-            create_exclude = self.perm_fields_exclude.create or []
-            return get_schema_fields_name_label(
-                self.schema_create, prefix="新增-", exclude_required=True, exclude=[*all_exclude, *create_exclude]
-            )
-        elif action == "read":
-            read_exclude = self.perm_fields_exclude.read or []
-            return get_schema_fields_name_label(
-                self.schema_read, prefix="查看-", exclude_required=True, exclude=[*all_exclude, *read_exclude]
-            )
-        elif action == "update":
-            update_exclude = self.perm_fields_exclude.update or []
-            return get_schema_fields_name_label(
-                self.schema_update, prefix="更新-", exclude_required=True, exclude=[*all_exclude, *update_exclude]
-            )
-        return {}
+        if not self.perm_fields_exclude:
+            return {}
+        info = {
+            "list": (self.schema_list, "列表展示-", FieldPermEnum.LIST),
+            "filter": (self.schema_filter, "列表筛选-", FieldPermEnum.FILTER),
+            "create": (self.schema_create, "新增-", FieldPermEnum.CREATE),
+            "read": (self.schema_read, "查看-", FieldPermEnum.READ),
+            "update": (self.schema_update, "更新-", FieldPermEnum.UPDATE),
+        }
+        if action not in info:
+            return {}
+        schema, prefix, perm = info[action]
+        exlude = set()
+        for k, fileds in self.perm_fields_exclude.items():
+            if (k & perm) == perm:
+                exlude.update(set(fileds))
+        return get_schema_fields_name_label(schema, prefix=prefix, exclude_required=True, exclude=exlude)
 
     @cached_property
     def create_permission_fields(self) -> Dict[str, str]:
