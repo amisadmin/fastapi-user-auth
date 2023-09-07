@@ -62,13 +62,21 @@ def get_admin_field_permission_rows(admin: PageSchemaAdmin, action: str) -> List
             fields = admin.read_permission_fields
         else:
             pass
-        for name, label in fields.items():
-            rows.append(
-                {
-                    "label": label,
-                    "rol": f"{admin.unique_id}#page:{action}:{name}#page:{action}",
-                }
-            )
+        if not fields:
+            return []
+        rows.append(
+            {
+                "label": "全部",
+                "rol": f"{admin.unique_id}#page:{action}:*#page:{action}",
+            }
+        )
+        rows.extend(
+            {
+                "label": label,
+                "rol": f"{admin.unique_id}#page:{action}:{name}#page:{action}",
+            }
+            for name, label in fields.items()
+        )
     elif isinstance(admin, FormAdmin):  # todo 表单管理
         pass
     return rows
@@ -348,9 +356,9 @@ class UpdateSubDataPermAction(BaseSubPermAction):
             admin, parent = self.site.get_page_schema_child(unique_id)
             if not admin:
                 return out
-            if action == "page":
+            if action == "page":  # select权限
                 rows = get_admin_select_permission_rows(admin)
-            else:
+            else:  # 字段权限
                 action = action.replace("page:", "")
                 rows = get_admin_field_permission_rows(admin, action)
             out.data["rows"] = rows

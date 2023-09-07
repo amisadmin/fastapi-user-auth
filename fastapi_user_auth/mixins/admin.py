@@ -101,7 +101,7 @@ class BaseAuthFieldModelAdmin(admin.ModelAdmin):
     #todo  初步实现,未优化
     """
 
-    perm_fields_exclude: Dict[int, Sequence[str]] = None
+    perm_fields_exclude: Dict[Union[FieldPermEnum, int], Sequence[str]] = None
     """exclude指定的字段,不进行权限验证."""
 
     def __init__(self, app: "AdminApp"):
