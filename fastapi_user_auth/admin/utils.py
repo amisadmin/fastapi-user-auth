@@ -1,12 +1,10 @@
 from copy import copy
 from functools import lru_cache
-from typing import Any, Callable, Dict, List, Sequence, Tuple, Type
+from typing import Any, Callable, Dict, List, Tuple
 
 from casbin import AsyncEnforcer
 from fastapi_amis_admin.admin import FormAdmin, ModelAdmin, PageSchemaAdmin
 from fastapi_amis_admin.admin.admin import AdminGroup, BaseActionAdmin, BaseAdminSite
-from fastapi_amis_admin.utils.pydantic import model_fields
-from pydantic import BaseModel
 
 from fastapi_user_auth.auth.schemas import SystemUserEnum
 from fastapi_user_auth.utils.casbin import permission_encode, permission_enforce
@@ -61,30 +59,6 @@ def filter_options(options: List[Dict[str, Any]], filter_func: Callable[[Dict[st
             option["children"] = filter_options(option["children"], filter_func)
         result.append(option)
     return result
-
-
-def get_schema_fields_name_label(
-    schema: Type[BaseModel],
-    *,
-    prefix: str = "",
-    exclude_required: bool = False,
-    exclude: Sequence[str] = None,
-) -> Dict[str, str]:
-    """获取schema字段名和标签.如果exclude中包含__all__,则返回空字典."""
-    if not schema:
-        return {}
-    if exclude and "__all__" in exclude:
-        return {}
-    fields = {}
-    for field in model_fields(schema).values():
-        if exclude_required and field.required:
-            continue
-        name = field.alias or field.name
-        if exclude and name in exclude:
-            continue
-        label = field.field_info.title or field.name
-        fields[name] = prefix + label
-    return fields
 
 
 def get_admin_action_options_by_subject(

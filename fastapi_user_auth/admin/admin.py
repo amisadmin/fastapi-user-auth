@@ -2,7 +2,17 @@ import contextlib
 from typing import Any, Callable, Dict, List, Type
 
 from fastapi import Depends, HTTPException
-from fastapi_amis_admin.admin import AdminAction, AdminApp, FormAdmin, PageSchemaAdmin
+from fastapi_amis_admin.admin import (
+    AdminAction,
+    AdminApp,
+    AutoTimeModelAdmin,
+    FieldPermEnum,
+    FootableModelAdmin,
+    FormAdmin,
+    PageSchemaAdmin,
+    ReadOnlyModelAdmin,
+    SoftDeleteModelAdmin,
+)
 from fastapi_amis_admin.amis.components import (
     Action,
     ActionType,
@@ -46,15 +56,7 @@ from fastapi_user_auth.auth.models import (
     UserRoleNameLabel,
 )
 from fastapi_user_auth.auth.schemas import SystemUserEnum, UserLoginOut
-from fastapi_user_auth.mixins.admin import (
-    AuthFieldModelAdmin,
-    AuthSelectModelAdmin,
-    AutoTimeModelAdmin,
-    FootableModelAdmin,
-    ReadOnlyModelAdmin,
-    SoftDeleteModelAdmin,
-)
-from fastapi_user_auth.mixins.schemas import FieldPermEnum
+from fastapi_user_auth.mixins.admin import AuthFieldModelAdmin, AuthSelectModelAdmin
 
 
 def attach_page_head(page: Page) -> Page:

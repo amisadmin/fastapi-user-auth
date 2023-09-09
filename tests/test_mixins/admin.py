@@ -1,13 +1,13 @@
 from typing import List, Optional
 
 from fastapi_amis_admin import admin
+from fastapi_amis_admin.admin import RecentTimeSelectPerm, SelectPerm, SimpleSelectPerm, UserSelectPerm
 from fastapi_amis_admin.amis import PageSchema
 from fastapi_amis_admin.models import Field
 from sqlalchemy import Column, Text
 
 from fastapi_user_auth.mixins.admin import AuthFieldModelAdmin, AuthSelectModelAdmin
 from fastapi_user_auth.mixins.models import CUDTimeMixin, PkMixin
-from fastapi_user_auth.mixins.schemas import RecentTimeSelectPerm, SelectPerm, SimpleSelectPerm, UserSelectPerm
 
 
 class Article(PkMixin, CUDTimeMixin, table=True):
