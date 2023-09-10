@@ -12,11 +12,14 @@ from fastapi_amis_admin.models import Field
 from pydantic import BaseModel
 from pydantic.fields import ModelField
 from starlette.requests import Request
+from starlette.responses import RedirectResponse
 
 from fastapi_user_auth.admin.utils import get_admin_action_options_by_subject
+from fastapi_user_auth.auth import Auth
 from fastapi_user_auth.auth.models import Role, User
 from fastapi_user_auth.auth.schemas import SystemUserEnum
 from fastapi_user_auth.mixins.admin import AuthFieldModelAdmin, AuthSelectModelAdmin
+from fastapi_user_auth.mixins.models import PkMixin, UsernameMixin
 from fastapi_user_auth.utils.casbin import (
     get_subject_effect_matrix,
     get_subject_page_permissions,
@@ -428,3 +431,55 @@ class UpdateSubPagePermsAction(ViewSubPagePermAction):
             permissions = [perm for perm in permissions if enforcer.enforce("u:" + identity, *permission_decode(perm))]
         await update_subject_page_permissions(enforcer, subject=subject, permissions=permissions)  # 更新角色权限
         return BaseApiOut(msg="success")
+
+
+class CopyUserAuthLinkAction(ModelAction):
+    """复制用户免登录链接"""
+
+    action = amis.ActionType.Dialog(
+        name="copy_user_auth_link",
+        icon="fa fa-link",
+        tooltip="用户免登录链接",
+        level=amis.LevelEnum.danger,
+        dialog=amis.Dialog(
+            size=amis.SizeEnum.md,
+            title="用户免登录链接",
+        ),
+    )
+    form_init = True
+    form = amis.Form(static=True, disabled=True)  # type: ignore # 禁用表单
+
+    class schema(UsernameMixin, PkMixin):
+        auth_url: str = Field(
+            title="授权链接",
+            description="复制链接到浏览器打开即可免登录",
+            amis_form_item=amis.Static(
+                copyable=True,
+            ),
+        )
+
+    async def get_init_data(self, request: Request, **kwargs) -> BaseApiOut[Any]:
+        """复制用户免登录链接"""
+        item_id = request.query_params.get("item_id")
+        items = await self.admin.fetch_items(item_id)
+        user: User = items[0]
+        auth: Auth = request.auth
+        token_data = {
+            "id": user.id,
+            "username": user.username,
+        }
+        token = await auth.backend.token_store.write_token(token_data)
+        return BaseApiOut(
+            msg="操作成功",
+            data={**token_data, "auth_url": f"{str(request.base_url)[:-1]}{self.site.router_path}/login_by_token?token={token}"},
+        )
+
+    def register_router(self):
+        @self.site.router.get("/login_by_token", include_in_schema=False)
+        async def login_by_token(token: str):
+            """通过url中的token登录"""
+            response = RedirectResponse(self.site.settings.site_path)
+            response.set_cookie("Authorization", f"bearer {token}")
+            return response
+
+        return super().register_router()

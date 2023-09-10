@@ -37,6 +37,7 @@ from starlette.responses import Response
 from starlette.routing import NoMatchFound
 
 from fastapi_user_auth.admin.actions import (
+    CopyUserAuthLinkAction,
     UpdateSubDataPermAction,
     UpdateSubPagePermsAction,
     UpdateSubRolesAction,
@@ -264,6 +265,7 @@ class UserAdmin(AuthFieldModelAdmin, AuthSelectModelAdmin, SoftDeleteModelAdmin,
     exclude = ["password"]
     ordering = [User.id.desc()]
     search_fields = [User.username, UserRoleNameLabel]
+    update_exclude = AutoTimeModelAdmin.update_exclude | {"username"}
     display_item_action_as_column = True
     admin_action_maker = [
         lambda admin: UpdateSubPagePermsAction(
@@ -279,6 +281,7 @@ class UserAdmin(AuthFieldModelAdmin, AuthSelectModelAdmin, SoftDeleteModelAdmin,
         lambda admin: UpdateSubRolesAction(
             admin=admin, name="update_subject_roles", tooltip="更新用户角色", icon="fa fa-user", flags="item"
         ),
+        lambda admin: CopyUserAuthLinkAction(admin),
     ]
     list_display = [
         User.id,
