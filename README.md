@@ -347,14 +347,14 @@ site = MyAuthAdminSite(settings, auth=auth)
 ```python
 from fastapi_user_auth.mixins.admin import AuthFieldModelAdmin
 from fastapi_amis_admin.amis import PageSchema
-
+from fastapi_amis_admin.admin import FieldPermEnum
 
 class AuthFieldArticleAdmin(AuthFieldModelAdmin):
     page_schema = PageSchema(label="文章管理")
     model = Article
     # 指定不需要权限控制的字段. 
     perm_fields_exclude = {
-        "create": ["title", "description", "content"],
+        FieldPermEnum.CREATE: ["title", "description", "content"],
     }
 ```
 
@@ -366,7 +366,7 @@ class AuthFieldArticleAdmin(AuthFieldModelAdmin):
 ```python
 from fastapi_user_auth.mixins.admin import AuthSelectModelAdmin
 from fastapi_amis_admin.amis import PageSchema
-from fastapi_user_auth.mixins.schemas import SelectPerm, RecentTimeSelectPerm, UserSelectPerm, SimpleSelectPerm
+from fastapi_amis_admin.admin import RecentTimeSelectPerm, UserSelectPerm, SimpleSelectPerm
 
 
 class AuthSelectArticleAdmin(AuthSelectModelAdmin):
