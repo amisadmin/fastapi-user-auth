@@ -76,11 +76,15 @@ site.mount_app(app)
 @app.on_event("startup")
 async def startup():
     await site.db.async_run_sync(SQLModel.metadata.create_all, is_session=False)
-    # 创建默认管理员,用户名: root,密码: root, 请及时修改密码!!!
-    await auth.create_role_user('root')
-    await auth.create_role_user('admin')
+        # 创建默认管理员,用户名: admin,密码: admin, 请及时修改密码!!!
+    await auth.create_role_user("admin")
+    # 创建默认超级管理员,用户名: root,密码: root, 请及时修改密码!!!
+    await auth.create_role_user("root")
     # 运行site的startup方法,加载casbin策略等
     await site.router.startup()
+    # 添加一条默认的casbin规则
+    if not auth.enforcer.enforce("u:admin", site.unique_id, "page", "page"):
+        await auth.enforcer.add_policy("u:admin", site.unique_id, "page", "page", "allow")
 
 
 # 要求: 用户必须登录
@@ -140,8 +144,6 @@ def admin_or_vip_roles(request: Request):
 
 ```python
 from fastapi import Depends
-from typing import Tuple
-from fastapi_user_auth.auth import Auth
 from fastapi_user_auth.auth.models import User
 
 

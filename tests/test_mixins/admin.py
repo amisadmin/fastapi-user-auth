@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 from fastapi_amis_admin import admin
-from fastapi_amis_admin.admin import RecentTimeSelectPerm, SelectPerm, SimpleSelectPerm, UserSelectPerm
+from fastapi_amis_admin.admin import FieldPermEnum, RecentTimeSelectPerm, SelectPerm, SimpleSelectPerm, UserSelectPerm
 from fastapi_amis_admin.amis import PageSchema
 from fastapi_amis_admin.models import Field
 from sqlalchemy import Column, Text
@@ -24,7 +24,7 @@ class AuthFieldArticleAdmin(AuthFieldModelAdmin, admin.ModelAdmin):
     page_schema = PageSchema(label="字段控制文章管理")
     model = Article
     perm_fields_exclude = {
-        "create": ["title", "description", "content"],
+        FieldPermEnum.CREATE: ["title", "description", "content"],
     }
 
 
