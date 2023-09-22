@@ -159,7 +159,7 @@ class UpdateSubRolesAction(BaseSubAction):
         subject = await self.get_subject_by_id(item_id)
         if not subject:
             return BaseApiOut(status=0, msg="暂不支持的模型")
-        role_keys = await self.site.auth.enforcer.get_implicit_roles_for_user(subject)
+        role_keys = await self.site.auth.enforcer.get_roles_for_user(subject)
         return BaseApiOut(data=self.schema(role_keys=",".join(role_keys).replace("r:", "")))
 
     async def handle(self, request: Request, item_id: List[str], data: schema, **kwargs):
