@@ -271,15 +271,15 @@ class UserAdmin(AuthFieldModelAdmin, AuthSelectModelAdmin, SoftDeleteModelAdmin,
         lambda admin: UpdateSubPagePermsAction(
             admin=admin,
             name="update_subject_page_permissions",
-            tooltip="更新用户页面权限",
+            tooltip=_("Update User Page Permissions")
         ),
         lambda admin: UpdateSubDataPermAction(
             admin=admin,
             name="update_subject_data_permissions",
-            tooltip="更新用户数据权限",
+            tooltip=_("Update User Data Permissions")
         ),
         lambda admin: UpdateSubRolesAction(
-            admin=admin, name="update_subject_roles", tooltip="更新用户角色", icon="fa fa-user", flags="item"
+            admin=admin, name="update_subject_roles", tooltip=_("Update User Roles"), icon="fa fa-user", flags="item"
         ),
         lambda admin: CopyUserAuthLinkAction(admin),
     ]
@@ -334,15 +334,15 @@ class RoleAdmin(AutoTimeModelAdmin, FootableModelAdmin):
         lambda admin: UpdateSubPagePermsAction(
             admin=admin,
             name="update_subject_page_permissions",
-            tooltip="更新角色页面权限",
+            tooltip=_("Update role page permissions"),
         ),
         lambda admin: UpdateSubDataPermAction(
             admin=admin,
             name="update_subject_data_permissions",
-            tooltip="更新角色数据权限",
+            tooltip=_("Update role data permissions"),
         ),
         lambda admin: UpdateSubRolesAction(
-            admin=admin, name="update_subject_roles", tooltip="更新子角色", icon="fa fa-user", flags="item"
+            admin=admin, name="update_subject_roles", tooltip=_("Update sub roles"), icon="fa fa-user", flags="item"
         ),
     ]
 
@@ -370,7 +370,7 @@ class CasbinRuleAdmin(ReadOnlyModelAdmin):
             admin=admin,
             action=ActionType.Ajax(
                 id="refresh",
-                label="刷新权限",
+                label=_("Refresh Permissions"),
                 icon="fa fa-refresh",
                 level=LevelEnum.success,
                 api=f"GET:{admin.router_path}/load_policy",
@@ -396,14 +396,14 @@ class CasbinRuleAdmin(ReadOnlyModelAdmin):
         async def _load_policy():
             await self.load_policy()
             get_admin_action_options.cache_clear()  # 清除系统菜单缓存
-            return BaseApiOut(data="刷新成功")
+            return BaseApiOut(data=_("Refresh Successful"))
 
         return super().register_router()
 
 
 class LoginHistoryAdmin(ReadOnlyModelAdmin):
     unique_id = "Auth>LoginHistoryAdmin"
-    page_schema = PageSchema(label="登录历史", icon="fa fa-history")
+    page_schema = PageSchema(label=_("Login History"), icon="fa fa-history")
     model = LoginHistory
     search_fields = [LoginHistory.login_name, LoginHistory.ip, LoginHistory.login_status, LoginHistory.user_agent]
     list_display = [
