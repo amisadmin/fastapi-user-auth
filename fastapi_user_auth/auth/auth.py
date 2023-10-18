@@ -304,7 +304,7 @@ class Auth(Generic[UserModelT]):
             ip=request.client.host,
             user_agent=request.headers.get("user-agent"),
             login_status=_("Login Successful"),
-        forwarded_for=forwarded_for,
+            forwarded_for=forwarded_for,
         )
         self.db.add(history)
         if not user:
