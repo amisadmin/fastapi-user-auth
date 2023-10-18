@@ -333,6 +333,7 @@ class UpdateSubDataPermAction(BaseSubPermAction):
                 item_id: str = "",
                 type: str = "policy",
         ):
+            from fastapi_amis_admin.utils.translation import i18n as _  # TODO: WFT ?
             columns = [
                 {
                     "label": _("Default"),
