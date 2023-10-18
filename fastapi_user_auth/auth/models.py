@@ -93,8 +93,8 @@ GROUP BY v0;
 CasbinSubjectRolesQuery = (
     select(
         CasbinRule.v0.label("subject"),
-        func.group_concat(Role.name).label("role_names"),
-        func.group_concat(Role.key).label("role_keys"),
+        func.array_agg(Role.name).label("role_names"),
+        func.array_agg(Role.key).label("role_keys"),
     )
     .where(CasbinRule.ptype == "g")
     .outerjoin(Role, CasbinRule.v1 == "r:" + Role.key)  # sqlalchemy#5275
