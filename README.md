@@ -382,6 +382,7 @@ class AuthSelectArticleAdmin(AuthSelectModelAdmin):
 - `fastapi-amis-admin` is open source and free to use under the `Apache2.0` license. It can be used for free for commercial purposes, but please clearly display copyright information about FastAPI-Amis-Admin in the display interface.
 ## Acknowledgments
 
-Thanks to the developers who contributed to FastAPI-User-Auth:<a href="https://github.com/amisadmin/fastapi_user_auth/graphs/contributors">
+Thanks to the developers who contributed to FastAPI-User-Auth:
+<a href="https://github.com/amisadmin/fastapi_user_auth/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=amisadmin/fastapi_user_auth"  alt=""/>
 </a>
