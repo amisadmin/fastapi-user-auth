@@ -1,4 +1,6 @@
-# Project Introduction<h2 align="center">
+# Project Introduction
+
+<h2 align="center">
   FastAPI-User-Auth
 </h2>
 <p align="center">
