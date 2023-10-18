@@ -54,7 +54,7 @@ class Role(PkMixin, CUDTimeMixin, table=True):
 
     key: str = Field(title=_("Role Identifier"), max_length=40, unique=True, index=True, nullable=False)
     name: str = Field(default="", title=_("Role Name"), max_length=40)
-    desc: str = Field(default="", title=_("Role Description"), max_length=400, amis_form_item=_("textarea"))
+    desc: str = Field(default="", title=_("Role Description"), max_length=400, amis_form_item="textarea")
 
 
 class CasbinRule(PkMixin, table=True):

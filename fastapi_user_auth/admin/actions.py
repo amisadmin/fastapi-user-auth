@@ -119,7 +119,7 @@ class UpdateSubRolesAction(BaseSubAction):
         name="update_subject_roles",
         icon="fa fa-check",
         tooltip=_("Set Role"),
-    dialog=amis.Dialog(),
+        dialog=amis.Dialog(),
         level=LevelEnum.warning,
     )
 
@@ -127,7 +127,7 @@ class UpdateSubRolesAction(BaseSubAction):
         role_keys: str = Field(
             None,
             title=_("Role List"),
-        amis_form_item=amis.Transfer(
+            amis_form_item=amis.Transfer(
                 selectMode="table",
                 resultListModeFollowSelect=True,
                 columns=[
@@ -256,7 +256,8 @@ class ViewSubPagePermAction(BaseSubPermAction):
         subject = await self.get_subject_by_id(item_id)
         if not subject:
             return BaseApiOut(status=0, msg=_("Unsupported model"))
-        permissions = await get_subject_page_permissions(self.site.auth.enforcer, subject=subject, implicit=self._implicit)
+        permissions = await get_subject_page_permissions(self.site.auth.enforcer, subject=subject,
+                                                         implicit=self._implicit)
         permissions = [perm.replace("#allow", "") for perm in permissions if perm.endswith("#allow")]
         return BaseApiOut(data=self.schema(permissions=",".join(permissions)))
 
@@ -327,10 +328,10 @@ class UpdateSubDataPermAction(BaseSubPermAction):
 
         @self.router.get("/get_admin_action_perm_options", response_model=BaseApiOut)
         async def get_admin_action_perm_options(
-            request: Request,
-            permission: str = "",
-            item_id: str = "",
-            type: str = "policy",
+                request: Request,
+                permission: str = "",
+                item_id: str = "",
+                type: str = "policy",
         ):
             columns = [
                 {
@@ -472,7 +473,8 @@ class CopyUserAuthLinkAction(ModelAction):
         token = await auth.backend.token_store.write_token(token_data)
         return BaseApiOut(
             msg=_("Operation successful"),
-        data={**token_data, "auth_url": f"{str(request.base_url)[:-1]}{self.site.router_path}/login_by_token?token={token}"},
+            data={**token_data,
+                  "auth_url": f"{str(request.base_url)[:-1]}{self.site.router_path}/login_by_token?token={token}"},
         )
 
     def register_router(self):

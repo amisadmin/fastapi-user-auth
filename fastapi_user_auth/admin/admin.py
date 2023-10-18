@@ -61,13 +61,14 @@ from fastapi_user_auth.mixins.admin import AuthFieldModelAdmin, AuthSelectModelA
 
 
 def attach_page_head(page: Page) -> Page:
-    desc = _("Amis is a low-code front-end framework that reduces page development effort and greatly improves efficiency")
+    desc = _(
+        "Amis is a low-code front-end framework that reduces page development effort and greatly improves efficiency")
     page.body = [
         Html(
             html=f'<div style="display: flex; justify-content: center; align-items: center; margin: 96px 0px 8px;">'
-            f'<img src="https://baidu.gitee.io/amis/static/favicon_b3b0647.png" alt="logo" style="margin-right: 8px; '
-            f'width: 48px;"><span style="font-size: 32px; font-weight: bold;">Amis Admin</span></div>'
-            f'<div style="width: 100%; text-align: center; color: rgba(0, 0, 0, 0.45); margin-bottom: 40px;">{desc}</div>'
+                 f'<img src="https://baidu.gitee.io/amis/static/favicon_b3b0647.png" alt="logo" style="margin-right: 8px; '
+                 f'width: 48px;"><span style="font-size: 32px; font-weight: bold;">Amis Admin</span></div>'
+                 f'<div style="width: 100%; text-align: center; color: rgba(0, 0, 0, 0.45); margin-bottom: 40px;">{desc}</div>'
         ),
         Grid(columns=[{"body": [page.body], "lg": 2, "md": 4, "valign": "middle"}], align="center", valign="middle"),
     ]
@@ -149,7 +150,8 @@ class UserRegFormAdmin(FormAdmin):
     page_schema = None
     page_route_kwargs = {"name": "reg"}
 
-    async def handle(self, request: Request, data: SchemaUpdateT, **kwargs) -> BaseApiOut[BaseModel]:  # self.schema_submit_out
+    async def handle(self, request: Request, data: SchemaUpdateT, **kwargs) -> BaseApiOut[
+        BaseModel]:  # self.schema_submit_out
         auth: Auth = request.auth
         if data.username.upper() in SystemUserEnum.__members__:
             return BaseApiOut(status=-1, msg=_("Username has been registered!"), data=None)
@@ -364,7 +366,8 @@ class CasbinRuleAdmin(ReadOnlyModelAdmin):
     unique_id = "Auth>CasbinRuleAdmin"
     page_schema = PageSchema(label="CasbinRule", icon="fa fa-lock")
     model = CasbinRule
-    list_filter = [CasbinRule.ptype, CasbinRule.v0, CasbinRule.v1, CasbinRule.v2, CasbinRule.v3, CasbinRule.v4, CasbinRule.v5]
+    list_filter = [CasbinRule.ptype, CasbinRule.v0, CasbinRule.v1, CasbinRule.v2, CasbinRule.v3, CasbinRule.v4,
+                   CasbinRule.v5]
     admin_action_maker = [
         lambda admin: AdminAction(
             admin=admin,
