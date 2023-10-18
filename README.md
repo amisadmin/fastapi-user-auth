@@ -36,7 +36,7 @@
 
 ------
 
-`FastAPI-User-Auth` is an application plugin based on [FastAPI-Amis-Admin](https://github.com/amisadmin/fastapi_amis_admin) ,
+`FastAPI-User-Auth` is an application plugin based on [FastAPI-Amis-Admin](https://github.com/amisadmin/fastapi_amis_admin),
 deeply integrated with `FastAPI-Amis-Admin`, providing user authentication and authorization. It is based on Casbin for RBAC (Role-Based Access Control) management, supporting various authentication methods, multiple databases, and different levels of permission control.
 ### Types of Permissions 
 - **Page Permission** : Controls whether a user can access a specific menu page. If not accessible, the menu will not be displayed, and all routes under the page will also be inaccessible. 
