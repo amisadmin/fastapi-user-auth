@@ -9,7 +9,7 @@
     <a href="https://github.com/amisadmin/fastapi_amis_admin/actions/workflows/pytest.yml" target="_blank">
         <img src="https://github.com/amisadmin/fastapi_amis_admin/actions/workflows/pytest.yml/badge.svg" alt="Pytest">
     </a>
-    <a href="https://pypi.org/project/fastapi-user-auth" target="_blank">
+    <a href="https://pypi.org/project/fastapi_user_auth" target="_blank">
         <img src="https://badgen.net/pypi/v/fastapi-user-auth?color=blue" alt="Package version">
     </a>
     <a href="https://pepy.tech/project/fastapi-user-auth" target="_blank">
