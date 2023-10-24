@@ -3,32 +3,35 @@ from typing import Any, Dict, Optional
 from fastapi import HTTPException
 from fastapi_amis_admin.crud import BaseApiOut
 from fastapi_amis_admin.models import IntegerChoices
+from fastapi_amis_admin.utils.translation import i18n as _
 
 
 class ErrorCode(IntegerChoices):
-    """常用错误码"""
+    """Common Error Codes"""
 
-    SUCCESS = (0, "成功")
-    FAIL = (1, "失败")
-    PARAMS_ERROR = (2, "参数错误")
-    RETRY = (10, "重试")
-    RETRY_LATER = (11, "稍后重试")
-    # 用户相关错误
-    USER_NOT_FOUND = (40100, "用户不存在")
-    USER_PASSWORD_ERROR = (40101, "用户名或者密码错误")
-    USER_IS_EXIST = (40102, "用户已存在")
-    USER_NAME_IS_EXIST = (40103, "用户名已存在")
-    USER_MOBILE_IS_EXIST = (40104, "用户手机号已存在")
-    USER_EMAIL_IS_EXIST = (40105, "用户邮箱已存在")
+    SUCCESS = (0, _("Success"))
+    FAIL = (1, _("Failure"))
+    PARAMS_ERROR = (2, _("Parameter error"))
+    RETRY = (10, _("Retry"))
+    RETRY_LATER = (11, _("Retry later"))
 
-    # 用户权限相关
-    USER_IS_NOT_LOGIN = (40200, "用户未登录")
-    USER_IS_NOT_ACTIVE = (40201, "用户未激活")
-    USER_PERMISSION_DENIED = (40203, "用户权限不足")
-    USER_IS_NOT_ADMIN = (40204, "用户不是管理员")
-    # 系统错误
-    SYSTEM_ERROR = (50000, "系统错误")
-    SYSTEM_BUSY = (50001, "系统繁忙")
+    # User-related errors
+    USER_NOT_FOUND = (40100, _("User not found"))
+    USER_PASSWORD_ERROR = (40101, _("Username or password is incorrect"))
+    USER_IS_EXIST = (40102, _("User already exists"))
+    USER_NAME_IS_EXIST = (40103, _("Username already exists"))
+    USER_MOBILE_IS_EXIST = (40104, _("User mobile number already exists"))
+    USER_EMAIL_IS_EXIST = (40105, _("User email already exists"))
+
+    # User permission related
+    USER_IS_NOT_LOGIN = (40200, _("User is not logged in"))
+    USER_IS_NOT_ACTIVE = (40201, _("User is not activated"))
+    USER_PERMISSION_DENIED = (40203, _("Insufficient user permissions"))
+    USER_IS_NOT_ADMIN = (40204, _("User is not an administrator"))
+
+    # System errors
+    SYSTEM_ERROR = (50000, _("System error"))
+    SYSTEM_BUSY = (50001, _("System busy"))
 
 
 class ApiException(HTTPException):
@@ -44,7 +47,7 @@ class ApiException(HTTPException):
 
 
 class ApiError(ApiException):
-    """API异常基类"""
+    """API exception base class"""
 
     def __init__(
         self,
@@ -63,6 +66,6 @@ class ApiError(ApiException):
 
 
 class AuthError(ApiError):
-    """认证异常"""
+    """Authentication exception"""
 
     pass
