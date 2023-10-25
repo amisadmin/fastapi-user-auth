@@ -40,7 +40,7 @@ def get_admin_select_permission_rows(admin: PageSchemaAdmin) -> List[Dict[str, A
     for perm in admin.select_permissions:
         rows.append(
             {
-                "label": _("Restricted to Data-") + perm.label,
+                "label": _("Restricted to Data") + '-'+ perm.label,
                 "rol": f"{admin.unique_id}#page:select:{perm.name}#page:select",
                 "reverse": perm.reverse,
             }
