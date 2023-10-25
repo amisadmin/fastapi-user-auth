@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, List, Tuple
 from casbin import AsyncEnforcer
 from fastapi_amis_admin.admin import FormAdmin, ModelAdmin, PageSchemaAdmin
 from fastapi_amis_admin.admin.admin import AdminGroup, BaseActionAdmin, BaseAdminSite
+from fastapi_amis_admin.utils.translation import i18n as _
 
 from fastapi_user_auth.auth.schemas import SystemUserEnum
 from fastapi_user_auth.utils.casbin import permission_encode, permission_enforce
@@ -28,10 +29,10 @@ def get_admin_action_options(
         if isinstance(admin, BaseActionAdmin):
             item["children"] = []
             if isinstance(admin, ModelAdmin):
-                item["children"].append({"label": "查看列表", "value": permission_encode(admin.unique_id, "page:list", "page")})
-                item["children"].append({"label": "筛选列表", "value": permission_encode(admin.unique_id, "page:filter", "page")})
+                item["children"].append({"label": _("View list"), "value": permission_encode(admin.unique_id, "page:list", "page")})
+                item["children"].append({"label": _("Filter list"), "value": permission_encode(admin.unique_id, "page:filter", "page")})
             elif isinstance(admin, FormAdmin) and "submit" not in admin.registered_admin_actions:
-                item["children"].append({"label": "提交", "value": permission_encode(admin.unique_id, "page:submit", "page")})
+                item["children"].append({"label": _("Submit"), "value": permission_encode(admin.unique_id, "page:submit", "page")})
             for admin_action in admin.registered_admin_actions.values():
                 # todo admin_action 下可能有多个action,需要遍历
                 item["children"].append(

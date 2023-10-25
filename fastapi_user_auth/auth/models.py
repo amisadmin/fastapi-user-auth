@@ -52,9 +52,9 @@ class Role(PkMixin, CUDTimeMixin, table=True):
 
     __tablename__ = "auth_role"
 
-    key: str = Field(title="角色标识", max_length=40, unique=True, index=True, nullable=False)
-    name: str = Field(default="", title="角色名称", max_length=40)
-    desc: str = Field(default="", title="角色描述", max_length=400, amis_form_item="textarea")
+    key: str = Field(title=_("Role Identifier"), max_length=40, unique=True, index=True, nullable=False)
+    name: str = Field(default="", title=_("Role Name"), max_length=40)
+    desc: str = Field(default="", title=_("Role Description"), max_length=400, amis_form_item="textarea")
 
 
 class CasbinRule(PkMixin, table=True):
@@ -93,8 +93,8 @@ GROUP BY v0;
 CasbinSubjectRolesQuery = (
     select(
         CasbinRule.v0.label("subject"),
-        func.group_concat(Role.name).label("role_names"),
-        func.group_concat(Role.key).label("role_keys"),
+        func.array_agg(Role.name).label("role_names"),
+        func.array_agg(Role.key).label("role_keys"),
     )
     .where(CasbinRule.ptype == "g")
     .outerjoin(Role, CasbinRule.v1 == "r:" + Role.key)  # sqlalchemy#5275
@@ -104,7 +104,7 @@ CasbinSubjectRolesQuery = (
 
 UserRoleNameLabel = LabelField(
     CasbinSubjectRolesQuery.c.role_names.label("role_names"),
-    field=Field("", title="权限角色"),
+    field=Field("", title=_("Permission Role")),
 )
 
 
@@ -113,12 +113,13 @@ class LoginHistory(PkMixin, CreateTimeMixin, table=True):
 
     __tablename__ = "auth_login_history"
 
-    user_id: int = Field(None, title="用户ID", sa_column_args=(ForeignKey("auth_user.id", ondelete="CASCADE"),))
-    login_name: str = Field("", title="登录名", max_length=20)
-    ip: str = Field("", title="登录IP", max_length=20)
-    ip_info: str = Field("", title="IP信息", max_length=255)
-    client: str = Field("", title="客户端", max_length=20)
-    user_agent: str = Field("", title="浏览器", max_length=400)
-    login_type: str = Field("", title="登录类型", max_length=20)
-    login_status: str = Field("登录成功", title="登录状态", max_length=20, description="登录成功,密码错误,账号被锁定等")
-    forwarded_for: str = Field("", title="转发IP", max_length=60)
+    user_id: int = Field(None, title=_("User ID"), sa_column_args=(ForeignKey("auth_user.id", ondelete="CASCADE"),))
+    login_name: str = Field("", title=_("Login Name"), max_length=20)
+    ip: str = Field("", title=_("Login IP"), max_length=20)
+    ip_info: str = Field("", title=_("IP Information"), max_length=255)
+    client: str = Field("", title=_("Client"), max_length=20)
+    user_agent: str = Field("", title=_("Browser"), max_length=400)
+    login_type: str = Field("", title=_("Login Type"), max_length=20)
+    login_status: str = Field(_("Login Successful"), title=_("Login Status"), max_length=20,
+                              description=_("Login successful, incorrect password, account locked, etc."))
+    forwarded_for: str = Field("", title=_("Forwarded IP"), max_length=60)

@@ -70,13 +70,13 @@ class Auth(Generic[UserModelT]):
     backend: AuthBackend[UserModelT] = None
 
     def __init__(
-        self,
-        db: Union[AsyncDatabase, Database],
-        *,
-        token_store: BaseTokenStore = None,
-        user_model: Type[UserModelT] = User,
-        pwd_context: CryptContext = CryptContext(schemes=["bcrypt"], deprecated="auto"),
-        enforcer: AsyncEnforcer = None,
+            self,
+            db: Union[AsyncDatabase, Database],
+            *,
+            token_store: BaseTokenStore = None,
+            user_model: Type[UserModelT] = User,
+            pwd_context: CryptContext = CryptContext(schemes=["bcrypt"], deprecated="auto"),
+            enforcer: AsyncEnforcer = None,
     ):
         self.user_model = user_model or self.user_model
         assert self.user_model, "user_model is None"
@@ -152,15 +152,16 @@ class Auth(Generic[UserModelT]):
         if "user" in request.scope:  # 防止重复授权
             return request.scope["user"]
         token_info = await self._get_token_info(request)
-        request.scope["user"]: UserModelT = await self.db.async_get(self.user_model, token_info.id) if token_info else None
+        request.scope["user"]: UserModelT = await self.db.async_get(self.user_model,
+                                                                    token_info.id) if token_info else None
         return request.scope["user"]
 
     def requires(
-        self,
-        roles: Union[str, Sequence[str]] = None,
-        status_code: int = 403,
-        redirect: str = None,
-        response: Union[bool, Response] = None,
+            self,
+            roles: Union[str, Sequence[str]] = None,
+            status_code: int = 403,
+            redirect: str = None,
+            response: Union[bool, Response] = None,
     ) -> Callable:  # sourcery no-metrics
         # todo 优化
         roles_ = (roles,) if not roles or isinstance(roles, str) else tuple(roles)
@@ -173,8 +174,8 @@ class Auth(Generic[UserModelT]):
             return await self.has_role_for_user(user.username, roles_)
 
         async def depend(
-            request: Request,
-            user: UserModelT = Depends(self.get_current_user),
+                request: Request,
+                user: UserModelT = Depends(self.get_current_user),
         ) -> Union[bool, Response]:
             user_auth = request.scope.get("__user_auth__", None)
             if user_auth is None:
@@ -289,29 +290,31 @@ class Auth(Generic[UserModelT]):
             await self.db.async_commit()
         return user
 
-    async def request_login(self, request: Request, response: Response, username: str, password: str) -> BaseApiOut[UserLoginOut]:
+    async def request_login(self, request: Request, response: Response, username: str, password: str) -> BaseApiOut[
+        UserLoginOut]:
         if request.scope.get("user"):
             return BaseApiOut(code=1, msg=_("User logged in!"), data=UserLoginOut.parse_obj(request.user))
         user = await request.auth.authenticate_user(username=username, password=password)
         # 保存登录记录
         ip = request.client.host  # 获取真实ip
         # 获取代理ip
-        ips = [request.headers.get(key, "").strip() for key in ["x-forwarded-for", "x-real-ip", "x-client-ip", "remote-host"]]
+        ips = [request.headers.get(key, "").strip() for key in
+               ["x-forwarded-for", "x-real-ip", "x-client-ip", "remote-host"]]
         forwarded_for = ",".join([i for i in set(ips) if i and i != ip])
         history = LoginHistory(
             user_id=user.id if user else None,
             login_name=username,
             ip=request.client.host,
             user_agent=request.headers.get("user-agent"),
-            login_status="登录成功",
+            login_status=_("Login Successful"),
             forwarded_for=forwarded_for,
         )
         self.db.add(history)
         if not user:
-            history.login_status = "密码错误"
+            history.login_status = _("Incorrect Password")
             return BaseApiOut(status=-1, msg=_("Incorrect username or password!"))
         if not user.is_active:
-            history.login_status = "用户未激活"
+            history.login_status = _("User Not Activated")
             return BaseApiOut(status=-2, msg=_("Inactive user status!"))
         request.scope["user"] = user
         token_info = UserLoginOut.parse_obj(request.user)
@@ -354,7 +357,8 @@ class AuthRouter(RouterMixin):
         )
         # oauth2
         if self.route_gettoken:
-            self.router.dependencies.append(Depends(self.OAuth2(tokenUrl=f"{self.router_path}/gettoken", auto_error=False)))
+            self.router.dependencies.append(
+                Depends(self.OAuth2(tokenUrl=f"{self.router_path}/gettoken", auto_error=False)))
             self.router.add_api_route(
                 "/gettoken",
                 self.route_gettoken,
@@ -390,7 +394,8 @@ class AuthRouter(RouterMixin):
 
     @property
     def route_gettoken(self):
-        async def oauth_token(request: Request, response: Response, username: str = Form(...), password: str = Form(...)):
+        async def oauth_token(request: Request, response: Response, username: str = Form(...),
+                              password: str = Form(...)):
             return await self.auth.request_login(request, response, username, password)
 
         return oauth_token
