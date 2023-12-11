@@ -1,6 +1,8 @@
+from typing import Optional
+
 from fastapi_amis_admin.amis.components import ColumnImage, InputImage
 from fastapi_amis_admin.crud.parser import LabelField
-from fastapi_amis_admin.models.fields import Field
+from fastapi_amis_admin.models import Field
 from fastapi_amis_admin.utils.translation import i18n as _
 from sqlalchemy import ForeignKey, func, select
 
@@ -19,9 +21,9 @@ from fastapi_user_auth.mixins.models import (  # noqa F401
 class BaseUser(PkMixin, CUDTimeMixin, UsernameMixin, PasswordMixin, EmailMixin):
     __tablename__ = "auth_user"
     is_active: bool = Field(default=True, title=_("Is Active"))
-    nickname: str = Field(None, title=_("Nickname"), max_length=40)
+    nickname: str = Field("", title=_("Nickname"), max_length=40)
     avatar: str = Field(
-        None,
+        "",
         title=_("Avatar"),
         max_length=255,
         amis_form_item=InputImage(maxLength=1, maxSize=2 * 1024 * 1024),
@@ -63,10 +65,10 @@ class CasbinRule(PkMixin, table=True):
     ptype: str = Field(title="Policy Type")
     v0: str = Field(title="Subject")
     v1: str = Field(title="Object")
-    v2: str = Field(None, title="Action")
-    v3: str = Field(None, title="Group")
-    v4: str = Field(None, title="Effect")
-    v5: str = Field(None)
+    v2: Optional[str] = Field(None, title="Action")
+    v3: Optional[str] = Field(None, title="Group")
+    v4: Optional[str] = Field(None, title="Effect")
+    v5: Optional[str] = Field(None)
 
     def __str__(self) -> str:
         arr = [self.ptype]

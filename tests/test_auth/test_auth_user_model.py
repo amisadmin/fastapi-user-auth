@@ -1,19 +1,23 @@
 from datetime import date
+from typing import Optional
 
 import pytest
 from fastapi import Depends
-from fastapi_amis_admin.models.fields import Field
+from fastapi_amis_admin.models import Field
 
-from fastapi_user_auth.auth.models import User
+from fastapi_user_auth.auth.models import BaseUser
 
 
 # 自定义`User`模型,继承`User`
-class MyUser(User, table=True):
+class MyUser(BaseUser, table=True):
     point: float = Field(default=0, title="积分", description="用户积分")
-    phone: str = Field(None, title="手机号", max_length=15)
-    parent_id: int = Field(None, title="上级", foreign_key="auth_user.id")
-    birthday: date = Field(None, title="出生日期")
-    location: str = Field(None, title="位置")
+    phone: str = Field("", title="手机号", max_length=15)
+    parent_id: Optional[int] = Field(None, title="上级", foreign_key="auth_user.id")
+    birthday: Optional[date] = Field(None, title="出生日期")
+    location: str = Field("", title="位置")
+
+
+print(123)
 
 
 @pytest.mark.parametrize("logins", ["admin"], indirect=True)

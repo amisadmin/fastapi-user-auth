@@ -9,8 +9,8 @@ from fastapi_amis_admin.amis.components import ActionType, FormItem
 from fastapi_amis_admin.amis.constants import LevelEnum
 from fastapi_amis_admin.crud.schema import BaseApiOut
 from fastapi_amis_admin.models import Field
+from fastapi_amis_admin.utils.pydantic import ModelField
 from pydantic import BaseModel
-from pydantic.fields import ModelField
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
