@@ -27,6 +27,7 @@ from fastapi_amis_admin.amis.components import (
 from fastapi_amis_admin.amis.constants import DisplayModeEnum, LevelEnum
 from fastapi_amis_admin.crud.base import SchemaUpdateT
 from fastapi_amis_admin.crud.schema import BaseApiOut
+from fastapi_amis_admin.utils.pydantic import model_fields
 from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -238,8 +239,8 @@ class UserInfoFormAdmin(FormAdmin):
         form = await super().get_form(request)
         formitems = [
             await self.get_form_item(request, modelfield)
-            for k, modelfield in self.user_model.__fields__.items()
-            if k not in self.schema.__fields__.keys() | {"delete_time"}
+            for k, modelfield in model_fields(self.user_model).items()
+            if k not in model_fields(self.schema).keys() | {"delete_time"}
         ]
         form.body.extend(formitem.update_from_kwargs(disabled=True) for formitem in formitems if formitem)
         return form

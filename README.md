@@ -282,10 +282,10 @@ flowchart LR
 from datetime import date
 
 from fastapi_amis_admin.models.fields import Field
-from fastapi_user_auth.auth.models import User
+from fastapi_user_auth.auth.models import BaseUser
 
-# 自定义`User`模型,继承`User`
-class MyUser(User, table = True):
+# 自定义`User`模型,继承`BaseUser`
+class MyUser(BaseUser, table = True):
     point: float = Field(default = 0, title = '积分', description = '用户积分')
     phone: str = Field(None, title = '手机号', max_length = 15)
     parent_id: int = Field(None, title = "上级", foreign_key = "auth_user.id")

@@ -124,7 +124,7 @@ class UpdateSubRolesAction(BaseSubAction):
 
     class schema(BaseModel):
         role_keys: str = Field(
-            None,
+            "",
             title="角色列表",
             amis_form_item=amis.Transfer(
                 selectMode="table",
@@ -198,7 +198,7 @@ class BaseSubPermAction(BaseSubAction):
     # 创建动作表单数据模型
     class schema(BaseModel):
         permissions: str = Field(
-            None,
+            "",
             title="权限列表",
             amis_form_item=amis.InputTree(
                 multiple=True,
@@ -279,7 +279,7 @@ class UpdateSubDataPermAction(BaseSubPermAction):
     # 创建动作表单数据模型
     class schema(BaseSubPermAction.schema):
         effect_matrix: list = Field(
-            None,
+            [],
             title="当前权限",
             amis_form_item=amis.MatrixCheckboxes(
                 rowLabel="权限名称",
@@ -290,7 +290,7 @@ class UpdateSubDataPermAction(BaseSubPermAction):
             ),
         )
         policy_matrix: list = Field(
-            None,
+            [],
             title="权限配置",
             amis_form_item=amis.MatrixCheckboxes(
                 rowLabel="名称",

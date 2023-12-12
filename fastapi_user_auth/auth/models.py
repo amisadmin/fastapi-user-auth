@@ -4,7 +4,7 @@ from fastapi_amis_admin.amis.components import ColumnImage, InputImage
 from fastapi_amis_admin.crud.parser import LabelField
 from fastapi_amis_admin.models import Field
 from fastapi_amis_admin.utils.translation import i18n as _
-from sqlalchemy import ForeignKey, func, select
+from sqlalchemy import func, select
 
 from fastapi_user_auth.mixins.models import (  # noqa F401
     CreateTimeMixin,
@@ -49,14 +49,18 @@ class User(BaseUser, table=True):
     pass
 
 
-class Role(PkMixin, CUDTimeMixin, table=True):
-    """角色"""
-
+class BaseRole(PkMixin, CUDTimeMixin):
     __tablename__ = "auth_role"
 
     key: str = Field(title="角色标识", max_length=40, unique=True, index=True, nullable=False)
     name: str = Field(default="", title="角色名称", max_length=40)
     desc: str = Field(default="", title="角色描述", max_length=400, amis_form_item="textarea")
+
+
+class Role(BaseRole, table=True):
+    """角色"""
+
+    pass
 
 
 class CasbinRule(PkMixin, table=True):
@@ -115,7 +119,7 @@ class LoginHistory(PkMixin, CreateTimeMixin, table=True):
 
     __tablename__ = "auth_login_history"
 
-    user_id: int = Field(None, title="用户ID", sa_column_args=(ForeignKey("auth_user.id", ondelete="CASCADE"),))
+    user_id: Optional[int] = Field(None, title="用户ID")
     login_name: str = Field("", title="登录名", max_length=20)
     ip: str = Field("", title="登录IP", max_length=20)
     ip_info: str = Field("", title="IP信息", max_length=255)

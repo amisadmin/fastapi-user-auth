@@ -17,9 +17,6 @@ class MyUser(BaseUser, table=True):
     location: str = Field("", title="位置")
 
 
-print(123)
-
-
 @pytest.mark.parametrize("logins", ["admin"], indirect=True)
 async def test_custom_user_model(fake_auth, logins):
     # 使用自定义的`User`模型,创建auth对象
