@@ -21,8 +21,8 @@ from fastapi_user_auth.mixins.models import (  # noqa F401
 class BaseUser(PkMixin, CUDTimeMixin, UsernameMixin, PasswordMixin, EmailMixin):
     __tablename__ = "auth_user"
     is_active: bool = Field(default=True, title=_("Is Active"))
-    nickname: str = Field("", title=_("Nickname"), max_length=40)
-    avatar: str = Field(
+    nickname: Optional[str] = Field("", title=_("Nickname"), max_length=40)
+    avatar: Optional[str] = Field(
         "",
         title=_("Avatar"),
         max_length=255,

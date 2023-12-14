@@ -1,28 +1,30 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi_amis_admin.models.fields import Field
+from fastapi_amis_admin.models import Field, SQLModel
 from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import EmailStr, SecretStr
 from sqlalchemy import func
 from sqlmodel import AutoString
-from sqlmodelx import SQLModel
 
 from fastapi_user_auth.utils.sqltypes import SecretStrType
 
 
 class PkMixin(SQLModel):
-    id: Optional[int] = Field(default=None, title="ID", primary_key=True, nullable=False)
+    id: Optional[int] = Field(
+        default=None, title="ID", primary_key=True, nullable=False, sa_column_kwargs={"autoincrement": True}
+    )
 
 
 class CreateTimeMixin(SQLModel):
-    create_time: datetime = Field(default_factory=datetime.now, title=_("Create Time"))
+    create_time: datetime = Field(default_factory=datetime.now, title=_("Create Time"), index=True)
 
 
 class UpdateTimeMixin(SQLModel):
     update_time: Optional[datetime] = Field(
         default_factory=datetime.now,
         title=_("Update Time"),
+        index=True,
         sa_column_kwargs={"onupdate": func.now(), "server_default": func.now()},
     )
 
