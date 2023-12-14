@@ -56,7 +56,7 @@ redis = ["redis>=4.2.0"]
 test = [
     "uvicorn[standard] >=0.19.0,<1.0",
     "pytest >=6.2.4",
-    "pytest-asyncio>=0.17",
+    "pytest-asyncio>=0.17,<0.23.0",
     "aiosqlite>=0.15.0",
     "python-jose>=3.3.0",
     "jinja2 >=2.11.2,<4.0.0",
@@ -64,6 +64,8 @@ test = [
     "requests>=2.28.1",
     "pre-commit>=2.20.0",
     "httpx>=0.23.3",
+    "pydantic-settings>=2.0.0",
+    "fastapi-amis-admin>=0.7.0a1",
 ]
 
 # pytest
@@ -74,9 +76,9 @@ testpaths = [
 ]
 # pytest-asyncio
 asyncio_mode = "auto"
-filterwarnings = [
-    "ignore::RuntimeWarning",
-]
+#filterwarnings = [
+#    "ignore::RuntimeWarning",
+#]
 [tool.isort]
 profile = "black"
 atomic = true
