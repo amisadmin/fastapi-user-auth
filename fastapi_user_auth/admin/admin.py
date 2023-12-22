@@ -1,5 +1,5 @@
 import contextlib
-from typing import Any, Callable, Dict, List, Type
+from typing import Any, Callable, Dict, List, Type, Union
 
 from fastapi import Depends, HTTPException
 from fastapi_amis_admin.admin import (
@@ -29,7 +29,7 @@ from fastapi_amis_admin.crud.base import SchemaUpdateT
 from fastapi_amis_admin.crud.schema import BaseApiOut
 from fastapi_amis_admin.utils.pydantic import model_fields
 from fastapi_amis_admin.utils.translation import i18n as _
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
 from sqlalchemy import select
 from sqlmodel.sql.expression import Select
 from starlette import status
@@ -307,14 +307,20 @@ class UserAdmin(AuthFieldModelAdmin, AuthSelectModelAdmin, SoftDeleteModelAdmin,
 
     async def on_create_pre(self, request: Request, obj, **kwargs) -> Dict[str, Any]:
         data = await super(UserAdmin, self).on_create_pre(request, obj, **kwargs)
-        data["password"] = request.auth.pwd_context.hash(data["password"])  # 密码hash保存
+        data["password"] = self.get_password_hash(request, data["password"])
         return data
 
     async def on_update_pre(self, request: Request, obj, item_id: List[int], **kwargs) -> Dict[str, Any]:
         data = await super(UserAdmin, self).on_update_pre(request, obj, item_id, **kwargs)
-        if data.get("password"):
-            data["password"] = request.auth.pwd_context.hash(data["password"])  # 密码hash保存
+        if data.get("password", None):
+            data["password"] = self.get_password_hash(request, data["password"])
         return data
+
+    @staticmethod
+    def get_password_hash(request: Request, password: Union[str, SecretStr]) -> str:
+        if isinstance(password, SecretStr):
+            password = password.get_secret_value()
+        return request.auth.pwd_context.hash(password)  # 密码hash保存
 
 
 class RoleAdmin(AutoTimeModelAdmin, FootableModelAdmin):
