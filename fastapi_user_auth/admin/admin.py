@@ -265,7 +265,7 @@ class UserAdmin(AuthFieldModelAdmin, AuthSelectModelAdmin, SoftDeleteModelAdmin,
     model: Type[BaseUser] = None
     exclude = ["password"]
     ordering = [User.id.desc()]
-    search_fields = [User.username, UserRoleNameLabel]
+    search_fields = [User.username]
     update_exclude = AutoTimeModelAdmin.update_exclude | {"username"}
     display_item_action_as_column = True
     admin_action_maker = [
@@ -290,7 +290,6 @@ class UserAdmin(AuthFieldModelAdmin, AuthSelectModelAdmin, SoftDeleteModelAdmin,
         User.nickname,
         User.email,
         User.is_active,
-        UserRoleNameLabel,
         User.create_time,
     ]
     perm_fields_exclude = {
@@ -305,11 +304,6 @@ class UserAdmin(AuthFieldModelAdmin, AuthSelectModelAdmin, SoftDeleteModelAdmin,
             "delete_time",
         ],
     }
-
-    async def get_select(self, request: Request) -> Select:
-        sel = await super().get_select(request)
-        sel = sel.outerjoin(CasbinSubjectRolesQuery, CasbinSubjectRolesQuery.c.subject == "u:" + User.username)
-        return sel
 
     async def on_create_pre(self, request: Request, obj, **kwargs) -> Dict[str, Any]:
         data = await super(UserAdmin, self).on_create_pre(request, obj, **kwargs)
