@@ -319,6 +319,11 @@ class Auth(Generic[UserModelT]):
         response.set_cookie("Authorization", f"bearer {token_info.access_token}")
         return BaseApiOut(code=0, data=token_info)
 
+    def get_password_hash(self, password: Union[str, SecretStr]) -> str:
+        if isinstance(password, SecretStr):
+            password = password.get_secret_value()
+        return self.pwd_context.hash(password) if password else ""
+
 
 class AuthRouter(RouterMixin):
     auth: Auth = None

@@ -1,5 +1,5 @@
 import contextlib
-from typing import Any, Callable, Dict, List, Type, Union
+from typing import Any, Callable, Dict, List, Type
 
 from fastapi import Depends, HTTPException
 from fastapi_amis_admin.admin import (
@@ -29,7 +29,7 @@ from fastapi_amis_admin.crud.base import SchemaUpdateT
 from fastapi_amis_admin.crud.schema import BaseApiOut
 from fastapi_amis_admin.utils.pydantic import model_fields
 from fastapi_amis_admin.utils.translation import i18n as _
-from pydantic import BaseModel, SecretStr
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlmodel.sql.expression import Select
 from starlette import status
@@ -250,10 +250,9 @@ class UserInfoFormAdmin(FormAdmin):
             if k == "password":
                 if not v:
                     continue
-                else:
-                    v = request.auth.pwd_context.hash(v)  # 密码hash保存
+                v = request.auth.get_password_hash(v)
             setattr(request.user, k, v)
-        return BaseApiOut(data=self.schema_submit_out.parse_obj(request.user))
+        return BaseApiOut(data=request.user.dict(exclude={"password"}))
 
     async def has_page_permission(self, request: Request, obj: PageSchemaAdmin = None, action: str = None) -> bool:
         return await self.site.auth.requires(response=False)(request)
@@ -307,20 +306,14 @@ class UserAdmin(AuthFieldModelAdmin, AuthSelectModelAdmin, SoftDeleteModelAdmin,
 
     async def on_create_pre(self, request: Request, obj, **kwargs) -> Dict[str, Any]:
         data = await super(UserAdmin, self).on_create_pre(request, obj, **kwargs)
-        data["password"] = self.get_password_hash(request, data["password"])
+        data["password"] = request.auth.get_password_hash(data["password"])
         return data
 
     async def on_update_pre(self, request: Request, obj, item_id: List[int], **kwargs) -> Dict[str, Any]:
         data = await super(UserAdmin, self).on_update_pre(request, obj, item_id, **kwargs)
         if data.get("password", None):
-            data["password"] = self.get_password_hash(request, data["password"])
+            data["password"] = request.auth.get_password_hash(data["password"])
         return data
-
-    @staticmethod
-    def get_password_hash(request: Request, password: Union[str, SecretStr]) -> str:
-        if isinstance(password, SecretStr):
-            password = password.get_secret_value()
-        return request.auth.pwd_context.hash(password)  # 密码hash保存
 
 
 class RoleAdmin(AutoTimeModelAdmin, FootableModelAdmin):
