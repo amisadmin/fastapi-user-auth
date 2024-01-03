@@ -29,7 +29,7 @@ from fastapi_amis_admin.crud.base import SchemaUpdateT
 from fastapi_amis_admin.crud.schema import BaseApiOut
 from fastapi_amis_admin.utils.pydantic import model_fields
 from fastapi_amis_admin.utils.translation import i18n as _
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
 from sqlalchemy import select
 from sqlmodel.sql.expression import Select
 from starlette import status
@@ -306,12 +306,16 @@ class UserAdmin(AuthFieldModelAdmin, AuthSelectModelAdmin, SoftDeleteModelAdmin,
 
     async def on_create_pre(self, request: Request, obj, **kwargs) -> Dict[str, Any]:
         data = await super(UserAdmin, self).on_create_pre(request, obj, **kwargs)
+        if isinstance(data["password"], SecretStr):
+            data["password"] = data["password"].get_secret_value()
         data["password"] = request.auth.get_password_hash(data["password"])
         return data
 
     async def on_update_pre(self, request: Request, obj, item_id: List[int], **kwargs) -> Dict[str, Any]:
         data = await super(UserAdmin, self).on_update_pre(request, obj, item_id, **kwargs)
         if data.get("password", None):
+            if isinstance(data["password"], SecretStr):
+                data["password"] = data["password"].get_secret_value()
             data["password"] = request.auth.get_password_hash(data["password"])
         return data
 
