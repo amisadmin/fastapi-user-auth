@@ -52,11 +52,13 @@ def filter_options(options: List[Dict[str, Any]], filter_func: Callable[[Dict[st
     """过滤选项,包含子选项.如果选项的children为空,则删除该选项"""
     result = []
     for option in options:
-        if not filter_func(option):
-            continue
         option = copy(option)  # 防止children被修改
+        has_children = False
         if option.get("children"):
             option["children"] = filter_options(option["children"], filter_func)
+            has_children = bool(option["children"])
+        if not filter_func(option) and not has_children:  # 没有父级权限,并且没有子级权限
+            continue
         result.append(option)
     return result
 
