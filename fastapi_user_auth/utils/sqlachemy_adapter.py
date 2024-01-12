@@ -1,8 +1,7 @@
 from typing import Any, Iterable, List, Optional, Tuple, Union
 
 from casbin import Model, persist
-from casbin.persist import Adapter as BaseAdapter
-from casbin.persist.adapters.update_adapter import UpdateAdapter
+from casbin.persist.adapters.asyncio import AsyncAdapter, AsyncUpdateAdapter
 from sqlalchemy import Column, Integer, String, and_, delete, insert, or_, select
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import Select
@@ -54,7 +53,7 @@ class Filter:  # pylint: disable=too-few-public-methods
     v5: List[str] = []
 
 
-class Adapter(BaseAdapter, UpdateAdapter):
+class Adapter(AsyncAdapter, AsyncUpdateAdapter):
     """
     Adapter class for ormar-based Casbin adapter.
     """

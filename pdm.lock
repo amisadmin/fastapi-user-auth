@@ -5,7 +5,7 @@
 groups = ["default", "test", "jwt", "redis"]
 strategy = ["cross_platform"]
 lock_version = "4.4.1"
-content_hash = "sha256:fa73bbd6af636e1ca63a95136bc7e7342abe35d88991d30c907cd09c6f8e377d"
+content_hash = "sha256:bf3f216f2a56e5648fd5d987050eff3fd92bbada60d35ffd0d170f9dda9d9c20"
 
 [[package]]
 name = "aiofiles"
@@ -96,15 +96,15 @@ files = [
 
 [[package]]
 name = "casbin"
-version = "1.33.0"
+version = "1.35.0"
 requires_python = ">=3.3"
 summary = "An authorization library that supports access control models like ACL, RBAC, ABAC in Python"
 dependencies = [
     "simpleeval>=0.9.11",
 ]
 files = [
-    {file = "casbin-1.33.0-py3-none-any.whl", hash = "sha256:b5f6f442df4561305d194328ef873b2c7bd48dd5fdcfdd4b0624df75eb451e61"},
-    {file = "casbin-1.33.0.tar.gz", hash = "sha256:62021cc8db952cf6f0ebe8d2dad29b6bc34a39a7d31efc7b83b8dc70ca5130f8"},
+    {file = "casbin-1.35.0-py3-none-any.whl", hash = "sha256:e17f365b439f430f8bbde533e580dc1eb85cf1da5e5c830aafad3b1acec00cb7"},
+    {file = "casbin-1.35.0.tar.gz", hash = "sha256:73c5bb375154019af9ba87a5e05aa12cdae28227c5466228aa76d361182653cc"},
 ]
 
 [[package]]
@@ -319,7 +319,7 @@ files = [
 
 [[package]]
 name = "fastapi-amis-admin"
-version = "0.7.0"
+version = "0.7.1"
 requires_python = ">=3.8"
 summary = "FastAPI-Amis-Admin is a high-performance, efficient and easily extensible FastAPI admin framework. Inspired by Django-admin, and has as many powerful functions as Django-admin. "
 dependencies = [
@@ -330,8 +330,8 @@ dependencies = [
     "sqlmodel<0.1.0,>=0.0.14",
 ]
 files = [
-    {file = "fastapi_amis_admin-0.7.0-py3-none-any.whl", hash = "sha256:ec242e0002a1f51a94655547fa6fd09afb537b2311a02ad4f8d3b391ceefe6ca"},
-    {file = "fastapi_amis_admin-0.7.0.tar.gz", hash = "sha256:2c87dc98ffe7eeb8f264bd3e219cfcb1e3b9fb856bef9515e80cca0ba9f174d7"},
+    {file = "fastapi_amis_admin-0.7.1-py3-none-any.whl", hash = "sha256:5872bd7e7769f8b3b2e89477abaec48c7b84dabea41a30cdfde3064593d7b043"},
+    {file = "fastapi_amis_admin-0.7.1.tar.gz", hash = "sha256:421675c03aa8bf663d4a683668d5e97d40917287216b745c7231df9551483f9b"},
 ]
 
 [[package]]
@@ -1092,15 +1092,15 @@ files = [
 
 [[package]]
 name = "sqlmodelx"
-version = "0.0.9"
+version = "0.0.11"
 requires_python = ">=3.8"
 summary = "SQLModelX is an extension of the SQLModel library."
 dependencies = [
     "sqlmodel>=0.0.14",
 ]
 files = [
-    {file = "sqlmodelx-0.0.9-py3-none-any.whl", hash = "sha256:f6cb15a3d4c7eba2603ab6c40d780945bd6acdacbb2d6c213200411e8421d465"},
-    {file = "sqlmodelx-0.0.9.tar.gz", hash = "sha256:82ebb86cb6b489a60fc5f04fea5737b771cf023648e751a8a1db7b4c737289a6"},
+    {file = "sqlmodelx-0.0.11-py3-none-any.whl", hash = "sha256:1b6ac5866e19afc5e299002ca9dc7dd0841e98ca15ed12598cc7a40dba8d95c8"},
+    {file = "sqlmodelx-0.0.11.tar.gz", hash = "sha256:d48270018dc485380616c9f23e74b08e30a70bccdb2039a7f19af38b46e7a41f"},
 ]
 
 [[package]]

@@ -36,11 +36,11 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
 ]
 dependencies = [
-    "fastapi-amis-admin>=0.7.0,<0.8.0",
+    "fastapi-amis-admin>=0.7.1,<0.8.0",
     "email-validator>=1.3.1,<3.0.0",
     "passlib>=1.7.4",
     "bcrypt>=4.0.0,<4.1.0",
-    "casbin>=1.29.0",
+    "casbin>=1.34.0",
 ]
 
 [project.urls]
@@ -65,8 +65,7 @@ test = [
     "pre-commit>=2.20.0",
     "httpx>=0.23.3",
     "pydantic-settings>=2.0.0",
-    "fastapi-amis-admin>=0.7.0",
-    "sqlmodelx>=0.0.9",
+    "sqlmodelx>=0.0.11",
 ]
 
 # pytest
