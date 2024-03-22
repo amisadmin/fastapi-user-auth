@@ -12,7 +12,7 @@ from fastapi_user_auth.utils.casbin import permission_encode, permission_enforce
 
 @lru_cache()
 def get_admin_action_options(
-    group: AdminGroup,
+        group: AdminGroup,
 ) -> List[Dict[str, Any]]:
     """获取全部页面权限,用于amis组件"""
     options = []
@@ -28,10 +28,13 @@ def get_admin_action_options(
         if isinstance(admin, BaseActionAdmin):
             item["children"] = []
             if isinstance(admin, ModelAdmin):
-                item["children"].append({"label": "查看列表", "value": permission_encode(admin.unique_id, "page:list", "page")})
-                item["children"].append({"label": "筛选列表", "value": permission_encode(admin.unique_id, "page:filter", "page")})
+                item["children"].append(
+                    {"label": "View list", "value": permission_encode(admin.unique_id, "page:list", "page")})  # 查看列表
+                item["children"].append({"label": "Filter list",
+                                         "value": permission_encode(admin.unique_id, "page:filter", "page")})  # 筛选列表
             elif isinstance(admin, FormAdmin) and "submit" not in admin.registered_admin_actions:
-                item["children"].append({"label": "提交", "value": permission_encode(admin.unique_id, "page:submit", "page")})
+                item["children"].append(
+                    {"label": "submit", "value": permission_encode(admin.unique_id, "page:submit", "page")})  # 提交
             for admin_action in admin.registered_admin_actions.values():
                 # todo admin_action 下可能有多个action,需要遍历
                 item["children"].append(
@@ -48,7 +51,8 @@ def get_admin_action_options(
     return options
 
 
-def filter_options(options: List[Dict[str, Any]], filter_func: Callable[[Dict[str, Any]], bool]) -> List[Dict[str, Any]]:
+def filter_options(options: List[Dict[str, Any]], filter_func: Callable[[Dict[str, Any]], bool]) -> List[
+    Dict[str, Any]]:
     """过滤选项,包含子选项.如果选项的children为空,则删除该选项"""
     result = []
     for option in options:
@@ -64,9 +68,9 @@ def filter_options(options: List[Dict[str, Any]], filter_func: Callable[[Dict[st
 
 
 def get_admin_action_options_by_subject(
-    enforcer: AsyncEnforcer,
-    subject: str,
-    group: AdminGroup,
+        enforcer: AsyncEnforcer,
+        subject: str,
+        group: AdminGroup,
 ):
     """获取指定subject主体的页面权限,用于amis组件"""
     # 获取全部页面权限
