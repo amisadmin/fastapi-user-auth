@@ -52,9 +52,9 @@ class User(BaseUser, table=True):
 class BaseRole(PkMixin, CUDTimeMixin):
     __tablename__ = "auth_role"
 
-    key: str = Field(title="角色标识", max_length=40, unique=True, index=True, nullable=False)
-    name: str = Field(default="", title="角色名称", max_length=40)
-    desc: str = Field(default="", title="角色描述", max_length=400, amis_form_item="textarea")
+    key: str = Field(title="Role ID", max_length=40, unique=True, index=True, nullable=False)  # 角色标识
+    name: str = Field(default="", title="Role Name", max_length=40)  # 角色名称
+    desc: str = Field(default="", title="Role description", max_length=400, amis_form_item="textarea")  # 角色描述
 
 
 class Role(BaseRole, table=True):
@@ -110,7 +110,7 @@ CasbinSubjectRolesQuery = (
 
 UserRoleNameLabel = LabelField(
     CasbinSubjectRolesQuery.c.role_names.label("role_names"),
-    field=Field("", title="权限角色"),
+    field=Field("", title="Permission role"),  # 权限角色
 )
 
 
@@ -119,12 +119,14 @@ class LoginHistory(PkMixin, CreateTimeMixin, table=True):
 
     __tablename__ = "auth_login_history"
 
-    user_id: Optional[int] = Field(None, title="用户ID")
-    login_name: str = Field("", title="登录名", max_length=20)
-    ip: str = Field("", title="登录IP", max_length=20)
-    ip_info: str = Field("", title="IP信息", max_length=255)
-    client: str = Field("", title="客户端", max_length=20)
-    user_agent: str = Field("", title="浏览器", max_length=400)
-    login_type: str = Field("", title="登录类型", max_length=20)
-    login_status: str = Field("登录成功", title="登录状态", max_length=20, description="登录成功,密码错误,账号被锁定等")
-    forwarded_for: str = Field("", title="转发IP", max_length=60)
+    user_id: Optional[int] = Field(None, title="User ID")  # 用户ID
+    login_name: str = Field("", title="Login name", max_length=20)  # 登录名
+    ip: str = Field("", title="User IP", max_length=20)  # 登录IP
+    ip_info: str = Field("", title="IP information", max_length=255)  # IP信息
+    client: str = Field("", title="Client", max_length=20)  # 客户端
+    user_agent: str = Field("", title="User-agent", max_length=400)  # 浏览器
+    login_type: str = Field("", title="Login type", max_length=20)  # 登录类型
+    login_status: str = Field("Login status", title="Login status", max_length=20,
+                              description="Successful login, incorrect password, account locked, etc.")  # 登录成功,
+    # 登录成功,密码错误,账号被锁定等
+    forwarded_for: str = Field("", title="Forward IP", max_length=60)  # 转发IP
