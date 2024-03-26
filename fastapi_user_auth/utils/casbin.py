@@ -1,6 +1,7 @@
 from typing import Any, Dict, List
 
 from casbin import AsyncEnforcer
+from fastapi_amis_admin.utils.translation import i18n as _
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -46,10 +47,10 @@ async def update_subject_roles(enforcer: AsyncEnforcer, *, subject: str, role_ke
 
 
 async def update_subject_page_permissions(
-        enforcer: AsyncEnforcer,
-        *,
-        subject: str,
-        permissions: List[str],
+    enforcer: AsyncEnforcer,
+    *,
+    subject: str,
+    permissions: List[str],
 ) -> List[str]:
     """根据指定subject主体更新casbin规则,会删除旧的规则,添加新的规则"""
     # 获取主体的页面权限
@@ -77,13 +78,13 @@ async def update_subject_page_permissions(
 
 
 def get_subject_policy_matrix(
-        enforcer: AsyncEnforcer,
-        *,
-        subject: str,
-        permission: str,
-        rows: List[Dict[str, Any]],
+    enforcer: AsyncEnforcer,
+    *,
+    subject: str,
+    permission: str,
+    rows: List[Dict[str, Any]],
 ):
-    """体字段权限配置,存在allow,deny,default(未设置)"""
+    """主体字段权限配置,存在allow,deny,default(未设置)"""
     default_, allow_, deny_ = [], [], []
     # bfc1eec773c2b331#page:list#page
     v1, v2, v3 = permission_decode(permission)
@@ -115,10 +116,10 @@ def get_subject_policy_matrix(
 
 
 def get_subject_effect_matrix(
-        enforcer: AsyncEnforcer,
-        *,
-        subject: str,
-        rows: List[Dict[str, Any]],
+    enforcer: AsyncEnforcer,
+    *,
+    subject: str,
+    rows: List[Dict[str, Any]],
 ):
     """主体字段权限执行结果,只有allow和deny两种情况"""
     allow_, deny_ = [], []
@@ -137,12 +138,12 @@ def get_subject_effect_matrix(
 
 
 async def update_subject_data_permissions(
-        enforcer: AsyncEnforcer,
-        *,
-        subject: str,
-        permission: str,
-        policy_matrix: List[List[Dict[str, Any]]],
-        super_subject: str = "u:root",
+    enforcer: AsyncEnforcer,
+    *,
+    subject: str,
+    permission: str,
+    policy_matrix: List[List[Dict[str, Any]]],
+    super_subject: str = "u:root",
 ) -> str:
     """更新casbin数据字段权限或数据集权限"""
     # [[{'label': '默认', 'rol': 'page:list:uid', 'col': 'default', 'checked': True}]]
@@ -156,7 +157,7 @@ async def update_subject_data_permissions(
         #  检查当前用户是否有对应的权限,只有自己拥有的权限才能分配给其他主体
         eff = enforcer.enforce(super_subject, v1, v2, v3)
         if not eff:
-            return "No update permission"  # 没有更新权限
+            return _("No update permission")  # 没有更新权限
 
     def to_rules(items: List[dict], is_allow: bool = True) -> set:
         rules = set()

@@ -10,6 +10,7 @@ from fastapi_amis_admin.amis.constants import LevelEnum
 from fastapi_amis_admin.crud.schema import BaseApiOut
 from fastapi_amis_admin.models import Field
 from fastapi_amis_admin.utils.pydantic import ModelField
+from fastapi_amis_admin.utils.translation import i18n as _
 from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
@@ -39,7 +40,7 @@ def get_admin_select_permission_rows(admin: PageSchemaAdmin) -> List[Dict[str, A
     for perm in admin.select_permissions:
         rows.append(
             {
-                "label": "Data only-" + perm.label,  # 仅限数据
+                "label": _("Data only") + "-" + perm.label,  # 仅限数据
                 "rol": f"{admin.unique_id}#page:select:{perm.name}#page:select",
                 "reverse": perm.reverse,
             }
@@ -69,7 +70,7 @@ def get_admin_field_permission_rows(admin: PageSchemaAdmin, action: str) -> List
             return []
         rows.append(
             {
-                "label": "All",  # 全部
+                "label": _("All"),  # 全部
                 "rol": f"{admin.unique_id}#page:{action}:*#page:{action}",
             }
         )
@@ -93,7 +94,7 @@ class BaseSubAction(ModelAction):
         elif self.admin.model.__table__.name == User.__tablename__:
             self._subject = "u"
         else:
-            raise Exception("Main model not supported yet")  # 暂不支持的主体模型
+            raise Exception(_("Subject model not supported yet"))  # 暂不支持的主体模型
 
     async def get_subject_by_id(self, item_id: str) -> str:
         # 从数据库获取用户选择的数据列表
@@ -117,7 +118,7 @@ class UpdateSubRolesAction(BaseSubAction):
     action = ActionType.Dialog(
         name="update_subject_roles",
         icon="fa fa-check",
-        tooltip="Set up roles",  # 设置角色
+        tooltip=_("Set up roles"),  # 设置角色
         dialog=amis.Dialog(),
         level=LevelEnum.warning,
     )
@@ -125,15 +126,15 @@ class UpdateSubRolesAction(BaseSubAction):
     class schema(BaseModel):
         role_keys: str = Field(
             "",
-            title="role list",  # 角色列表
+            title=_("role list"),  # 角色列表
             amis_form_item=amis.Transfer(
                 selectMode="table",
                 resultListModeFollowSelect=True,
                 columns=[
                     # {"name": "key", "label": "角色标识"},
-                    {"name": "name", "label": "Role Name"},  # 角色名称
-                    {"name": "desc", "label": "Role description"},  # 角色描述
-                    {"name": "role_names", "label": "sub-role"},  # 子角色
+                    {"name": "name", "label": _("Role Name")},  # 角色名称
+                    {"name": "desc", "label": _("Role description")},  # 角色描述
+                    {"name": "role_names", "label": _("sub-role")},  # 子角色
                 ],
                 source="",
                 valueField="key",
@@ -158,7 +159,7 @@ class UpdateSubRolesAction(BaseSubAction):
             return BaseApiOut(data=self.schema())
         subject = await self.get_subject_by_id(item_id)
         if not subject:
-            return BaseApiOut(status=0, msg="Models not supported yet")  # 暂不支持的模型
+            return BaseApiOut(status=0, msg=_("Models not supported yet"))  # 暂不支持的模型
         role_keys = await self.site.auth.enforcer.get_roles_for_user(subject)
         return BaseApiOut(data=self.schema(role_keys=",".join(role_keys).replace("r:", "")))
 
@@ -166,10 +167,10 @@ class UpdateSubRolesAction(BaseSubAction):
         """更新角色Casbin权限"""
         subject = await self.get_subject_by_id(item_id[0])
         if not subject:
-            return BaseApiOut(status=0, msg="Models not supported yet")  # 暂不支持的模型
+            return BaseApiOut(status=0, msg=_("Models not supported yet"))  # 暂不支持的模型
         identity = await self.site.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
         if subject == "u:" + identity:
-            return BaseApiOut(status=0, msg="Cannot modify own permissions")  # 不能修改自己的权限
+            return BaseApiOut(status=0, msg=_("Cannot modify own permissions"))  # 不能修改自己的权限
         enforcer: AsyncEnforcer = self.site.auth.enforcer
         role_keys = [f"r:{role}" for role in data.role_keys.split(",") if role]
         if role_keys and identity not in [SystemUserEnum.ROOT, SystemUserEnum.ADMIN]:
@@ -190,7 +191,7 @@ class BaseSubPermAction(BaseSubAction):
     action = ActionType.Dialog(
         name="view_subject_permissions",
         icon="fa fa-check",
-        tooltip="View permissions",  # 查看权限
+        tooltip=_("View permissions"),  # 查看权限
         dialog=amis.Dialog(),
         level=LevelEnum.warning,
     )
@@ -199,7 +200,7 @@ class BaseSubPermAction(BaseSubAction):
     class schema(BaseModel):
         permissions: str = Field(
             "",
-            title="Permission list",  # 权限列表
+            title=_("Permission list"),  # 权限列表
             amis_form_item=amis.InputTree(
                 multiple=True,
                 source="",
@@ -236,7 +237,7 @@ class ViewSubPagePermAction(BaseSubPermAction):
     action = ActionType.Dialog(
         name="view_subject_page_permissions",
         icon="fa fa-check",
-        tooltip="View page permissions",  # 查看页面权限
+        tooltip=_("View page permissions"),  # 查看页面权限
         dialog=amis.Dialog(actions=[]),
         level=LevelEnum.warning,
     )
@@ -254,14 +255,13 @@ class ViewSubPagePermAction(BaseSubPermAction):
             return BaseApiOut(data=self.schema())
         subject = await self.get_subject_by_id(item_id)
         if not subject:
-            return BaseApiOut(status=0, msg="Models not supported yet")  # 暂不支持的模型
-        permissions = await get_subject_page_permissions(self.site.auth.enforcer, subject=subject,
-                                                         implicit=self._implicit)
+            return BaseApiOut(status=0, msg=_("Models not supported yet"))  # 暂不支持的模型
+        permissions = await get_subject_page_permissions(self.site.auth.enforcer, subject=subject, implicit=self._implicit)
         permissions = [perm.replace("#allow", "") for perm in permissions if perm.endswith("#allow")]
         return BaseApiOut(data=self.schema(permissions=",".join(permissions)))
 
     async def handle(self, request: Request, item_id: List[str], data: BaseModel, **kwargs):
-        return BaseApiOut(status=1, msg="Please update settings through [Setting Permissions]!")  # 请通过的【设置权限】更新设置!
+        return BaseApiOut(status=1, msg=_("Please update settings through [Setting Permissions]!"))  # 请通过的【设置权限】更新设置!
 
 
 class UpdateSubDataPermAction(BaseSubPermAction):
@@ -272,8 +272,8 @@ class UpdateSubDataPermAction(BaseSubPermAction):
     action = ActionType.Dialog(
         name="update_subject_data_permissions",
         icon="fa fa-gavel",
-        tooltip="Update data permissions",  # 更新数据权限
-        dialog=amis.Dialog(actions=[amis.Action(actionType="submit", label="Submit", close=False, primary=True)]),  # 保存
+        tooltip=_("Update data permissions"),  # 更新数据权限
+        dialog=amis.Dialog(actions=[amis.Action(actionType="submit", label=_("Save"), close=False, primary=True)]),  # 保存
         level=LevelEnum.warning,
     )
 
@@ -281,9 +281,9 @@ class UpdateSubDataPermAction(BaseSubPermAction):
     class schema(BaseSubPermAction.schema):
         effect_matrix: list = Field(
             [],
-            title="Current permissions",  # 当前权限
+            title=_("Current permissions"),  # 当前权限
             amis_form_item=amis.MatrixCheckboxes(
-                rowLabel="Permission name",  # 权限名称
+                rowLabel=_("Permission name"),  # 权限名称
                 multiple=False,
                 singleSelectMode="row",
                 source="",
@@ -292,9 +292,9 @@ class UpdateSubDataPermAction(BaseSubPermAction):
         )
         policy_matrix: list = Field(
             [],
-            title="Rights Profile",  # 权限配置
+            title=_("Rights Profile"),  # 权限配置
             amis_form_item=amis.MatrixCheckboxes(
-                rowLabel="Name",  # 名称
+                rowLabel=_("Name"),  # 名称
                 multiple=False,
                 singleSelectMode="row",
                 yCheckAll=True,
@@ -327,22 +327,22 @@ class UpdateSubDataPermAction(BaseSubPermAction):
 
         @self.router.get("/get_admin_action_perm_options", response_model=BaseApiOut)
         async def get_admin_action_perm_options(
-                request: Request,
-                permission: str = "",
-                item_id: str = "",
-                type: str = "policy",
+            request: Request,
+            permission: str = "",
+            item_id: str = "",
+            type: str = "policy",
         ):
             columns = [
                 {
-                    "label": "default",  # 默认
+                    "label": _("default"),  # 默认
                     "col": "default",
                 },
                 {
-                    "label": "allow",  # 是
+                    "label": _("allow"),  # 是
                     "col": "allow",
                 },
                 {
-                    "label": "deny",  # 否
+                    "label": _("deny"),  # 否
                     "col": "deny",
                 },
             ]
@@ -356,7 +356,7 @@ class UpdateSubDataPermAction(BaseSubPermAction):
             )
             if not permission:
                 return out
-            unique_id, action, *_ = permission_decode(permission)
+            unique_id, action, *a = permission_decode(permission)
             admin, parent = self.site.get_page_schema_child(unique_id)
             if not admin:
                 return out
@@ -393,7 +393,7 @@ class UpdateSubDataPermAction(BaseSubPermAction):
         subject = await self.get_subject_by_id(item_id[0])
         identity = await self.site.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
         if subject == "u:" + identity:
-            return BaseApiOut(status=0, msg="Cannot modify own permissions")  # 不能修改自己的权限
+            return BaseApiOut(status=0, msg=_("Cannot modify own permissions"))  # 不能修改自己的权限
         msg = await update_subject_data_permissions(
             self.site.auth.enforcer,
             subject=subject,
@@ -411,7 +411,7 @@ class UpdateSubPagePermsAction(ViewSubPagePermAction):
     action = ActionType.Dialog(
         name="update_subject_page_permissions",
         icon="fa fa-gavel",
-        tooltip="Update page permissions",  # 更新页面权限
+        tooltip=_("Update page permissions"),  # 更新页面权限
         dialog=amis.Dialog(),
         level=LevelEnum.warning,
     )
@@ -420,10 +420,10 @@ class UpdateSubPagePermsAction(ViewSubPagePermAction):
         """更新角色Casbin权限"""
         subject = await self.get_subject_by_id(item_id[0])
         if not subject:
-            return BaseApiOut(status=0, msg="Models not supported yet")  # 暂不支持的模型
+            return BaseApiOut(status=0, msg=_("Models not supported yet"))  # 暂不支持的模型
         identity = await self.site.auth.get_current_user_identity(request) or SystemUserEnum.GUEST
         if subject == "u:" + identity:
-            return BaseApiOut(status=0, msg="Cannot modify own permissions")  # 不能修改自己的权限
+            return BaseApiOut(status=0, msg=_("Cannot modify own permissions"))  # 不能修改自己的权限
         # 权限列表
         permissions = [perm for perm in data.permissions.split(",") if perm and perm.endswith("#page")]  # 分割权限列表,去除空值
         enforcer: AsyncEnforcer = self.site.auth.enforcer
@@ -440,11 +440,11 @@ class CopyUserAuthLinkAction(ModelAction):
     action = amis.ActionType.Dialog(
         name="copy_user_auth_link",
         icon="fa fa-link",
-        tooltip="User login-free link",  # 用户免登录链接
+        tooltip=_("User login-free link"),  # 用户免登录链接
         level=amis.LevelEnum.danger,
         dialog=amis.Dialog(
             size=amis.SizeEnum.md,
-            title="User login-free link",  # 用户免登录链接
+            title=_("User login-free link"),  # 用户免登录链接
         ),
     )
     form_init = True
@@ -452,8 +452,8 @@ class CopyUserAuthLinkAction(ModelAction):
 
     class schema(UsernameMixin, PkMixin):
         auth_url: str = Field(
-            title="Authorization link",  # 授权链接
-            description="Copy the link to your browser and open it without logging in",  # 复制链接到浏览器打开即可免登录
+            title=_("Authorization link"),  # 授权链接
+            description=_("Copy the link to your browser and open it without logging in"),  # 复制链接到浏览器打开即可免登录
             amis_form_item=amis.Static(
                 copyable=True,
             ),
@@ -471,9 +471,8 @@ class CopyUserAuthLinkAction(ModelAction):
         }
         token = await auth.backend.token_store.write_token(token_data)
         return BaseApiOut(
-            msg="Successful operation", # 操作成功
-            data={**token_data,
-                  "auth_url": f"{str(request.base_url)[:-1]}{self.site.router_path}/login_by_token?token={token}"},
+            msg=_("Successful operation"),  # 操作成功
+            data={**token_data, "auth_url": f"{str(request.base_url)[:-1]}{self.site.router_path}/login_by_token?token={token}"},
         )
 
     def register_router(self):
