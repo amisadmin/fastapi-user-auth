@@ -303,15 +303,15 @@ class Auth(Generic[UserModelT]):
             login_name=username,
             ip=request.client.host,
             user_agent=request.headers.get("user-agent"),
-            login_status="登录成功",
+            login_status=_("Login successful"),  # 登录成功
             forwarded_for=forwarded_for,
         )
         self.db.add(history)
         if not user:
-            history.login_status = "密码错误"
+            history.login_status = _("Wrong password")  # 密码错误
             return BaseApiOut(status=-1, msg=_("Incorrect username or password!"))
         if not user.is_active:
-            history.login_status = "用户未激活"
+            history.login_status = _("User is not activated")  # 用户未激活
             return BaseApiOut(status=-2, msg=_("Inactive user status!"))
         request.scope["user"] = user
         token_info = UserLoginOut.parse_obj(request.user)

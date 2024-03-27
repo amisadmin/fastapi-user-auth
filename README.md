@@ -1,11 +1,11 @@
-# 项目介绍
-
+[简体中文](https://github.com/Mkadir/fastapi-user-auth/blob/master/README.zh.md)
+| [English](https://github.com/Mkadir/fastapi-user-auth)
+# Project Introduction
 <h2 align="center">
   FastAPI-User-Auth
-</h2>
-<p align="center">
-    <em>FastAPI-User-Auth是一个基于Casbin简单而强大的FastAPI用户认证与授权库.</em><br/>
-    <em>基于FastAPI-Amis-Admin并提供可自由拓展的可视化管理界面.</em>
+</h2><p align="center">
+    <em>FastAPI-User-Auth is a simple and powerful FastAPI user authentication and authorization library based on Casbin.</em><br/>
+    <em>Based on FastAPI-Amis-Admin and provides a freely extensible visual management interface.</em>
 </p>
 <p align="center">
     <a href="https://github.com/amisadmin/fastapi_amis_admin/actions/workflows/pytest.yml" target="_blank">
@@ -25,36 +25,32 @@
     </a>
 </p>
 <p align="center">
-  <a href="https://github.com/amisadmin/fastapi_user_auth" target="_blank">源码</a>
+  <a href="https://github.com/amisadmin/fastapi_user_auth" target="_blank">Source code</a>
   ·
-  <a href="http://user-auth.demo.amis.work/" target="_blank">在线演示</a>
+  <a href="http://user-auth.demo.amis.work/" target="_blank">Online demo</a>
   ·
-  <a href="http://docs.amis.work" target="_blank">文档</a>
+  <a href="http://docs.amis.work" target="_blank">Documentation</a>
   ·
-  <a href="http://docs.gh.amis.work" target="_blank">文档打不开？</a>
+  <a href="http://docs.gh.amis.work" target="_blank"> can't open the document ？</a>
 </p>
 
 ------
+`FastAPI-User-Auth` is a API based on [FastAPI-Amis-Admin](https://github.com/amisadmin/fastapi_amis_admin)
+The application plug-in is deeply integrated with `FastAPI-Amis-Admin` to provide user authentication and authorization.
+Casbin-based RBAC permission management supports multiple verification methods, multiple databases, and multiple granularity permission controls.
 
-`FastAPI-User-Auth`是一个基于 [FastAPI-Amis-Admin](https://github.com/amisadmin/fastapi_amis_admin)
-的应用插件,与`FastAPI-Amis-Admin`深度结合,为其提供用户认证与授权.
-基于Casbin的RBAC权限管理,支持多种验证方式,支持多种数据库,支持多种颗粒度的权限控制.
+### Permission types
+- **Page Permissions**: Control whether the user can access a certain menu page. If it is not accessible, the menu will not be displayed, and all routes under the page will be inaccessible.
+- **Action Permission**: Controls whether the user can perform an action and whether the button is displayed. For example: add, update, delete, etc.
+- **Field permissions**: Control whether users can operate a certain field. For example: list display fields, filter fields, add fields, update fields, etc.
+- **Data permissions**: Control the range of data that users can operate. For example: they can only operate the data they created, only the data of the last 7 days, etc.
 
-### 权限类型
 
-- **页面权限**: 控制用户是否可以访问某个菜单页面.如不可访问,则菜单不会显示,并且页面下的所有路由都不可访问.
-- **动作权限**: 控制用户是否可以执行某个动作,按钮是否显示.如: 新增,更新,删除等.
-- **字段权限**: 控制用户是否可以操作某个字段.如:列表展示字段,筛选字段,新增字段,更新字段等.
-- **数据权限**: 控制用户可以操作的数据范围.如:只能操作自己创建的数据,只能操作最近7天的数据等.
-
-## 安装
-
+## Installation
 ```bash
 pip install fastapi-user-auth
 ```
-
-## 简单示例
-
+## Simple example
 ```python
 from fastapi import FastAPI
 from fastapi_amis_admin.admin.settings import Settings
@@ -62,32 +58,31 @@ from fastapi_user_auth.site import AuthAdminSite
 from starlette.requests import Request
 from sqlmodel import SQLModel
 
-# 创建FastAPI应用
+# Create FastAPI application
 app = FastAPI()
 
-# 创建AdminSite实例
+# Create AdminSite instance
 site = AuthAdminSite(settings=Settings(database_url='sqlite:///amisadmin.db?check_same_thread=False'))
 auth = site.auth
-# 挂载后台管理系统
+# Mount the backend management system
 site.mount_app(app)
 
 
-# 创建初始化数据库表
+# Create initial database table
 @app.on_event("startup")
 async def startup():
     await site.db.async_run_sync(SQLModel.metadata.create_all, is_session=False)
-        # 创建默认管理员,用户名: admin,密码: admin, 请及时修改密码!!!
+    # Create a default administrator, username: admin, password: admin, please change the password in time!!!
     await auth.create_role_user("admin")
-    # 创建默认超级管理员,用户名: root,密码: root, 请及时修改密码!!!
-    await auth.create_role_user("root")
-    # 运行site的startup方法,加载casbin策略等
+    #Create the default super administrator, username: root, password: root, please change the password in time!!!    await auth.create_role_user("root")
+    # Run the startup method of the site, load the casbin strategy, etc.
     await site.router.startup()
-    # 添加一条默认的casbin规则
+    #Add a default casbin rule
     if not auth.enforcer.enforce("u:admin", site.unique_id, "page", "page"):
         await auth.enforcer.add_policy("u:admin", site.unique_id, "page", "page", "allow")
 
 
-# 要求: 用户必须登录
+# Requirements: User must be logged in
 @app.get("/auth/get_user")
 @auth.requires()
 def get_user(request: Request):
@@ -101,66 +96,60 @@ if __name__ == '__main__':
 
 ```
 
-## 验证方式
-
-### 装饰器
-
-- 推荐场景: 单个路由.支持同步/异步路由.
-
+## Authentication methods
+### Decorator
+- Recommended scenario: Single route. Supports synchronous/asynchronous routing.
 ```python
-# 要求: 用户必须登录
+# Requirements: User must be logged in
 @app.get("/auth/user")
 @auth.requires()
 def user(request: Request):
-    return request.user  # 当前请求用户对象.
+    return request.user  # Current request user object.
 
 
-# 验证路由: 用户拥有admin角色
+# Verify routing: user has admin role
 @app.get("/auth/admin_roles")
 @auth.requires('admin')
 def admin_roles(request: Request):
     return request.user
 
 
-# 要求: 用户拥有vip角色
-# 支持同步/异步路由
+# Requirement: User has VIP role
+#Support synchronous/asynchronous routing
 @app.get("/auth/vip_roles")
 @auth.requires(['vip'])
 async def vip_roles(request: Request):
     return request.user
 
 
-# 要求: 用户拥有admin角色 或 vip角色
+# Requirement: User has admin role or vip role
 @app.get("/auth/admin_or_vip_roles")
 @auth.requires(roles=['admin', 'vip'])
 def admin_or_vip_roles(request: Request):
     return request.user
-
 ```
-
-### 依赖项(推荐)
-
-- 推荐场景: 单个路由,路由集合,FastAPI应用.
+### Dependencies (recommended)
+- Recommended scenarios: single route, route set, FastAPI application.
 
 ```python
 from fastapi import Depends
 from fastapi_user_auth.auth.models import User
 
 
-# 路由参数依赖项, 推荐使用此方式
+# Route parameter dependencies, this method is recommended
 @app.get("/auth/admin_roles_depend_1")
 def admin_roles(user: User = Depends(auth.get_current_user)):
-    return user  # or request.user
+    return user  # Current request user object.
 
 
-# 路径操作装饰器依赖项
+# Path manipulation decorator dependencies
 @app.get("/auth/admin_roles_depend_2", dependencies=[Depends(auth.requires('admin')())])
 def admin_roles(request: Request):
     return request.user
 
 
-# 全局依赖项
-# 在app应用下全部请求都要求拥有admin角色
+# Global dependencies
+# All requests under the app require the admin role
 app = FastAPI(dependencies=[Depends(auth.requires('admin')())])
 
 
@@ -169,22 +158,17 @@ def admin_roles(request: Request):
     return request.user
 
 ```
-
-### 中间件
-
-- 推荐场景: FastAPI应用
-
+### Middleware
+- Recommended scenario: FastAPI application
 ```python
 app = FastAPI()
-# 在app应用下每条请求处理之前都附加`request.auth`和`request.user`对象
+# Attach `request.auth` and `request.user` objects before each request is processed under the app application
 auth.backend.attach_middleware(app)
-
 ```
 
-### 直接调用
+### Call directly
 
-- 推荐场景: 非路由方法
-
+- Recommended scenario: non-routing method
 ```python
 from fastapi_user_auth.auth.models import User
 
@@ -195,16 +179,13 @@ async def get_request_user(request: Request) -> Optional[User]:
         return request.user
     else:
         return None
-
 ```
 
-## Token存储后端
-
-`fastapi-user-auth` 支持多种token存储方式.默认为: `DbTokenStore`, 建议自定义修改为: `JwtTokenStore`
+## Token Storage Backend
+`fastapi-user-auth` supports multiple token storage methods. The default is: `DbTokenStore`, it is recommended to customize it to: `JwtTokenStore`
 
 ### JwtTokenStore
-
-- pip install fastapi-user-auth[jwt]
+- ` pip install fastapi-user-auth[jwt] `
 
 ```python
 from fastapi_user_auth.auth.backends.jwt import JwtTokenStore
@@ -212,16 +193,16 @@ from sqlalchemy_database import Database
 from fastapi_user_auth.auth import Auth
 from fastapi_amis_admin.admin.site import AuthAdminSite
 
-# 创建同步数据库引擎
+#Create a sync database engine
 db = Database.create(url="sqlite:///amisadmin.db?check_same_thread=False")
 
-# 使用`JwtTokenStore`创建auth对象
+# Use `JwtTokenStore` to create an auth object
 auth = Auth(
     db=db,
     token_store=JwtTokenStore(secret_key='09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7')
 )
 
-# 将auth对象传入AdminSite
+# Pass auth object to AdminSite
 site = AuthAdminSite(
     settings=Settings(),
     db=db,
@@ -231,9 +212,8 @@ site = AuthAdminSite(
 ```
 
 ### DbTokenStore
-
 ```python
-# 使用`DbTokenStore`创建auth对象
+# Create an auth object using `DbTokenStore`
 from fastapi_user_auth.auth.backends.db import DbTokenStore
 
 auth = Auth(
@@ -241,13 +221,12 @@ auth = Auth(
     token_store=DbTokenStore(db=db)
 )
 ```
-
 ### RedisTokenStore
 
-- pip install fastapi-user-auth[redis]
+- `pip install fastapi-user-auth[redis] `
 
 ```python
-# 使用`RedisTokenStore`创建auth对象
+# Use `RedisTokenStore` to create an auth object
 from fastapi_user_auth.auth.backends.redis import RedisTokenStore
 from redis.asyncio import Redis
 
@@ -256,15 +235,12 @@ auth = Auth(
     token_store=RedisTokenStore(redis=Redis.from_url('redis://localhost?db=0'))
 )
 ```
-
-## RBAC模型
-
-本系统采用的`Casbin RBAC`模型,并运行基于角色的优先级策略.
-
-- 权限可分配给角色,或者直接分配给用户.
-- 用户可拥有多个角色.
-- 角色可拥有多个子角色.
-- 用户拥有的权限策略优先级高于所拥有角色的权限策略.
+## RBAC model
+This system adopts the `Casbin RBAC` model and runs a role-based priority strategy.
+- Permissions can be assigned to roles or directly to users.
+- Users can have multiple roles.
+- A role can have multiple sub-roles.
+- The permission policy owned by the user has a higher priority than the permission policy of the role it owns.
 
 ```mermaid
 flowchart LR
@@ -274,9 +250,8 @@ flowchart LR
     Role -. m:n .-> CasbinRule 
 ```
 
-## 高级拓展
-
-### 拓展`User`模型
+## Advanced expansion
+### Extend the `User` model
 
 ```python
 from datetime import date
@@ -284,67 +259,67 @@ from datetime import date
 from fastapi_amis_admin.models.fields import Field
 from fastapi_user_auth.auth.models import BaseUser
 
-# 自定义`User`模型,继承`BaseUser`
+# Customize the `User` model, inherit `BaseUser`
 class MyUser(BaseUser, table = True):
-    point: float = Field(default = 0, title = '积分', description = '用户积分')
-    phone: str = Field(None, title = '手机号', max_length = 15)
-    parent_id: int = Field(None, title = "上级", foreign_key = "auth_user.id")
-    birthday: date = Field(None, title = "出生日期")
-    location: str = Field(None, title = "位置")
+    point: float = Field(default = 0, title = 'Point', description = 'User points')
+    phone: str = Field(None, title = 'Phone', max_length = 15)
+    parent_id: int = Field(None, title = "Superior", foreign_key = "auth_user.id")
+    birthday: date = Field(None, title = "date of birth")
+    location: str = Field(None, title = "Location")
 
-# 使用自定义的`User`模型,创建auth对象
+# Use custom `User` model to create auth object
 auth = Auth(db = AsyncDatabase(engine), user_model = MyUser)
 ```
 
-### 拓展`Role`模型
+### Extend the `Role` model
 
 ```python
 from fastapi_amis_admin.models.fields import Field
 from fastapi_user_auth.auth.models import Role
 
 
-# 自定义`Role`模型,继承`Role`;
+# Customize `Role` model, inherit `Role`;
 class MyRole(Role, table=True):
     icon: str = Field(None, title='图标')
     is_active: bool = Field(default=True, title="是否激活")
 
 ```
 
-### 自定义`UserAuthApp`默认管理类
+### Customize `User Auth App` default management class
 
-默认管理类均可通过继承重写替换.
-例如: `UserLoginFormAdmin`,`UserRegFormAdmin`,`UserInfoFormAdmin`,
+The default management classes can be overridden and replaced through inheritance.
+For example: `UserLoginFormAdmin`, `UserRegFormAdmin`, `UserInfoFormAdmin`,
 `UserAdmin`,`RoleAdmin`
 
 ```python
-# 自定义模型管理类,继承重写对应的默认管理类
+# Customize the model management class, inherit and override the corresponding default management class
 class MyRoleAdmin(admin.ModelAdmin):
-    page_schema = PageSchema(label='用户组管理', icon='fa fa-group')
+    page_schema = PageSchema(label='User group management', icon='fa fa-group')
     model = MyRole
     readonly_fields = ['key']
 
 
-# 自定义用户认证应用,继承重写默认的用户认证应用
+# Customize user authentication application, inherit and override the default user authentication application
 class MyUserAuthApp(UserAuthApp):
     RoleAdmin = MyRoleAdmin
 
 
-# 自定义用户管理站点,继承重写默认的用户管理站点
+# Customize the user management site, inherit and override the default user management site
 class MyAuthAdminSite(AuthAdminSite):
     UserAuthApp = MyUserAuthApp
 
 
-# 使用自定义的`AuthAdminSite`类,创建site对象
+# Use the custom `AuthAdminSite` class to create a site object
 site = MyAuthAdminSite(settings, auth=auth)
 ```
 
-## ModelAdmin权限控制
+## ModelAdmin permission control
 
-### 字段权限
+### Field permissions
 
-- 继承`AuthFieldModelAdmin`类,即可实现字段权限控制.通过在后台分配用户和角色权限.
+- Inherit the `AutoField ModelAdmin` class to achieve field permission control. By assigning user and role permissions in the background.
 
-- `perm_fields_exclude`: 指定不需要权限控制的字段.
+- `perm_fields_exclude`: Specify fields that do not require permission control.
 
 ```python
 from fastapi_user_auth.mixins.admin import AuthFieldModelAdmin
@@ -354,16 +329,16 @@ from fastapi_amis_admin.admin import FieldPermEnum
 class AuthFieldArticleAdmin(AuthFieldModelAdmin):
     page_schema = PageSchema(label="文章管理")
     model = Article
-    # 指定不需要权限控制的字段. 
+    # Specify fields that do not need permission control. 
     perm_fields_exclude = {
         FieldPermEnum.CREATE: ["title", "description", "content"],
     }
 ```
 
-### 数据权限
+### Data permissions
 
-- 继承`AuthSelectModelAdmin`类,即可实现数据权限控制.通过在后台分配用户和角色权限.
-- `select_permisions`: 指定查询数据权限.
+- Inherit the `AuthSelectModelAdmin` class to achieve data permission control. By assigning user and role permissions in the background.
+- `select_permisions`: Specify permissions to query data.
 
 ```python
 from fastapi_user_auth.mixins.admin import AuthSelectModelAdmin
@@ -372,27 +347,28 @@ from fastapi_amis_admin.admin import RecentTimeSelectPerm, UserSelectPerm, Simpl
 
 
 class AuthSelectArticleAdmin(AuthSelectModelAdmin):
-    page_schema = PageSchema(label="数据集控制文章管理")
+    page_schema = PageSchema(label="Dataset control article management")
     model = Article
     select_permissions = [
-        # 最近7天创建的数据. reverse=True表示反向选择,即默认选择最近7天之内的数据
-        RecentTimeSelectPerm(name="recent7_create", label="最近7天创建", td=60 * 60 * 24 * 7, reverse=True),
-        # 最近30天创建的数据
-        RecentTimeSelectPerm(name="recent30_create", label="最近30天创建", td=60 * 60 * 24 * 30),
-        # 最近3天更新的数据
-        RecentTimeSelectPerm(name="recent3_update", label="最近3天更新", td=60 * 60 * 24 * 3, time_column="update_time"),
-        # 只能选择自己创建的数据, reverse=True表示反向选择,即默认选择自己创建的数据
-        UserSelectPerm(name="self_create", label="自己创建", user_column="user_id", reverse=True),
-        # # 只能选择自己更新的数据
-        # UserSelectPerm(name="self_update", label="自己更新", user_column="update_by"),
-        # 只能选择已发布的数据
-        SimpleSelectPerm(name="published", label="已发布", column="is_published", values=[True]),
-        # 只能选择状态为[1,2,3]的数据
-        SimpleSelectPerm(name="status_1_2_3", label="状态为1_2_3", column="status", values=[1, 2, 3]),
+        # Data created in the last 7 days. reverse=True indicates reverse selection, that is, the data within the last 7 days is selected by default.
+        RecentTimeSelectPerm(name="recent7_create", label="Created in the last 7 days", td=60 * 60 * 24 * 7, reverse=True),
+        # Data created in the last 30 days
+        RecentTimeSelectPerm(name="recent30_create", label="Created in the last 30 days", td=60 * 60 * 24 * 30),
+        #Data updated in the last 3 days
+        RecentTimeSelectPerm(name="recent3_update", label="Updated in the last 3 days", td=60 * 60 * 24 * 3, time_column="update_time"),
+        # You can only select the data you created. reverse=True means reverse selection, that is, the data you created is selected by default.
+        
+        UserSelectPerm(name="self_create", label="Create yourself", user_column="user_id", reverse=True),
+        # # You can only select the data you updated
+        # UserSelectPerm(name="self_update", label="Update yourself", user_column="update_by"),
+        # Only published data can be selected
+        SimpleSelectPerm(name="published", label="Published", column="is_published", values=[True]),
+        # Only data with status [1,2,3] can be selected
+        SimpleSelectPerm(name="status_1_2_3", label="Status is 1_2_3", column="status", values=[1, 2, 3]),
     ]
 ```
 
-## 界面预览
+## Interface preview
 
 - Open `http://127.0.0.1:8000/admin/auth/form/login` in your browser:
 
@@ -406,15 +382,13 @@ class AuthSelectArticleAdmin(AuthSelectModelAdmin):
 
 ![Docs](https://s2.loli.net/2022/03/20/1GcCiPdmXayxrbH.png)
 
-## 许可协议
+## License Agreement
 
-- `fastapi-amis-admin`基于`Apache2.0`开源免费使用，可以免费用于商业用途，但请在展示界面中明确显示关于FastAPI-Amis-Admin的版权信息.
+- `fastapi-amis-admin` is open source and free to use based on `Apache2.0` and can be used for commercial purposes for free, but please clearly display the copyright information about FastAPI-Amis-Admin in the display interface.
+## Thanks
 
-## 鸣谢
-
-感谢以下开发者对 FastAPI-User-Auth 作出的贡献：
+Thanks to the following developers for their contributions to FastAPI-User-Auth:
 
 <a href="https://github.com/amisadmin/fastapi_user_auth/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=amisadmin/fastapi_user_auth"  alt=""/>
 </a>
-
