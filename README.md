@@ -74,7 +74,8 @@ async def startup():
     await site.db.async_run_sync(SQLModel.metadata.create_all, is_session=False)
     # Create a default administrator, username: admin, password: admin, please change the password in time!!!
     await auth.create_role_user("admin")
-    #Create the default super administrator, username: root, password: root, please change the password in time!!!    await auth.create_role_user("root")
+    #Create the default super administrator, username: root, password: root, please change the password in time!!!
+    await auth.create_role_user("root")
     # Run the startup method of the site, load the casbin strategy, etc.
     await site.router.startup()
     #Add a default casbin rule
