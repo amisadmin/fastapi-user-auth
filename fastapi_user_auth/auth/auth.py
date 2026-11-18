@@ -152,7 +152,10 @@ class Auth(Generic[UserModelT]):
         if "user" in request.scope:  # 防止重复授权
             return request.scope["user"]
         token_info = await self._get_token_info(request)
-        request.scope["user"]: UserModelT = await self.db.async_get(self.user_model, token_info.id) if token_info else None
+        user = await self.db.async_get(self.user_model, token_info.id) if token_info else None
+        if user is not None and not user.is_authenticated:  # revoked or soft-deleted account
+            user = None
+        request.scope["user"]: UserModelT = user
         return request.scope["user"]
 
     def requires(
